@@ -540,20 +540,22 @@ These features are explicitly deferred to post-MVP phases:
 
 ## 7. Open Questions & Decisions Needed
 
+> Resolve every item below before the final MVP rehearsal. Each answer drives specific UI, data-model, and training work.
+
 ### Product Decisions
 - [ ] Should talent be able to skip products, or must they go sequentially?
-- [ ] How to handle out-of-stock products during live session?
-- [ ] Should price changes during session be allowed?
+- [ ] How to handle out-of-stock products during live session (auto-hide, warning badge, reorder)?
+- [ ] Should price changes during session be allowed, and who approves them?
 
 ### Technical Decisions
-- [ ] Authentication approach: Shared password or per-user accounts?
+- [ ] Authentication approach: Hashed shared secrets (see Implementation Guide §1.5) vs. full per-user accounts?
 - [ ] How to handle multi-brand if needed sooner than expected?
-- [ ] Should producer changes during stream be logged for review?
+- [ ] Should producer changes during stream be logged for review/audit history?
 
 ### Operational Decisions
 - [ ] Who manages product catalog day-to-day?
 - [ ] How far in advance are sessions prepared?
-- [ ] What's the rollback plan if system fails during stream?
+- [ ] Define the rollback plan if Hudson fails mid-stream (who flips back to Google Sheets, what state must be documented, how to notify TikTok audience).
 
 ---
 

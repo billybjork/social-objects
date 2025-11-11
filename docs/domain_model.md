@@ -216,7 +216,8 @@ Images associated with products. Products can have multiple images with ordering
 | `id` | bigserial | PRIMARY KEY | Auto-incrementing ID |
 | `product_id` | bigint | NOT NULL, REFERENCES products(id) ON DELETE CASCADE | Parent product |
 | `position` | integer | NOT NULL, DEFAULT 0 | Sort order (0 = primary) |
-| `url` | varchar(1000) | NOT NULL | Supabase public or signed URL |
+| `path` | varchar(1000) | NOT NULL | Supabase object path (e.g., `products/123/full/a.jpg`) |
+| `thumbnail_path` | varchar(1000) | NULLABLE | Low-res placeholder object path |
 | `alt_text` | varchar(500) | NULLABLE | Accessibility text |
 | `is_primary` | boolean | NOT NULL, DEFAULT false | Primary image flag |
 | `inserted_at` | timestamp | NOT NULL | Record creation |
@@ -236,7 +237,8 @@ defmodule Hudson.Catalog.ProductImage do
 
   schema "product_images" do
     field :position, :integer, default: 0
-    field :url, :string
+    field :path, :string
+    field :thumbnail_path, :string
     field :alt_text, :string
     field :is_primary, :boolean, default: false
 
@@ -247,8 +249,8 @@ defmodule Hudson.Catalog.ProductImage do
 
   def changeset(image, attrs) do
     image
-    |> cast(attrs, [:product_id, :position, :url, :alt_text, :is_primary])
-    |> validate_required([:product_id, :url])
+    |> cast(attrs, [:product_id, :position, :path, :thumbnail_path, :alt_text, :is_primary])
+    |> validate_required([:product_id, :path])
     |> foreign_key_constraint(:product_id)
   end
 end
@@ -258,6 +260,7 @@ end
 - `position = 0` by convention means primary image
 - `CASCADE DELETE` ensures images are removed with product
 - Only one image can be marked `is_primary` per product (enforced by constraint)
+- Paths (not full URLs) are persisted so Phoenix can prepend the Supabase public storage base URL and serve via CDN without storing hostnames in the DB.
 
 ---
 
@@ -777,7 +780,8 @@ alias Hudson.Repo
 
 # Add images
 Catalog.create_product_image(necklace.id, %{
-  url: "https://example.supabase.co/storage/v1/object/public/products/necklace-1.jpg",
+  path: "products/#{necklace.id}/full/necklace-1.jpg",
+  thumbnail_path: "products/#{necklace.id}/thumb/necklace-1.jpg",
   position: 0,
   is_primary: true,
   alt_text: "Gold lariat necklace front view"

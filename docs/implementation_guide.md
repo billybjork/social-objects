@@ -17,7 +17,7 @@ cd hudson
 
 ### 1.2 Configure Database
 
-Edit `config/dev.exs` and `config/runtime.exs` to use Supabase:
+Edit `config/dev.exs` and `config/runtime.exs` to use Supabase with strict TLS verification:
 
 ```elixir
 # config/runtime.exs
@@ -33,10 +33,13 @@ if config_env() == :prod do
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
     ssl: true,
     ssl_opts: [
-      verify: :verify_none  # Supabase uses self-signed certs
+      cacertfile: System.fetch_env!("SUPABASE_CA_CERT"),
+      server_name_indication: 'db.supabase.net'
     ]
 end
 ```
+
+> Tip: Supabase ships a PEM bundle in their dashboard. Check it into `priv/certs/` (safe for public use) or depend on [`:castore`](https://hexdocs.pm/castore/readme.html) and point `cacertfile` there. Never ship `verify: :verify_none`.
 
 Create `.env` file:
 
@@ -46,6 +49,13 @@ DATABASE_URL=postgresql://postgres:[password]@[project-ref].supabase.co:5432/pos
 SUPABASE_URL=https://[project-ref].supabase.co
 SUPABASE_ANON_KEY=eyJ...
 SUPABASE_SERVICE_ROLE_KEY=eyJ... # NEVER expose to frontend!
+SUPABASE_CA_CERT=/absolute/path/to/supabase-ca.pem
+SUPABASE_STORAGE_PUBLIC_URL=https://[project-ref].supabase.co/storage/v1/object/public
+```
+
+```elixir
+# config/runtime.exs
+config :hudson, :storage_public_url, System.fetch_env!("SUPABASE_STORAGE_PUBLIC_URL")
 ```
 
 Load environment variables:
@@ -86,6 +96,27 @@ mix deps.get
 mix ecto.create
 ```
 
+### 1.5 Configure Authentication Gate (MVP)
+
+MVP still gates access with shared secrets, but they must be treated like real credentials:
+
+1. **Create role-specific secrets** (`PRODUCER_SHARED_SECRET`, `TALENT_SHARED_SECRET`, `ADMIN_SHARED_SECRET`) and store them in `.env`.
+2. **Hash secrets on boot** with `Bcrypt.hash_pwd_salt/1` and keep only the hash in memory.
+3. **Verify logins** with `Bcrypt.verify_pass/2`; on success, issue a signed session token that encodes the role and expires after 4 hours.
+4. **Throttle** the `/login` POST route (e.g., [`Hammer`](https://hexdocs.pm/hammer/readme.html) or `Phoenix.LiveView.RateLimiter`) to 5 attempts / minute / IP and lock the user out for 5 minutes on repeated failures.
+5. **Log audit events** (login, logout, elevated actions) to `Logger` + structured metadata so you can trace producer actions later.
+
+```elixir
+# config/runtime.exs
+config :hudson, Hudson.Auth,
+  producer_secret_hash: Bcrypt.hash_pwd_salt(System.fetch_env!("PRODUCER_SHARED_SECRET")),
+  talent_secret_hash: Bcrypt.hash_pwd_salt(System.fetch_env!("TALENT_SHARED_SECRET")),
+  admin_secret_hash: Bcrypt.hash_pwd_salt(System.fetch_env!("ADMIN_SHARED_SECRET")),
+  session_ttl: 4 * 60 * 60
+```
+
+Designate plugs (`HudsonWeb.RequireProducer`, etc.) now so migrating to `mix phx.gen.auth` later is drop-in.
+
 ---
 
 ## 2. Implement Domain Model
@@ -115,7 +146,8 @@ mix phx.gen.context Catalog Product products \
 mix phx.gen.context Catalog ProductImage product_images \
   product_id:references:products \
   position:integer \
-  url:string \
+  path:string \
+  thumbnail_path:string \
   alt_text:string \
   is_primary:boolean
 
@@ -155,6 +187,8 @@ add :session_id, references(:sessions, on_delete: :delete_all), null: false
 ```bash
 mix ecto.migrate
 ```
+
+> Why the extra ceremony? Holding a `FOR UPDATE` lock and broadcasting from inside the transaction prevents concurrent producer actions from overwriting each other, and the zero-image guard lets the UI show a friendly warning instead of crashing LiveView with `rem/2` on 0.
 
 ---
 
@@ -679,6 +713,8 @@ Create helper to generate low-quality placeholders:
 ```elixir
 # lib/hudson/media.ex
 defmodule Hudson.Media do
+  @storage_public_url Application.fetch_env!(:hudson, :storage_public_url)
+
   def generate_thumbnail(source_path, output_path, width \\ 20) do
     # Using ImageMagick or similar
     System.cmd("convert", [
@@ -691,32 +727,37 @@ defmodule Hudson.Media do
   end
 
   def upload_with_thumbnail(file_path, product_id) do
-    # Upload full-size image
-    full_url = upload_to_supabase(file_path, "products/#{product_id}/full/")
+    # Upload full-size image and capture the object path (NOT a signed URL)
+    full_path = upload_to_supabase(file_path, "products/#{product_id}/full/")
 
     # Generate and upload thumbnail
-    thumb_path = generate_thumbnail_path(file_path)
-    generate_thumbnail(file_path, thumb_path)
-    thumb_url = upload_to_supabase(thumb_path, "products/#{product_id}/thumb/")
+    thumb_tmp_path = generate_thumbnail_path(file_path)
+    generate_thumbnail(file_path, thumb_tmp_path)
+    thumb_storage_path = upload_to_supabase(thumb_tmp_path, "products/#{product_id}/thumb/")
 
-    {:ok, %{full_url: full_url, thumb_url: thumb_url}}
+    {:ok, %{full_path: full_path, thumb_path: thumb_storage_path}}
+  end
+
+  def public_image_url(path) do
+    URI.merge(@storage_public_url <> "/", path)
+    |> URI.to_string()
   end
 end
 ```
 
-### 4.2 Add thumbnail_url to ProductImage
+### 4.2 Add thumbnail_path to ProductImage
 
 ```bash
-mix ecto.gen.migration add_thumbnail_url_to_product_images
+mix ecto.gen.migration add_thumbnail_path_to_product_images
 ```
 
 ```elixir
-defmodule Hudson.Repo.Migrations.AddThumbnailUrlToProductImages do
+defmodule Hudson.Repo.Migrations.AddThumbnailPathToProductImages do
   use Ecto.Migration
 
   def change do
     alter table(:product_images) do
-      add :thumbnail_url, :string
+      add :thumbnail_path, :string
     end
   end
 end
@@ -876,13 +917,20 @@ Hooks.ImageLoadingState = {
 ### 4.6 Use in Template
 
 ```elixir
+<% image = Enum.at(@product_images, @current_image_index) %>
 <.lqip_image
   id={"product-img-#{@current_product.id}-#{@current_image_index}"}
-  src={Enum.at(@product_images, @current_image_index).url}
-  thumb_src={Enum.at(@product_images, @current_image_index).thumbnail_url}
-  alt={Enum.at(@product_images, @current_image_index).alt_text}
+  src={Hudson.Media.public_image_url(image.path)}
+  thumb_src={
+    image.thumbnail_path &&
+      Hudson.Media.public_image_url(image.thumbnail_path)
+      || Hudson.Media.public_image_url(image.path)
+  }
+  alt={image.alt_text}
   class="product-image"
 />
+
+Because the bucket is world-readable, these URLs never expire, and the CDN handles caching for the entire session automatically.
 ```
 
 **CSS for product image container:**
@@ -983,7 +1031,7 @@ defmodule Hudson.Sessions do
     with {:ok, state} <- get_session_state(session_id),
          {:ok, sp} <- get_current_session_product(state),
          product <- Repo.preload(sp.product, :product_images),
-         image_count <- length(product.product_images) do
+         image_count when image_count > 0 <- length(product.product_images) do
       new_index =
         case direction do
           :next -> rem(state.current_image_index + 1, image_count)
@@ -991,36 +1039,36 @@ defmodule Hudson.Sessions do
         end
 
       update_session_state(session_id, %{current_image_index: new_index})
+    else
+      0 -> {:error, :no_images}
+      error -> error
     end
   end
 
   defp update_session_state(session_id, attrs) do
-    result =
-      from(s in SessionState, where: s.session_id == ^session_id)
-      |> Repo.update_all(set: Map.to_list(attrs) ++ [updated_at: DateTime.utc_now()])
+    Repo.transaction(fn ->
+      state =
+        SessionState
+        |> Repo.get_by!(session_id: session_id, lock: "FOR UPDATE")
+        |> SessionState.changeset(attrs)
+        |> Repo.update!()
 
-    case result do
-      {1, _} ->
-        {:ok, state} = get_session_state(session_id)
-        broadcast_state_change(session_id, state)
-        {:ok, state}
-
-      _ ->
-        {:error, :not_found}
+      broadcast_state_change(state)
+      state
+    end)
+    |> case do
+      {:ok, state} -> {:ok, state}
+      {:error, reason} -> {:error, reason}
     end
   end
 
-  defp broadcast_state_change({:ok, state}) do
-    broadcast_state_change(state.session_id, state)
-    {:ok, state}
-  end
-
-  defp broadcast_state_change(session_id, state) do
+  defp broadcast_state_change(%SessionState{} = state) do
     Phoenix.PubSub.broadcast(
       Hudson.PubSub,
-      "session:#{session_id}:state",
+      "session:#{state.session_id}:state",
       {:state_changed, state}
     )
+    {:ok, state}
   end
 
   defp get_current_session_product(state) do
@@ -1215,7 +1263,7 @@ end
 ## 9. Next Steps
 
 1. **Implement SessionEditLive** - Session builder with product picker
-2. **Add Authentication** - Simple password protection for MVP
+2. **Add Authentication** - Hash the producer/talent/admin secrets and enable throttled session tokens (see §1.5)
 3. **Implement CSV Import** - See [Import Guide](import_guide.md)
 4. **Add Supabase Storage** - Image upload functionality
 5. **Deploy to Production** - See [Deployment Guide](deployment.md)
@@ -1247,54 +1295,56 @@ All patterns are optimized for 3-4 hour live streaming sessions with multiple sy
 ```elixir
 # config/runtime.exs
 if config_env() == :prod do
-  database_url = System.get_env("DATABASE_URL") ||
-    raise "DATABASE_URL not set"
+  database_url =
+    System.get_env("DATABASE_URL") ||
+      raise "DATABASE_URL not set"
 
   config :hudson, Hudson.Repo,
     url: database_url,
-    pool_size: 10,
+    pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
     ssl: true,
-    ssl_opts: [verify: :verify_none]
+    ssl_opts: [
+      cacertfile: System.fetch_env!("SUPABASE_CA_CERT"),
+      server_name_indication: 'db.supabase.net'
+    ]
 
   config :hudson, HudsonWeb.Endpoint,
     server: true,  # CRITICAL for deployment
-    http: [port: 4000]
+    http: [port: String.to_integer(System.get_env("PORT") || "4000")]
 end
 ```
 
 **Environment Variables:**
 
-```bash
-# .env
-DATABASE_URL=postgresql://postgres:[password]@db.[project-ref].supabase.co:5432/postgres
-SUPABASE_URL=https://[project-ref].supabase.co
-SUPABASE_SERVICE_ROLE_KEY=eyJ... # NEVER expose to frontend!
-SECRET_KEY_BASE=[mix phx.gen.secret]
-```
+Use the same `.env` entries described in [Project Setup](#12-configure-authentication-gate-mvp), plus `PORT`, `SUPABASE_CA_CERT`, and `SUPABASE_STORAGE_PUBLIC_URL`.
 
 ### 10.2 Supabase Security
 
-**RLS Policies:**
+**Bucket Policies (Public Read, Server-Controlled Writes):**
 
 ```sql
--- Products bucket
-CREATE POLICY "Authenticated users can read product images"
+-- Allow anyone (anon/public) to view product images
+CREATE POLICY "Public read access to product images"
 ON storage.objects FOR SELECT
-TO authenticated
+TO public
+USING (bucket_id = 'products');
+
+-- Only service role (via Supabase dashboard/API) can upload/delete
+CREATE POLICY "Only service role can write product images"
+ON storage.objects FOR INSERT
+TO service_role
+WITH CHECK (bucket_id = 'products');
+
+CREATE POLICY "Only service role can delete product images"
+ON storage.objects FOR DELETE
+TO service_role
 USING (bucket_id = 'products');
 ```
 
-**Signed URLs (Never Expose Service Key to Frontend):**
+With this setup, LiveView can build public CDN URLs via `Hudson.Media.public_image_url/1` (see §4.1), while uploads still require the service key on the server.
 
-```elixir
-defmodule Hudson.Media do
-  def get_signed_image_url(path) do
-    Supabase.storage()
-    |> Storage.from("products")
-    |> Storage.create_signed_url(path, 3600)  # 1 hour expiry
-  end
-end
-```
+- Persist only `path`/`thumbnail_path` in the database.
+- Let Supabase's CDN handle caching—once the page swaps images, the URLs stay valid for the entire session without extra timers.
 
 ### 10.3 Windows Service Setup
 
@@ -1402,41 +1452,103 @@ end
 ```elixir
 defmodule Hudson.Import do
   alias NimbleCSV.RFC4180, as: CSV
+  alias Ecto.Multi
+  alias Hudson.Repo
 
+  @doc """
+  Stream the CSV so giant files do not blow memory, normalize each row, and wrap
+  the writes in a transaction so a single bad record never leaves partial data
+  in the catalog/session tables.
+  """
   def import_csv(file_path, opts) do
-    with {:ok, rows} <- parse_csv(file_path),
-         {:ok, normalized} <- normalize_rows(rows),
-         {:ok, validated} <- validate_rows(normalized) do
+    {rows, errors} =
+      file_path
+      |> File.stream!()
+      |> CSV.parse_stream(skip_headers: false)
+      |> Stream.drop(1) # remove header row
+      |> Stream.with_index(2) # CSV line numbers (accounting for header)
+      |> Enum.reduce({[], []}, fn {row, line}, {acc, errs} ->
+        case normalize_row(row) do
+          {:ok, normalized} -> {[normalized | acc], errs}
+          {:error, reason} -> {acc, [{line, reason} | errs]}
+        end
+      end)
+
+    if errors != [] do
+      {:error, :invalid_rows, Enum.reverse(errors)}
+    else
+      rows = Enum.reverse(rows)
+
       if Keyword.get(opts, :dry_run, false) do
-        {:ok, preview: validated}
+        {:ok, preview: rows}
       else
-        import_rows(validated, opts)
+        import_rows(rows, opts)
       end
     end
   end
 
-  defp normalize_price(price_string) do
-    price_string
-    |> String.replace("$", "")
-    |> String.replace(",", "")
-    |> String.to_float()
-    |> Kernel.*(100)
-    |> round()
+  defp normalize_row(row) do
+    %{
+      "name" => name,
+      "pid" => pid,
+      "original_price" => original_price,
+      "sale_price" => sale_price
+    } = row
+
+    with {:ok, original_cents} <- normalize_price(original_price),
+         {:ok, sale_cents} <- normalize_price(sale_price) do
+      {:ok,
+       %{
+         name: name,
+         pid: pid,
+         original_price_cents: original_cents,
+         sale_price_cents: sale_cents
+       }}
+    else
+      {:error, reason} -> {:error, reason}
+    end
   end
 
-  defp validate_rows(rows) do
-    errors = Enum.reduce(rows, [], fn row, acc ->
-      cond do
-        is_nil(row.name) -> [{row, "Name required"} | acc]
-        row.original_price_cents <= 0 -> [{row, "Price must be positive"} | acc]
-        true -> acc
-      end
-    end)
+  defp normalize_price(nil), do: {:error, "Price missing"}
+  defp normalize_price(""), do: {:error, "Price missing"}
+  defp normalize_price(price_string) do
+    price_string
+    |> String.trim()
+    |> String.replace(~r/[^0-9\.]/, "")
+    |> Decimal.new()
+    |> Decimal.mult(100)
+    |> Decimal.to_integer()
+    |> case do
+      cents when cents > 0 -> {:ok, cents}
+      _ -> {:error, "Price must be positive"}
+    end
+  rescue
+    ArgumentError -> {:error, "Invalid price format"}
+  end
 
-    if Enum.empty?(errors), do: {:ok, rows}, else: {:error, errors}
+  defp import_rows(rows, opts) do
+    Repo.transaction(fn ->
+      Enum.each(rows, fn row ->
+        Multi.new()
+        |> Multi.run(:product, fn _repo, _changes ->
+          upsert_product(row, opts)
+        end)
+        |> Multi.run(:session_product, fn _repo, %{product: product} ->
+          upsert_session_product(product, row, opts)
+        end)
+        |> Repo.transaction()
+        |> case do
+          {:ok, _} -> :ok
+          {:error, failed_step, reason, _} ->
+            Repo.rollback({failed_step, reason})
+        end
+      end)
+    end)
   end
 end
 ```
+
+Capture `(line_number, error)` tuples in the response so producers can fix the spreadsheet quickly, and keep the whole import inside a single transaction so you can retry without manual cleanup.
 
 ### 12.2 Import Script
 

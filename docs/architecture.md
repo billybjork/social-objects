@@ -369,20 +369,32 @@ _See [Implementation Guide](implementation_guide.md#error-handling) for patterns
 
 ### 8.1 Authentication (MVP)
 
-**Simple shared password** for studio access via session-based auth.
+- **Hashed shared secrets per role** (talent, producer, admin) stored in config and compared with `Comeonin`/`bcrypt` rather than plain-text equality.
+- **Short-lived session tokens** scoped to the role that logged in; revoke on logout and after prolonged inactivity (4h maximum).
+- **Rate limiting + lockouts** on the login endpoint to defend against credential stuffing; log failed attempts for audit.
+- **Signed invite links** for one-off access when onboarding new producers without redeploying secrets.
 
-**Future:** User accounts via `phx.gen.auth` for role-based permissions (Admin, Producer, Talent, Cataloger).
+**Future:** Generate real user accounts with `mix phx.gen.auth` and layered authorization (Admin, Producer, Talent, Cataloger). Keeping the MVP interface role-aware now (separate plugs + assigns) makes that migration trivial.
 
 ### 8.2 Supabase Security
 
 **Critical principles:**
 - **Never expose service role key** to frontend
-- **Use signed URLs** with expiration (1-4 hours) for private images
-- **RLS policies** on storage buckets
+- **Storage bucket is read-public** (product images are already public marketing assets) while writes remain server-only
+- **Persist storage object paths only**; Phoenix builds public CDN URLs on the fly via the Supabase project/base path
+- **RLS policies** still enforce that only service key can write/delete objects
 - **HTTPS** enforced in production
 - **Secrets** in environment variables, never committed
 
 _See [Implementation Guide](implementation_guide.md#supabase-security) for configuration._
+
+### 8.3 Transport Security
+
+- **TLS verification stays enabled**. Point `:ssl_opts` at Supabase’s CA bundle (via `castore` or custom `cacertfile`) instead of `verify: :verify_none`.
+- **Strict-Transport-Security** headers on the Phoenix endpoint so browsers refuse to downgrade.
+- **WebSocket over WSS** only; block insecure origins in the Endpoint.
+
+These guard rails keep remote producers safe when connecting over public networks.
 
 ---
 
