@@ -207,7 +207,7 @@ defmodule Hudson.Sessions do
 
   @doc """
   PRIMARY NAVIGATION: Jumps directly to a product by its position number.
-  This is the main navigation method for the talent view.
+  This is the main navigation method for the host view.
   """
   def jump_to_product(session_id, position) do
     case Repo.get_by(SessionProduct, session_id: session_id, position: position) do

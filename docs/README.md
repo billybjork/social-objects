@@ -34,14 +34,14 @@ Visit `http://localhost:4000` to access the application.
 TikTok live streaming sessions (3-4 hours) currently rely on:
 - Google Sheets for product catalogs and talking points
 - Manual navigation and searching
-- No real-time coordination between talent and producers
+- No real-time coordination between hosts and producers
 - Difficult remote editing
 
 ### The Solution
 Hudson provides:
 - **Product Catalog Management** - CRUD interface for products, images, and talking points
 - **Session Planning** - Build sessions with product selection, ordering, and per-session overrides
-- **Talent View** - Large-format display optimized for streaming with keyboard navigation
+- **Host View** - Large-format display optimized for streaming with keyboard navigation
 - **Producer Console** - Remote control of session state with real-time sync
 - **Import Pipeline** - Convert existing Google Sheets to structured data
 
@@ -69,7 +69,7 @@ Hudson provides:
 ┌─────────────────────────────────────┐
 │         LiveView Clients            │
 │  ┌──────────┐      ┌──────────┐    │
-│  │  Talent  │      │ Producer │    │
+│  │   Host   │      │ Producer │    │
 │  │   View   │      │ Console  │    │
 │  └────┬─────┘      └────┬─────┘    │
 │       │                 │           │
@@ -134,7 +134,7 @@ Hudson.Catalog.create_product(%{
 1. Navigate to `/sessions`
 2. Select or create session
 3. Add products and reorder
-4. Click "Start Session" → opens Talent View
+4. Click "Start Session" → opens Host View
 5. Share URL with producer for remote control
 
 ### Import from CSV

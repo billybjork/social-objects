@@ -1,6 +1,6 @@
 # Hudson - Live Session Orchestrator
 
-Hudson is a purpose-built Phoenix LiveView application for TikTok live streaming sessions. It replaces ad hoc Google Sheets with real-time product catalog management, keyboard-driven navigation, and synchronized talent/producer views.
+Hudson is a purpose-built Phoenix LiveView application for TikTok live streaming sessions. It replaces ad hoc Google Sheets with real-time product catalog management, keyboard-driven navigation, and synchronized host/producer views.
 
 ## Quick Start (Core MVP)
 
@@ -126,8 +126,8 @@ hudson/
 │   │   └── sessions.ex        # Sessions context (state management)
 │   └── hudson_web/
 │       ├── live/
-│       │   ├── session_run_live.ex        # Main LiveView for talent/producer
-│       │   └── session_run_live.html.heex # Template with dark theme
+│       │   ├── session_host_live.ex       # Host view (read-only)
+│       │   └── session_producer_live.ex   # Producer control panel
 │       └── router.ex
 ├── assets/
 │   ├── js/
@@ -172,7 +172,7 @@ mix ecto.reset  # Drops, creates, migrates, and seeds
 
 Hudson uses Phoenix PubSub to synchronize state across multiple connected clients:
 
-1. **Talent View**: Read-only display optimized for on-camera talent
+1. **Host View**: Read-only display optimized for on-camera host
 2. **Producer Console**: Remote control of session state
 3. **State Changes**: Broadcast to all subscribers within <1 second
 

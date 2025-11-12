@@ -10,7 +10,7 @@ This document outlines planned features and enhancements beyond the MVP scope.
 **Features:**
 - ✅ Product catalog CRUD
 - ✅ Session planning and management
-- ✅ Real-time talent/producer views
+- ✅ Real-time host/producer views
 - ✅ Keyboard-driven navigation
 - ✅ CSV import from Google Sheets
 - ✅ Image management (Supabase Storage)
@@ -21,7 +21,7 @@ This document outlines planned features and enhancements beyond the MVP scope.
 **Success Criteria:**
 - Replace Google Sheets for live streaming
 - 3-4 hour sessions without performance degradation
-- <1s sync latency between talent and producer
+- <1s sync latency between host and producer
 - <15 minute session preparation time
 
 ---
@@ -165,7 +165,7 @@ end
 - Summarize common questions
 - Highlight product requests
 - Sentiment analysis
-- Alert talent to trending topics
+- Alert host to trending topics
 
 **Display:**
 - Sidebar in producer view
@@ -366,7 +366,7 @@ _See [Implementation Guide - Deployment](implementation_guide.md#10-deployment-s
 **Roles:**
 - **Admin** - Full access, configuration
 - **Producer** - Session management, live control
-- **Talent** - Read-only during sessions
+- **Host** - Read-only during sessions
 - **Cataloger** - Product CRUD only
 
 **Features:**

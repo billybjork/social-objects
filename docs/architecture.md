@@ -33,7 +33,7 @@
 - Built-in presence and PubSub
 
 **Elixir/BEAM Benefits:**
-- Handles concurrent connections efficiently (producer + talent)
+- Handles concurrent connections efficiently (producer + host)
 - Fault-tolerant with supervision trees
 - Low latency for real-time updates (<100ms)
 - Proven for long-running processes (3-4 hour sessions)
@@ -55,7 +55,7 @@
 ┌─────────────────────────────────────────────────────────────┐
 │                    Browser Clients                          │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
-│  │ Talent View  │  │   Producer   │  │    Admin     │     │
+│  │  Host View   │  │   Producer   │  │    Admin     │     │
 │  │  (Read-Only) │  │   Console    │  │    CRUD      │     │
 │  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘     │
 └─────────┼──────────────────┼──────────────────┼────────────┘
@@ -394,12 +394,12 @@ _See [Implementation Guide](implementation_guide.md#error-handling) for patterns
 
 ### 8.1 Authentication (MVP)
 
-- **Hashed shared secrets per role** (talent, producer, admin) stored in config and compared with `Comeonin`/`bcrypt` rather than plain-text equality.
+- **Hashed shared secrets per role** (host, producer, admin) stored in config and compared with `Comeonin`/`bcrypt` rather than plain-text equality.
 - **Short-lived session tokens** scoped to the role that logged in; revoke on logout and after prolonged inactivity (4h maximum).
 - **Rate limiting + lockouts** on the login endpoint to defend against credential stuffing; log failed attempts for audit.
 - **Signed invite links** for one-off access when onboarding new producers without redeploying secrets.
 
-**Future:** Generate real user accounts with `mix phx.gen.auth` and layered authorization (Admin, Producer, Talent, Cataloger). Keeping the MVP interface role-aware now (separate plugs + assigns) makes that migration trivial.
+**Future:** Generate real user accounts with `mix phx.gen.auth` and layered authorization (Admin, Producer, Host, Cataloger). Keeping the MVP interface role-aware now (separate plugs + assigns) makes that migration trivial.
 
 ### 8.2 Supabase Security
 

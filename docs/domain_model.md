@@ -266,7 +266,7 @@ end
 
 ### 3.4 Host
 
-Talent/hosts who present during live sessions.
+Hosts who present during live sessions.
 
 **Table:** `hosts`
 

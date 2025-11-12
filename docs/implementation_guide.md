@@ -559,7 +559,7 @@ When deploying to production or remote access is required:
 1. **Create role-specific secrets** and store in `.env`:
    ```bash
    PRODUCER_SHARED_SECRET=...
-   TALENT_SHARED_SECRET=...
+   HOST_SHARED_SECRET=...
    ADMIN_SHARED_SECRET=...
    ```
 
@@ -567,7 +567,7 @@ When deploying to production or remote access is required:
    ```elixir
    config :hudson, Hudson.Auth,
      producer_secret_hash: Bcrypt.hash_pwd_salt(System.fetch_env!("PRODUCER_SHARED_SECRET")),
-     talent_secret_hash: Bcrypt.hash_pwd_salt(System.fetch_env!("TALENT_SHARED_SECRET")),
+     host_secret_hash: Bcrypt.hash_pwd_salt(System.fetch_env!("HOST_SHARED_SECRET")),
      admin_secret_hash: Bcrypt.hash_pwd_salt(System.fetch_env!("ADMIN_SHARED_SECRET")),
      session_ttl: 4 * 60 * 60
    ```
