@@ -25,7 +25,9 @@ defmodule HudsonWeb.Router do
 
     # Session management and live control
     live "/sessions", SessionsLive.Index
-    live "/sessions/:id/run", SessionRunLive
+    live "/sessions/:id/run", SessionRunLive  # Backwards compatibility
+    live "/sessions/:id/host", SessionHostLive
+    live "/sessions/:id/producer", SessionProducerLive
   end
 
   # Other scopes may use custom stacks.

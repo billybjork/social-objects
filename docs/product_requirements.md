@@ -12,17 +12,19 @@ Replace ad hoc Google Sheets workflow with a purpose-built application that serv
    - Image management with ordering and primary image selection
    - Markdown-formatted talking points
 
-2. **Talent View for Live Streaming**
+2. **Host View for Live Streaming**
    - Optimized for 3–4 hour TikTok streaming sessions
-   - Fast keyboard-driven navigation (no mouse required)
+   - Read-only display controlled by producer
    - Clear, high-contrast display of product information and images
    - Large, readable fonts suitable for reading while on camera
    - Minimal cognitive load during live performance
+   - Floating banner for live messages from producer
 
 3. **Remote Editing Capability**
    - Enable producer to edit catalog and sessions from outside studio
-   - Real-time synchronization between talent and producer views
+   - Real-time synchronization between host and producer views
    - Allow for on-the-fly session adjustments during live streams
+   - Producer can send live messages to host during session
 
 4. **Robust & Simple Implementation**
    - Idiomatic Phoenix/LiveView patterns
@@ -52,10 +54,10 @@ These features are explicitly deferred to post-MVP phases:
 - Network interruptions should not lose session state
 
 **User Experience:**
-- Talent must be able to operate without taking eyes off camera
-- Navigation must be faster than scrolling through Google Sheets
-- Producer changes must sync to talent view within 1 second
+- Host view must be readable while on camera
+- Producer controls must sync to host view within 1 second
 - Images must load smoothly with no visible flashing
+- Host messages must be clearly visible as floating banners
 
 **Business:**
 - MVP must be production-ready for holiday season 2024
@@ -66,10 +68,10 @@ These features are explicitly deferred to post-MVP phases:
 
 ## 2. User Personas
 
-### Persona 1: Talent (Primary User)
+### Persona 1: Host (Primary User)
 
 **Name:** Sarah (Live Host)
-**Role:** On-camera talent for TikTok live shopping sessions
+**Role:** On-camera host for TikTok live shopping sessions
 
 **Responsibilities:**
 - Present products on live stream (3-4 hours)
@@ -115,21 +117,21 @@ These features are explicitly deferred to post-MVP phases:
 **Pain Points (Current Workflow):**
 - Google Sheets have no version control
 - Accidental edits corrupt formatting
-- No preview of how talent sees the information
-- Can't control what talent is viewing remotely
+- No preview of how host sees the information
+- Can't control what host is viewing remotely
 - Image management is manual and error-prone
 
 **Goals for Hudson:**
 - Create sessions quickly from product catalog
-- Control talent view remotely during live streams
+- Control host view remotely during live streams
 - Edit talking points without disrupting live session
-- Preview exactly what talent sees
+- Preview exactly what host sees
 - Reorder products on the fly if needed
 
 **Success Criteria:**
 - Can build a 40-product session in <15 minutes
-- Changes sync to talent view within 1 second
-- Can remotely navigate talent view during stream
+- Changes sync to host view within 1 second
+- Can remotely navigate host view during stream
 - No accidental edits affect live sessions
 
 ### Persona 3: Content Manager (Tertiary User)
@@ -202,7 +204,7 @@ These features are explicitly deferred to post-MVP phases:
 
 ### Epic 2: Live Session Control
 
-**US-2.1: As talent, I want to jump directly to a product number, so I can respond to viewer requests quickly.**
+**US-2.1: As host, I want to jump directly to a product number, so I can respond to viewer requests quickly.**
 
 **Acceptance Criteria:**
 - Type product number (e.g., "23") then Enter
@@ -211,7 +213,7 @@ These features are explicitly deferred to post-MVP phases:
 - Works even during active navigation
 - Number input buffer visible on screen
 
-**US-2.2: As talent, I want to navigate to adjacent products with arrow keys, so I can quickly move up/down the list when needed.**
+**US-2.2: As host, I want to navigate to adjacent products with arrow keys, so I can quickly move up/down the list when needed.**
 
 **Acceptance Criteria:**
 - ↓ or → advances to next product
@@ -220,7 +222,7 @@ These features are explicitly deferred to post-MVP phases:
 - Current product is clearly highlighted
 - Used as convenience for sequential browsing, not primary navigation
 
-**US-2.3: As talent, I want to see large product images, so I can show products to viewers effectively.**
+**US-2.3: As host, I want to see large product images, so I can show products to viewers effectively.**
 
 **Acceptance Criteria:**
 - Images are at least 800px wide
@@ -228,7 +230,7 @@ These features are explicitly deferred to post-MVP phases:
 - Current image indicator shows position (e.g., "2/5")
 - Images load without visible delay
 
-**US-2.4: As talent, I want to read talking points clearly, so I can present products naturally without memorization.**
+**US-2.4: As host, I want to read talking points clearly, so I can present products naturally without memorization.**
 
 **Acceptance Criteria:**
 - Talking points are displayed as large, spaced bullet list
@@ -236,11 +238,11 @@ These features are explicitly deferred to post-MVP phases:
 - Font size is readable from 3 feet away
 - Bullet points don't wrap excessively
 
-**US-2.5: As a producer, I want to control the talent view remotely, so I can help navigate during the stream.**
+**US-2.5: As a producer, I want to control the host view remotely, so I can help navigate during the stream.**
 
 **Acceptance Criteria:**
-- Producer and talent see synchronized state
-- Producer navigation changes talent view within 1 second
+- Producer and host see synchronized state
+- Producer navigation changes host view within 1 second
 - Both can navigate independently (producer's changes take precedence)
 - Connection status is visible
 
@@ -273,14 +275,14 @@ These features are explicitly deferred to post-MVP phases:
 
 ### Epic 4: Error Recovery & Resilience
 
-**US-4.1: As talent, I want the session state to persist if I refresh the browser, so I don't lose my place during a stream.**
+**US-4.1: As host, I want the session state to persist if I refresh the browser, so I don't lose my place during a stream.**
 
 **Acceptance Criteria:**
 - Current product and image are stored in DB and URL
 - Refresh returns to exact same product/image
 - Session state survives browser close/reopen
 
-**US-4.2: As talent, I want to see connection status, so I know if I'm synced with the producer.**
+**US-4.2: As host, I want to see connection status, so I know if I'm synced with the producer.**
 
 **Acceptance Criteria:**
 - Connection indicator shows "Connected", "Reconnecting...", "Disconnected"
@@ -292,7 +294,7 @@ These features are explicitly deferred to post-MVP phases:
 
 ## 4. UX Requirements
 
-### 4.1 Talent View Layout
+### 4.1 Host View Layout
 
 **Layout Structure:**
 
@@ -356,7 +358,7 @@ These features are explicitly deferred to post-MVP phases:
 
 ### 4.3 Producer Console
 
-**Layout Differences from Talent View:**
+**Layout Differences from Host View:**
 - Smaller preview of current product
 - Sidebar with full session product list
 - Editable talking points
@@ -458,7 +460,7 @@ These features are explicitly deferred to post-MVP phases:
 - Low network bandwidth usage
 
 **Workflow:**
-- Talent opens session URL, leaves it open 3-4 hours
+- Host opens session URL, leaves it open 3-4 hours
 - Producer can connect from anywhere
 - No need to restart during session
 - Session can be paused/resumed
@@ -473,8 +475,8 @@ These features are explicitly deferred to post-MVP phases:
 - [ ] 40 products can be added to catalog with images
 - [ ] Session can be created and products assigned
 - [ ] Jump-to-product by number (primary navigation method)
-- [ ] Talent can navigate all 40 products with keyboard only
-- [ ] Producer can control talent view remotely in <1s sync
+- [ ] Host can navigate all 40 products with keyboard only
+- [ ] Producer can control host view remotely in <1s sync
 - [ ] Images preload without visible delay
 - [ ] State persists across browser refresh
 - [ ] Connection recovers automatically after interruption
@@ -509,7 +511,7 @@ These features are explicitly deferred to post-MVP phases:
 - Crash rate (target: 0 per 10 sessions)
 
 **User Satisfaction:**
-- Talent confidence rating (target: 9/10)
+- Host confidence rating (target: 9/10)
 - Navigation speed vs. Google Sheets (target: 3x faster)
 - Producer setup time (target: <15 minutes)
 - Technical support requests (target: <1 per 10 sessions)
@@ -518,12 +520,12 @@ These features are explicitly deferred to post-MVP phases:
 
 **Phase 1: Internal Testing**
 - Test with 5 products, 30-minute sessions
-- Iterate on UX based on talent feedback
+- Iterate on UX based on host feedback
 - Fix critical bugs
 
 **Phase 2: Dress Rehearsal**
 - Full 40-product session, 2-hour test stream
-- Producer and talent use simultaneously
+- Producer and host use simultaneously
 - Monitor performance and errors
 
 **Phase 3: Soft Launch**
@@ -543,7 +545,7 @@ These features are explicitly deferred to post-MVP phases:
 > Resolve every item below before the final MVP rehearsal. Each answer drives specific UI, data-model, and training work.
 
 ### Product Decisions
-- [ ] Should talent be able to skip products, or must they go sequentially?
+- [ ] Should host be able to skip products, or must they go sequentially?
 - [ ] How to handle out-of-stock products during live session (auto-hide, warning badge, reorder)?
 - [ ] Should price changes during session be allowed, and who approves them?
 
@@ -569,9 +571,9 @@ These features are explicitly deferred to post-MVP phases:
 3. Copy/paste talking points from various sources
 4. Add product image URLs (stored in separate folders)
 5. Format cells for readability
-6. Share sheet with talent
+6. Share sheet with host
 
-**During Stream (Talent):**
+**During Stream (Host):**
 1. Open Google Sheet on second monitor
 2. Scroll down as products are presented
 3. Read talking points while presenting
@@ -582,7 +584,7 @@ These features are explicitly deferred to post-MVP phases:
 - Scrolling is slow and imprecise
 - Formatting breaks unexpectedly
 - Images are not embedded (URLs only)
-- No synchronization between talent and producer
+- No synchronization between host and producer
 - Easy to lose place in sheet
 - Accidental edits during live stream
 - Sheet becomes sluggish with 40+ rows

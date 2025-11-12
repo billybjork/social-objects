@@ -1,4 +1,4 @@
-<div class="px-4 py-8 max-w-7xl mx-auto">
+<div class="px-4 py-8 max-w-7xl mx-auto" phx-window-keydown="keydown" phx-key="Escape">
   <.header>
     Sessions Manager
     <:subtitle>Manage your live streaming sessions and products</:subtitle>
@@ -83,56 +83,48 @@
 
             <%= if MapSet.member?(@expanded_session_ids, session.id) do %>
               <div class="mt-4 pt-4 border-t border-base-300">
-                <h4 class="font-semibold mb-3">Products in this session:</h4>
+                <div class="flex items-center justify-between mb-3">
+                  <h4 class="font-semibold">Products in this session:</h4>
+                  <button
+                    class="btn btn-xs btn-ghost btn-circle"
+                    phx-click="toggle_expand"
+                    phx-value-session-id={session.id}
+                    aria-label="Close"
+                  >
+                    <.icon name="hero-x-mark" class="size-4" />
+                  </button>
+                </div>
 
                 <%= if session.session_products == [] do %>
                   <p class="text-sm text-base-content/60">No products added yet.</p>
                 <% else %>
                   <div class="space-y-2">
                     <%= for sp <- session.session_products do %>
-                      <div class="flex items-center gap-4 p-3 bg-base-100 rounded-lg">
-                        <div class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-primary/10 text-primary rounded-full font-bold text-sm">
+                      <div class="flex items-center gap-3 p-2 bg-base-100 rounded-lg">
+                        <div class="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-primary/10 text-primary rounded-full font-bold text-xs">
                           {sp.position}
                         </div>
 
                         <%= if image = primary_image(sp.product) do %>
                           <img
-                            src={image.thumbnail_path || image.path}
+                            src={public_image_url(image.thumbnail_path || image.path)}
                             alt={image.alt_text}
-                            class="w-16 h-16 object-cover rounded"
+                            class="w-12 h-12 object-cover rounded"
                           />
                         <% end %>
 
-                        <div class="flex-1">
-                          <p class="font-medium">
+                        <div class="flex-1 min-w-0">
+                          <p class="font-medium text-sm truncate">
                             {sp.featured_name || sp.product.name}
                           </p>
-                          <%= if sp.product.display_number do %>
-                            <p class="text-xs text-base-content/60">Product #{sp.product.display_number}</p>
-                          <% end %>
-                          <div class="flex gap-2 mt-1">
-                            <%= if sp.featured_sale_price_cents || sp.product.sale_price_cents do %>
-                              <span class="text-sm font-semibold text-success">
-                                {format_price(sp.featured_sale_price_cents || sp.product.sale_price_cents)}
-                              </span>
-                              <span class="text-sm line-through text-base-content/50">
-                                {format_price(sp.featured_original_price_cents || sp.product.original_price_cents)}
-                              </span>
-                            <% else %>
-                              <span class="text-sm font-semibold">
-                                {format_price(sp.featured_original_price_cents || sp.product.original_price_cents)}
-                              </span>
-                            <% end %>
-                          </div>
                         </div>
 
                         <button
-                          class="btn btn-sm btn-ghost btn-circle text-error"
+                          class="btn btn-xs btn-ghost btn-circle text-error flex-shrink-0"
                           phx-click="remove_product"
                           phx-value-session-product-id={sp.id}
-                          data-confirm="Remove this product from the session?"
                         >
-                          <.icon name="hero-x-mark" class="size-5" />
+                          <.icon name="hero-x-mark" class="size-4" />
                         </button>
                       </div>
                     <% end %>

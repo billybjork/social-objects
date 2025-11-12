@@ -222,11 +222,30 @@ _See [Implementation Guide](implementation_guide.md#import) for CSV import detai
 
 ### 4.1 LiveView Modules
 
-**SessionRunLive** - Talent/Producer Live Control
+**SessionHostLive** - Host Display View (Read-Only)
+- Route: `/sessions/:id/host`
+- Purpose: Optimized display view for host during live streaming
+- Key Features:
+  - Read-only (no keyboard controls)
+  - Large product display with images and talking points
+  - Floating banner for producer messages
+  - PubSub sync for real-time updates from producer
+  - Memory-optimized with temporary assigns
+
+**SessionProducerLive** - Producer Control Panel
+- Route: `/sessions/:id/producer`
+- Purpose: Full control panel for managing live sessions
+- Key Features:
+  - Keyboard navigation controls (jump to product, cycle images)
+  - Send live messages to host (persistent in database)
+  - View mode toggling (fullscreen config, split-screen, fullscreen host preview)
+  - PubSub sync for real-time state management
+  - Memory-optimized with temporary assigns
+
+**SessionRunLive** - Legacy Combined View (Backwards Compatibility)
 - Route: `/sessions/:id/run`
-- Modes: `?view=talent` or `?view=producer`
-- Purpose: Real-time session control during live streams
-- Key Features: Keyboard events, PubSub sync, URL state persistence
+- Purpose: Original combined view (maintained for compatibility)
+- Note: Consider migrating to separate host/producer routes
 
 **SessionEditLive** - Session Builder
 - Route: `/sessions/:id/edit`
@@ -307,18 +326,28 @@ _See [Implementation Guide](implementation_guide.md#performance) for implementat
 
 | Topic | Purpose | Subscribers | Payload |
 |-------|---------|-------------|---------|
-| `session:#{id}:state` | Current product/image changes | Talent, Producer, Admin | `{product_id, image_index}` |
+| `session:#{id}:state` | Current product/image changes + host messages | Host, Producer | SessionState struct with product_id, image_index, and host_message fields |
 | `session:#{id}:meta` | Session metadata changes | Admin | `{status, name, etc}` |
 | `session:#{id}:presence` | Who's connected | All | Presence data |
 
+**Note:** Host messages are included in the main `:state` topic rather than a separate topic. This ensures atomic updates and simplifies synchronization.
+
 ### 6.2 State Synchronization Flow
 
+**Navigation Flow:**
 1. **Producer triggers change** (keyboard event)
 2. **Context function updates DB** and broadcasts
 3. **All subscribers receive** via `handle_info/2`
 4. **LiveViews re-render** with new state
 
-**Key Decision:** DB-first approach (write to DB then broadcast) for resilience. State survives crashes and browser refreshes.
+**Host Message Flow:**
+1. **Producer sends message** (form submission)
+2. **`Sessions.send_host_message/2`** updates SessionState with message text, ID, timestamp
+3. **Broadcast via `:state` topic** includes updated SessionState
+4. **Host view receives broadcast** and displays floating banner
+5. **Producer can clear message** via `Sessions.clear_host_message/1`
+
+**Key Decision:** DB-first approach (write to DB then broadcast) for resilience. State survives crashes and browser refreshes. Host messages are persisted to enable session history and review.
 
 _See [Implementation Guide](implementation_guide.md#state-sync) for implementation._
 

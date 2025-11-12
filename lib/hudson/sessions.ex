@@ -176,6 +176,7 @@ defmodule Hudson.Sessions do
 
   @doc """
   Initializes session state to the first product.
+  Uses upsert to handle cases where state row already exists.
   """
   def initialize_session_state(session_id) do
     # Get first session product
@@ -194,7 +195,10 @@ defmodule Hudson.Sessions do
         current_session_product_id: first_sp.id,
         current_image_index: 0
       })
-      |> Repo.insert()
+      |> Repo.insert(
+        on_conflict: {:replace, [:current_session_product_id, :current_image_index, :updated_at]},
+        conflict_target: :session_id
+      )
       |> broadcast_state_change()
     else
       {:error, :no_products}
@@ -273,6 +277,59 @@ defmodule Hudson.Sessions do
       0 -> {:error, :no_images}
       error -> error
     end
+  end
+
+  ## Host Messages
+
+  @doc """
+  Sends a message to the host by updating the session state.
+  The message is persisted in the database and broadcast to all connected clients.
+  """
+  def send_host_message(session_id, message_text) do
+    message_id = generate_message_id()
+    timestamp = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    update_session_state(session_id, %{
+      current_host_message_text: message_text,
+      current_host_message_id: message_id,
+      current_host_message_timestamp: timestamp
+    })
+  end
+
+  @doc """
+  Clears the current host message from the session state.
+  """
+  def clear_host_message(session_id) do
+    update_session_state(session_id, %{
+      current_host_message_text: nil,
+      current_host_message_id: nil,
+      current_host_message_timestamp: nil
+    })
+  end
+
+  @doc """
+  Renumbers session product positions to be sequential starting from 1.
+  Useful after deleting products that leave gaps in numbering.
+  """
+  def renumber_session_products(session_id) do
+    session_products =
+      from(sp in SessionProduct,
+        where: sp.session_id == ^session_id,
+        order_by: [asc: sp.position]
+      )
+      |> Repo.all()
+
+    Repo.transaction(fn ->
+      session_products
+      |> Enum.with_index(1)
+      |> Enum.each(fn {sp, new_position} ->
+        if sp.position != new_position do
+          sp
+          |> Ecto.Changeset.change(position: new_position)
+          |> Repo.update!()
+        end
+      end)
+    end)
   end
 
   ## Private Helpers
@@ -355,5 +412,9 @@ defmodule Hudson.Sessions do
       nil -> {:error, :no_previous_product}
       sp -> {:ok, sp}
     end
+  end
+
+  defp generate_message_id do
+    "msg_#{:crypto.strong_rand_bytes(8) |> Base.url_encode64(padding: false)}"
   end
 end

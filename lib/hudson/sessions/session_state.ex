@@ -4,6 +4,9 @@ defmodule Hudson.Sessions.SessionState do
 
   schema "session_states" do
     field :current_image_index, :integer, default: 0
+    field :current_host_message_text, :string
+    field :current_host_message_id, :string
+    field :current_host_message_timestamp, :utc_datetime
     field :updated_at, :utc_datetime
 
     belongs_to :session, Hudson.Sessions.Session
@@ -13,7 +16,14 @@ defmodule Hudson.Sessions.SessionState do
   @doc false
   def changeset(state, attrs) do
     state
-    |> cast(attrs, [:session_id, :current_session_product_id, :current_image_index])
+    |> cast(attrs, [
+      :session_id,
+      :current_session_product_id,
+      :current_image_index,
+      :current_host_message_text,
+      :current_host_message_id,
+      :current_host_message_timestamp
+    ])
     |> validate_required([:session_id])
     |> validate_number(:current_image_index, greater_than_or_equal_to: 0)
     |> unique_constraint(:session_id)

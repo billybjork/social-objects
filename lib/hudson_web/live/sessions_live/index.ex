@@ -25,6 +25,12 @@ defmodule HudsonWeb.SessionsLive.Index do
   end
 
   @impl true
+  def handle_event("keydown", %{"key" => "Escape"}, socket) do
+    # Close all expanded sessions on Escape
+    {:noreply, assign(socket, :expanded_session_ids, MapSet.new())}
+  end
+
+  @impl true
   def handle_event("toggle_expand", %{"session-id" => session_id}, socket) do
     session_id = normalize_id(session_id)
     expanded = socket.assigns.expanded_session_ids
@@ -211,9 +217,21 @@ defmodule HudsonWeb.SessionsLive.Index do
   end
 
   @impl true
+  def handle_event("enter_session", %{"session-id" => session_id, "view" => view}, socket) do
+    session_id = normalize_id(session_id)
+    path = case view do
+      "host" -> ~p"/sessions/#{session_id}/host"
+      "producer" -> ~p"/sessions/#{session_id}/producer"
+      _ -> ~p"/sessions/#{session_id}/run"  # Backwards compatibility
+    end
+    {:noreply, push_navigate(socket, to: path)}
+  end
+
+  # Backwards compatibility - if no view specified, go to producer
+  @impl true
   def handle_event("enter_session", %{"session-id" => session_id}, socket) do
     session_id = normalize_id(session_id)
-    {:noreply, push_navigate(socket, to: ~p"/sessions/#{session_id}/run")}
+    {:noreply, push_navigate(socket, to: ~p"/sessions/#{session_id}/producer")}
   end
 
   @impl true
@@ -275,11 +293,6 @@ defmodule HudsonWeb.SessionsLive.Index do
   defp format_duration(nil), do: "—"
   defp format_duration(minutes), do: "#{minutes} min"
 
-  defp format_price(cents) do
-    dollars = cents / 100
-    "$#{:erlang.float_to_binary(dollars, decimals: 2)}"
-  end
-
   defp primary_image(product) do
     product.product_images
     |> Enum.find(& &1.is_primary)
@@ -287,5 +300,9 @@ defmodule HudsonWeb.SessionsLive.Index do
       nil -> List.first(product.product_images)
       image -> image
     end
+  end
+
+  def public_image_url(path) do
+    Hudson.Media.public_image_url(path)
   end
 end
