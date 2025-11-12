@@ -181,7 +181,7 @@ Hooks.ImageLoadingState = {
 
 /**
  * Modal Hook
- * Handles opening/closing DaisyUI modals based on data-show attribute
+ * Handles opening/closing modals based on data-show attribute
  */
 Hooks.Modal = {
   mounted() {

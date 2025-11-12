@@ -35,32 +35,32 @@ defmodule HudsonWeb.Layouts do
 
   def app(assigns) do
     ~H"""
-    <header class="navbar px-4 sm:px-6 lg:px-8">
-      <div class="flex-1">
-        <a href="/" class="flex-1 flex w-fit items-center gap-2">
-          <img src={~p"/images/logo.svg"} width="36" />
-          <span class="text-sm font-semibold">v{Application.spec(:phoenix, :vsn)}</span>
+    <nav class="navbar">
+      <div class="navbar__start">
+        <a href="/" class="navbar__brand">
+          <img src={~p"/images/logo.svg"} width="36" class="navbar__logo" />
+          <span class="navbar__version">v{Application.spec(:phoenix, :vsn)}</span>
         </a>
       </div>
-      <div class="flex-none">
-        <ul class="flex flex-column px-1 space-x-4 items-center">
+      <div class="navbar__end">
+        <ul class="navbar__nav">
           <li>
-            <a href="https://phoenixframework.org/" class="btn btn-ghost">Website</a>
+            <a href="https://phoenixframework.org/" class="navbar__link">Website</a>
           </li>
           <li>
-            <a href="https://github.com/phoenixframework/phoenix" class="btn btn-ghost">GitHub</a>
+            <a href="https://github.com/phoenixframework/phoenix" class="navbar__link">GitHub</a>
           </li>
           <li>
-            <a href="https://hexdocs.pm/phoenix/overview.html" class="btn btn-primary">
+            <a href="https://hexdocs.pm/phoenix/overview.html" class="navbar__link navbar__link--active">
               Get Started <span aria-hidden="true">&rarr;</span>
             </a>
           </li>
         </ul>
       </div>
-    </header>
+    </nav>
 
-    <main class="px-4 py-20 sm:px-6 lg:px-8">
-      <div class="mx-auto max-w-2xl space-y-4">
+    <main class="region">
+      <div class="container container--md">
         {render_slot(@inner_block)}
       </div>
     </main>

@@ -2,6 +2,9 @@
 // to get started and then uncomment the line below.
 // import "./user_socket.js"
 
+// Import CSS - esbuild will bundle it and output to priv/static/assets/js/app.css
+import "../css/app.css"
+
 // You can include dependencies in two ways.
 //
 // The simplest option is to put them in assets/vendor and
@@ -38,13 +41,13 @@ topbar.config({barColors: {0: "#29d"}, shadowColor: "rgba(0, 0, 0, .3)"})
 window.addEventListener("phx:page-loading-start", _info => topbar.show(300))
 window.addEventListener("phx:page-loading-stop", _info => topbar.hide())
 
-// DaisyUI modal show/hide handlers
-window.addEventListener("daisyui:showmodal", (e) => {
+// Modal show/hide handlers
+window.addEventListener("modal:show", (e) => {
   const modal = document.getElementById(e.detail.id)
   if (modal) modal.showModal()
 })
 
-window.addEventListener("daisyui:hidemodal", (e) => {
+window.addEventListener("modal:hide", (e) => {
   const modal = document.getElementById(e.detail.id)
   if (modal) modal.close()
 })

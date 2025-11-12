@@ -8,16 +8,9 @@ defmodule HudsonWeb.CoreComponents do
   with doc strings and declarative assigns. You may customize and style
   them in any way you want, based on your application growth and needs.
 
-  The foundation for styling is Tailwind CSS, a utility-first CSS framework,
-  augmented with daisyUI, a Tailwind CSS plugin that provides UI components
-  and themes. Here are useful references:
-
-    * [daisyUI](https://daisyui.com/docs/intro/) - a good place to get
-      started and see the available components.
-
-    * [Tailwind CSS](https://tailwindcss.com) - the foundational framework
-      we build on. You will use it for layout, sizing, flexbox, grid, and
-      spacing.
+  The styling follows a semantic CSS architecture using ITCSS (Inverted Triangle CSS)
+  with BEM naming conventions. CSS is organized into modular files in `assets/css/`
+  and bundled by esbuild. Here are useful references:
 
     * [Heroicons](https://heroicons.com) - see `icon/1` for usage.
 
@@ -56,23 +49,24 @@ defmodule HudsonWeb.CoreComponents do
       id={@id}
       phx-click={JS.push("lv:clear-flash", value: %{key: @kind}) |> hide("##{@id}")}
       role="alert"
-      class="toast toast-top toast-end z-50"
+      class="toast toast--top-end"
       {@rest}
     >
       <div class={[
-        "alert w-80 sm:w-96 max-w-80 sm:max-w-96 text-wrap",
-        @kind == :info && "alert-info",
-        @kind == :error && "alert-error"
+        "alert",
+        @kind == :info && "alert--info",
+        @kind == :error && "alert--error"
       ]}>
-        <.icon :if={@kind == :info} name="hero-information-circle" class="size-5 shrink-0" />
-        <.icon :if={@kind == :error} name="hero-exclamation-circle" class="size-5 shrink-0" />
-        <div>
-          <p :if={@title} class="font-semibold">{@title}</p>
-          <p>{msg}</p>
+        <div class="alert__icon">
+          <.icon :if={@kind == :info} name="hero-information-circle" class="size-5" />
+          <.icon :if={@kind == :error} name="hero-exclamation-circle" class="size-5" />
         </div>
-        <div class="flex-1" />
-        <button type="button" class="group self-start cursor-pointer" aria-label={gettext("close")}>
-          <.icon name="hero-x-mark" class="size-5 opacity-40 group-hover:opacity-70" />
+        <div class="alert__content">
+          <p :if={@title} class="alert__title">{@title}</p>
+          <p class="alert__message">{msg}</p>
+        </div>
+        <button type="button" class="alert__close" aria-label={gettext("close")}>
+          <.icon name="hero-x-mark" class="size-5" />
         </button>
       </div>
     </div>
@@ -87,29 +81,62 @@ defmodule HudsonWeb.CoreComponents do
       <.button>Send!</.button>
       <.button phx-click="go" variant="primary">Send!</.button>
       <.button navigate={~p"/"}>Home</.button>
+      <.button variant="outline-error" size="sm">Delete</.button>
   """
   attr :rest, :global, include: ~w(href navigate patch method download name value disabled)
-  attr :class, :string
-  attr :variant, :string, values: ~w(primary)
+  attr :class, :string, default: nil
+  attr :variant, :string, default: nil
+  attr :size, :string, default: nil
+  attr :circle, :boolean, default: false
+  attr :square, :boolean, default: false
   slot :inner_block, required: true
 
   def button(%{rest: rest} = assigns) do
-    variants = %{"primary" => "btn-primary", nil => "btn-primary btn-soft"}
+    # Build class list from attributes
+    classes = ["button"]
 
-    assigns =
-      assign_new(assigns, :class, fn ->
-        ["btn", Map.fetch!(variants, assigns[:variant])]
-      end)
+    # Add variant class
+    classes =
+      case assigns[:variant] do
+        "primary" -> classes ++ ["button--primary"]
+        "success" -> classes ++ ["button--success"]
+        "warning" -> classes ++ ["button--warning"]
+        "error" -> classes ++ ["button--error"]
+        "ghost" -> classes ++ ["button--ghost"]
+        "outline" -> classes ++ ["button--outline"]
+        "outline-error" -> classes ++ ["button--outline-error"]
+        nil -> classes
+        _ -> classes
+      end
+
+    # Add size class
+    classes =
+      case assigns[:size] do
+        "xs" -> classes ++ ["button--xs"]
+        "sm" -> classes ++ ["button--sm"]
+        "lg" -> classes ++ ["button--lg"]
+        nil -> classes
+        _ -> classes
+      end
+
+    # Add shape classes
+    classes = if assigns[:circle], do: classes ++ ["button--circle"], else: classes
+    classes = if assigns[:square], do: classes ++ ["button--square"], else: classes
+
+    # Add custom classes
+    classes = if assigns[:class], do: classes ++ [assigns[:class]], else: classes
+
+    assigns = assign(assigns, :computed_class, Enum.join(classes, " "))
 
     if rest[:href] || rest[:navigate] || rest[:patch] do
       ~H"""
-      <.link class={@class} {@rest}>
+      <.link class={@computed_class} {@rest}>
         {render_slot(@inner_block)}
       </.link>
       """
     else
       ~H"""
-      <button class={@class} {@rest}>
+      <button class={@computed_class} {@rest}>
         {render_slot(@inner_block)}
       </button>
       """
@@ -185,7 +212,7 @@ defmodule HudsonWeb.CoreComponents do
       end)
 
     ~H"""
-    <div class="fieldset mb-2">
+    <div class="fieldset">
       <label>
         <input type="hidden" name={@name} value="false" disabled={@rest[:disabled]} />
         <span class="label">
@@ -195,7 +222,7 @@ defmodule HudsonWeb.CoreComponents do
             name={@name}
             value="true"
             checked={@checked}
-            class={@class || "checkbox checkbox-sm"}
+            class={@class || "checkbox"}
             {@rest}
           />{@label}
         </span>
@@ -207,13 +234,13 @@ defmodule HudsonWeb.CoreComponents do
 
   def input(%{type: "select"} = assigns) do
     ~H"""
-    <div class="fieldset mb-2">
+    <div class="fieldset">
       <label>
-        <span :if={@label} class="label mb-1">{@label}</span>
+        <span :if={@label} class="label">{@label}</span>
         <select
           id={@id}
           name={@name}
-          class={[@class || "w-full select", @errors != [] && (@error_class || "select-error")]}
+          class={[@class || "select", @errors != [] && (@error_class || "select--error")]}
           multiple={@multiple}
           {@rest}
         >
@@ -228,15 +255,15 @@ defmodule HudsonWeb.CoreComponents do
 
   def input(%{type: "textarea"} = assigns) do
     ~H"""
-    <div class="fieldset mb-2">
+    <div class="fieldset">
       <label>
-        <span :if={@label} class="label mb-1">{@label}</span>
+        <span :if={@label} class="label">{@label}</span>
         <textarea
           id={@id}
           name={@name}
           class={[
-            @class || "w-full textarea",
-            @errors != [] && (@error_class || "textarea-error")
+            @class || "textarea",
+            @errors != [] && (@error_class || "textarea--error")
           ]}
           {@rest}
         >{Phoenix.HTML.Form.normalize_value("textarea", @value)}</textarea>
@@ -249,17 +276,17 @@ defmodule HudsonWeb.CoreComponents do
   # All other inputs text, datetime-local, url, password, etc. are handled here...
   def input(assigns) do
     ~H"""
-    <div class="fieldset mb-2">
+    <div class="fieldset">
       <label>
-        <span :if={@label} class="label mb-1">{@label}</span>
+        <span :if={@label} class="label">{@label}</span>
         <input
           type={@type}
           name={@name}
           id={@id}
           value={Phoenix.HTML.Form.normalize_value(@type, @value)}
           class={[
-            @class || "w-full input",
-            @errors != [] && (@error_class || "input-error")
+            @class || "input",
+            @errors != [] && (@error_class || "input--error")
           ]}
           {@rest}
         />
@@ -272,7 +299,7 @@ defmodule HudsonWeb.CoreComponents do
   # Helper used by inputs to generate form errors
   defp error(assigns) do
     ~H"""
-    <p class="mt-1.5 flex gap-2 items-center text-sm text-error">
+    <p class="error-message">
       <.icon name="hero-exclamation-circle" class="size-5" />
       {render_slot(@inner_block)}
     </p>
@@ -288,16 +315,18 @@ defmodule HudsonWeb.CoreComponents do
 
   def header(assigns) do
     ~H"""
-    <header class={[@actions != [] && "flex items-center justify-between gap-6", "pb-4"]}>
-      <div>
-        <h1 class="text-lg font-semibold leading-8">
-          {render_slot(@inner_block)}
-        </h1>
-        <p :if={@subtitle != []} class="text-sm text-base-content/70">
-          {render_slot(@subtitle)}
-        </p>
+    <header class="stack stack--sm">
+      <div class={[@actions != [] && "flex flex--between flex--center"]}>
+        <div class="stack stack--xs">
+          <h1 class="text-3xl font-bold">
+            {render_slot(@inner_block)}
+          </h1>
+          <p :if={@subtitle != []} class="text-secondary">
+            {render_slot(@subtitle)}
+          </p>
+        </div>
+        <div :if={@actions != []}>{render_slot(@actions)}</div>
       </div>
-      <div class="flex-none">{render_slot(@actions)}</div>
     </header>
     """
   end
@@ -420,13 +449,17 @@ defmodule HudsonWeb.CoreComponents do
   end
 
   @doc """
-  Renders a modal dialog using DaisyUI's native dialog element.
+  Renders a modal dialog using native dialog element.
 
   ## Examples
 
       <.modal id="new-session-modal">
-        <h3 class="font-bold text-lg">New Session</h3>
-        <p>Modal content goes here</p>
+        <div class="modal__header">
+          <h2 class="modal__title">New Session</h2>
+        </div>
+        <div class="modal__body">
+          <p>Modal content goes here</p>
+        </div>
       </.modal>
 
       <!-- Trigger with JS -->
@@ -446,17 +479,15 @@ defmodule HudsonWeb.CoreComponents do
       data-show={to_string(@show)}
       phx-remove={hide_modal(@id)}
     >
-      <div class="modal-box max-w-2xl">
-        <form method="dialog">
-          <button
-            type="button"
-            phx-click={JS.exec(@on_cancel, "data-cancel") |> hide_modal(@id)}
-            class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
-            aria-label={gettext("close")}
-          >
-            ✕
-          </button>
-        </form>
+      <div class="modal__box">
+        <button
+          type="button"
+          phx-click={JS.exec(@on_cancel, "data-cancel") |> hide_modal(@id)}
+          class="modal__close"
+          aria-label={gettext("close")}
+        >
+          ✕
+        </button>
         {render_slot(@inner_block)}
       </div>
       <form method="dialog" class="modal-backdrop">
@@ -490,17 +521,17 @@ defmodule HudsonWeb.CoreComponents do
   end
 
   @doc """
-  Shows a DaisyUI modal by dispatching a showModal event.
+  Shows a modal dialog by dispatching a modal:show event.
   """
   def show_modal(js \\ %JS{}, id) when is_binary(id) do
-    JS.dispatch(js, "daisyui:showmodal", to: "##{id}", detail: %{id: id})
+    JS.dispatch(js, "modal:show", to: "##{id}", detail: %{id: id})
   end
 
   @doc """
-  Hides a DaisyUI modal by dispatching a close event.
+  Hides a modal dialog by dispatching a modal:hide event.
   """
   def hide_modal(js \\ %JS{}, id) when is_binary(id) do
-    JS.dispatch(js, "daisyui:hidemodal", to: "##{id}", detail: %{id: id})
+    JS.dispatch(js, "modal:hide", to: "##{id}", detail: %{id: id})
   end
 
   @doc """

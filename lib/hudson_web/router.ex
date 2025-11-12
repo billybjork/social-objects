@@ -17,7 +17,8 @@ defmodule HudsonWeb.Router do
   scope "/", HudsonWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
+    # Redirect root to sessions manager
+    get "/", Redirector, :redirect_to_sessions
 
     # Product management
     live "/products", ProductsLive.Index

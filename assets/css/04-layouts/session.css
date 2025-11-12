@@ -1,0 +1,48 @@
+/* ============================================================================
+   SESSION-SPECIFIC LAYOUTS
+   ============================================================================ */
+
+.session-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-6);
+  padding: var(--space-6);
+  min-height: 100vh;
+  background-color: var(--color-bg-primary);
+}
+
+.session-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-6);
+  background-color: var(--color-surface-primary);
+  border-radius: var(--radius-lg);
+}
+
+.session-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.session-controls {
+  position: sticky;
+  top: var(--space-4);
+  background-color: var(--color-surface-primary);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+.session-products {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: var(--space-4);
+}
+
+@media (min-width: 768px) {
+  .session-layout {
+    grid-template-columns: 300px 1fr;
+  }
+}

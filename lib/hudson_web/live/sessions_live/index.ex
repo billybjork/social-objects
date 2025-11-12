@@ -217,24 +217,6 @@ defmodule HudsonWeb.SessionsLive.Index do
   end
 
   @impl true
-  def handle_event("enter_session", %{"session-id" => session_id, "view" => view}, socket) do
-    session_id = normalize_id(session_id)
-    path = case view do
-      "host" -> ~p"/sessions/#{session_id}/host"
-      "producer" -> ~p"/sessions/#{session_id}/producer"
-      _ -> ~p"/sessions/#{session_id}/producer"  # Default to producer
-    end
-    {:noreply, push_navigate(socket, to: path)}
-  end
-
-  # Default to producer view if no view specified
-  @impl true
-  def handle_event("enter_session", %{"session-id" => session_id}, socket) do
-    session_id = normalize_id(session_id)
-    {:noreply, push_navigate(socket, to: ~p"/sessions/#{session_id}/producer")}
-  end
-
-  @impl true
   def handle_event("delete_session", %{"session-id" => session_id}, socket) do
     session_id = normalize_id(session_id)
     session = Sessions.get_session!(session_id)
@@ -279,10 +261,10 @@ defmodule HudsonWeb.SessionsLive.Index do
     if slug == "", do: "session-#{:os.system_time(:second)}", else: slug
   end
 
-  defp status_badge_class("draft"), do: "badge-neutral"
-  defp status_badge_class("live"), do: "badge-success"
-  defp status_badge_class("complete"), do: "badge-info"
-  defp status_badge_class(_), do: "badge-ghost"
+  defp status_badge_class("draft"), do: "badge--draft"
+  defp status_badge_class("live"), do: "badge--live"
+  defp status_badge_class("complete"), do: "badge--complete"
+  defp status_badge_class(_), do: "badge--neutral"
 
   defp format_datetime(nil), do: "Not scheduled"
 
