@@ -19,13 +19,13 @@ defmodule Hudson.Sessions do
   end
 
   @doc """
-  Returns the list of sessions with brands and products preloaded, ordered by most recent.
+  Returns the list of sessions with brands and products preloaded, ordered by most recently modified.
   """
   def list_sessions_with_details do
     ordered_images = from(pi in ProductImage, order_by: [asc: pi.position])
 
     Session
-    |> order_by([s], desc: s.inserted_at)
+    |> order_by([s], desc: s.updated_at)
     |> preload([:brand, session_products: [product: [product_images: ^ordered_images]]])
     |> Repo.all()
   end
