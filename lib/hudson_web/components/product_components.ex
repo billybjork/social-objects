@@ -63,6 +63,10 @@ defmodule HudsonWeb.ProductComponents do
   use Phoenix.Component
 
   import HudsonWeb.CoreComponents
+  use Phoenix.VerifiedRoutes,
+    endpoint: HudsonWeb.Endpoint,
+    router: HudsonWeb.Router,
+    statics: HudsonWeb.static_paths()
 
   alias Phoenix.LiveView.JS
 
@@ -113,6 +117,15 @@ defmodule HudsonWeb.ProductComponents do
               <p class="text-sm text-secondary" style="margin-top: var(--space-xs); text-align: center;">
                 Product Image {if image.is_primary, do: "(Primary)"}
               </p>
+              <div style="margin-top: var(--space-sm); text-align: center;">
+                <.button
+                  navigate={~p"/products/upload?product_id=#{@editing_product.id}"}
+                  variant="primary"
+                  size="sm"
+                >
+                  Manage Images
+                </.button>
+              </div>
             </div>
           <% end %>
 

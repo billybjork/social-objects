@@ -4,15 +4,23 @@ defmodule HudsonWeb.ProductUploadLive do
   alias Hudson.{Catalog, Media}
 
   @impl true
-  def mount(_params, _session, socket) do
+  def mount(params, _session, socket) do
     products = Catalog.list_products()
+
+    # Auto-select product if product_id is in query params
+    selected_product_id =
+      case params["product_id"] do
+        nil -> nil
+        id when is_binary(id) -> String.to_integer(id)
+        id when is_integer(id) -> id
+      end
 
     socket =
       socket
       |> assign(
         page_title: "Upload Product Images",
         products: products,
-        selected_product_id: nil,
+        selected_product_id: selected_product_id,
         uploading: false,
         upload_progress: 0,
         upload_results: []
@@ -81,6 +89,11 @@ defmodule HudsonWeb.ProductUploadLive do
   def render(assigns) do
     ~H"""
     <div class="upload-container">
+      <div class="back-link">
+        <.link navigate={~p"/products"} class="back-link__text">
+          ← Back to Products
+        </.link>
+      </div>
       <h1>Upload Product Images</h1>
       
     <!-- Product Selection -->
@@ -172,6 +185,24 @@ defmodule HudsonWeb.ProductUploadLive do
         padding: 2rem;
         background: var(--bg-dark, #1a1a1a);
         color: var(--text-primary, #ffffff);
+      }
+
+      .back-link {
+        margin-bottom: 1rem;
+      }
+
+      .back-link__text {
+        display: inline-flex;
+        align-items: center;
+        color: var(--accent, #0066cc);
+        text-decoration: none;
+        font-size: 0.875rem;
+        transition: color 0.2s;
+      }
+
+      .back-link__text:hover {
+        color: var(--accent-light, #3388dd);
+        text-decoration: underline;
       }
 
       .product-select {
