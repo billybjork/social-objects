@@ -282,7 +282,7 @@ defmodule HudsonWeb.SessionsLive.Index do
         load_products_for_new_session(socket)
       else
         socket
-        |> assign(:new_session_products, [])
+        |> stream(:new_session_products, [], reset: true)
         |> assign(:new_session_has_more, false)
         |> assign(:product_search_query, "")
         |> assign(:selected_product_ids, MapSet.new())
@@ -329,7 +329,7 @@ defmodule HudsonWeb.SessionsLive.Index do
           |> assign(:product_search_query, "")
           |> assign(:product_page, 1)
           |> assign(:selected_product_ids, MapSet.new())
-          |> assign(:new_session_products, [])
+          |> stream(:new_session_products, [], reset: true)
           |> assign(:new_session_has_more, false)
           |> push_patch(to: path)
           |> put_flash(:info, "Session created successfully")
@@ -926,7 +926,7 @@ defmodule HudsonWeb.SessionsLive.Index do
     |> assign(:product_search_query, "")
     |> assign(:product_page, 1)
     |> assign(:selected_product_ids, MapSet.new())
-    |> assign(:new_session_products, [])
+    |> stream(:new_session_products, [], reset: true)
     |> assign(:new_session_has_more, false)
   end
 

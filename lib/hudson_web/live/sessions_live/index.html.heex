@@ -239,7 +239,9 @@
         phx-disable-with="Adding..."
         disabled={MapSet.size(@add_product_selected_ids) == 0}
       >
-        Add {MapSet.size(@add_product_selected_ids)} Product<%= if MapSet.size(@add_product_selected_ids) != 1 do %>s<% end %>
+        Add {MapSet.size(@add_product_selected_ids)} Product<%= if MapSet.size(@add_product_selected_ids) != 1 do %>
+          s
+        <% end %>
       </.button>
     </div>
   </.modal>
@@ -286,30 +288,33 @@
           label="Notes"
           placeholder="Any additional notes about this session"
         />
-
-        <!-- Product Selection Section -->
-        <%= if @session_form.params["brand_id"] && @session_form.params["brand_id"] != "" do %>
-          <div style="margin-top: var(--space-4);">
-            <.product_grid
-              products={@streams.new_session_products}
-              mode={:select}
-              search_query={@product_search_query}
-              has_more={@new_session_has_more}
-              selected_ids={@selected_product_ids}
-              on_product_click="toggle_product_selection"
-              on_search="search_products"
-              on_load_more="load_more_products"
-              show_search={true}
-              loading={@loading_products}
-              is_empty={@product_total_count == 0}
-            />
-          </div>
-        <% else %>
-          <p class="text-sm text-secondary">
-            Please select a brand to choose products.
-          </p>
-        <% end %>
       </.form>
+      
+<!-- Product Selection Section (outside the form) -->
+      <%= if @session_form.params["brand_id"] && @session_form.params["brand_id"] != "" do %>
+        <div class="stack" style="margin-top: var(--space-6);">
+          <h3 style="font-size: 0.875rem; font-weight: 600; margin-bottom: var(--space-2);">
+            Select Products
+          </h3>
+          <.product_grid
+            products={@streams.new_session_products}
+            mode={:select}
+            search_query={@product_search_query}
+            has_more={@new_session_has_more}
+            selected_ids={@selected_product_ids}
+            on_product_click="toggle_product_selection"
+            on_search="search_products"
+            on_load_more="load_more_products"
+            show_search={true}
+            loading={@loading_products}
+            is_empty={@product_total_count == 0}
+          />
+        </div>
+      <% else %>
+        <p class="text-sm text-secondary" style="margin-top: var(--space-4);">
+          Please select a brand to choose products.
+        </p>
+      <% end %>
     </div>
 
     <div class="modal__footer">

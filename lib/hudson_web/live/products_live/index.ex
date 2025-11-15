@@ -24,9 +24,9 @@ defmodule HudsonWeb.ProductsLive.Index do
       |> assign(:product_total_count, 0)
       |> assign(:products_has_more, false)
       |> assign(:loading_products, false)
-      |> stream(:products, [], limit: 60)
-      |> load_products_for_browse()
+      |> stream(:products, [])
 
+    # Don't load products here - handle_params will do it based on URL params
     {:ok, socket}
   end
 
@@ -35,24 +35,40 @@ defmodule HudsonWeb.ProductsLive.Index do
     socket =
       socket
       |> apply_url_params(params)
+      |> apply_search_params(params)
 
     {:noreply, socket}
   end
 
   @impl true
   def handle_event("show_edit_product_modal", %{"product-id" => product_id}, socket) do
-    # Update URL to include product ID
-    {:noreply, push_patch(socket, to: ~p"/products?#{%{p: product_id}}")}
+    # Update URL to include product ID, preserving search query if present
+    query_params =
+      if socket.assigns.product_search_query != "" do
+        %{p: product_id, q: socket.assigns.product_search_query}
+      else
+        %{p: product_id}
+      end
+
+    {:noreply, push_patch(socket, to: ~p"/products?#{query_params}")}
   end
 
   @impl true
   def handle_event("close_edit_product_modal", _params, socket) do
+    # Preserve search query when closing modal
+    query_params =
+      if socket.assigns.product_search_query != "" do
+        %{q: socket.assigns.product_search_query}
+      else
+        %{}
+      end
+
     socket =
       socket
       |> assign(:editing_product, nil)
       |> assign(:product_edit_form, to_form(Product.changeset(%Product{}, %{})))
       |> assign(:current_edit_image_index, 0)
-      |> push_patch(to: ~p"/products")
+      |> push_patch(to: ~p"/products?#{query_params}")
 
     {:noreply, socket}
   end
@@ -97,14 +113,15 @@ defmodule HudsonWeb.ProductsLive.Index do
 
   @impl true
   def handle_event("search_products", %{"value" => query}, socket) do
-    socket =
-      socket
-      |> assign(:product_search_query, query)
-      |> assign(:product_page, 1)
-      |> assign(:loading_products, true)
-      |> load_products_for_browse()
+    # Use push_patch to update URL - handle_params will handle the actual search
+    query_params =
+      if query == "" do
+        %{}
+      else
+        %{q: query}
+      end
 
-    {:noreply, socket}
+    {:noreply, push_patch(socket, to: ~p"/products?#{query_params}")}
   end
 
   @impl true
@@ -180,7 +197,6 @@ defmodule HudsonWeb.ProductsLive.Index do
       |> assign(:loading_products, false)
       |> stream(:products, products_with_images,
         reset: !append,
-        limit: 60,
         at: if(append, do: -1, else: 0)
       )
       |> assign(:product_total_count, result.total)
@@ -230,6 +246,26 @@ defmodule HudsonWeb.ProductsLive.Index do
             # Invalid ID format, clear param by redirecting
             push_patch(socket, to: ~p"/products")
         end
+    end
+  end
+
+  defp apply_search_params(socket, params) do
+    # Read "q" param for search query
+    search_query = params["q"] || ""
+
+    # Reload products if search query changed OR if products haven't been loaded yet
+    should_load =
+      socket.assigns.product_search_query != search_query ||
+        socket.assigns.product_total_count == 0
+
+    if should_load do
+      socket
+      |> assign(:product_search_query, search_query)
+      |> assign(:product_page, 1)
+      |> assign(:loading_products, true)
+      |> load_products_for_browse()
+    else
+      socket
     end
   end
 end

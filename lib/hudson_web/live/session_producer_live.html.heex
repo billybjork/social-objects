@@ -63,7 +63,7 @@
               </form>
             </div>
           </div>
-
+          
 <!-- Product Grid -->
           <div class="config-panel__middle">
             <h3>Products</h3>
@@ -72,7 +72,8 @@
                 <div
                   class={[
                     "producer-product-item",
-                    @current_session_product && @current_session_product.id == sp.id && "producer-product-item--active"
+                    @current_session_product && @current_session_product.id == sp.id &&
+                      "producer-product-item--active"
                   ]}
                   phx-click="jump_to_product"
                   phx-value-position={sp.position}
@@ -96,7 +97,7 @@
               <% end %>
             </div>
           </div>
-
+          
 <!-- Keyboard Shortcuts Reference -->
           <div class="config-panel__bottom">
             <div class="shortcuts-reference">

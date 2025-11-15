@@ -5,6 +5,7 @@
     products={@streams.products}
     mode={:browse}
     search_query={@product_search_query}
+    use_dynamic_id={true}
     has_more={@products_has_more}
     on_product_click="show_edit_product_modal"
     on_search="search_products"
@@ -13,7 +14,10 @@
     show_search={true}
     loading={@loading_products}
     is_empty={@product_total_count == 0}
-    viewport_bottom={@products_has_more && !@loading_products && "load_more_products"}
+    viewport_bottom={
+      @products_has_more && !@loading_products && @product_search_query == "" &&
+        "load_more_products"
+    }
   />
 
   <.product_edit_modal

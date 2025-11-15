@@ -293,20 +293,25 @@ defmodule HudsonWeb.ProductComponents do
     default: nil,
     doc: "phx-viewport-bottom binding for infinite scroll"
 
+  attr :use_dynamic_id, :boolean,
+    default: false,
+    doc: "Whether to use dynamic ID based on search query (for URL-based search)"
+
   def product_grid(assigns) do
     ~H"""
     <div class={["product-grid", "product-grid--#{@mode}"]}>
       <%= if @show_search do %>
         <div class="product-grid__header">
           <div class="product-grid__search">
-            <input
-              type="text"
-              placeholder={@search_placeholder}
-              value={@search_query}
-              phx-keyup={@on_search}
-              phx-debounce="300"
-              class="input input--sm"
-            />
+            <form phx-change={@on_search} phx-submit={@on_search} phx-debounce="300">
+              <input
+                type="text"
+                name="value"
+                placeholder={@search_placeholder}
+                value={@search_query}
+                class="input input--sm"
+              />
+            </form>
           </div>
           <%= if @mode == :select do %>
             <div class="product-grid__count">
@@ -316,17 +321,25 @@ defmodule HudsonWeb.ProductComponents do
         </div>
       <% end %>
 
-      <div
-        class="product-grid__grid"
-        id="product-grid"
-        phx-update="stream"
-        phx-viewport-bottom={@viewport_bottom}
-      >
-        <%= if @is_empty do %>
-          <div id="product-grid-empty" class="product-grid__empty">
-            No products found. Try a different search.
-          </div>
-        <% else %>
+      <%= if @is_empty do %>
+        <div class="product-grid__empty">
+          No products found. Try a different search.
+        </div>
+      <% else %>
+        <div
+          class="product-grid__grid"
+          id={
+            if @use_dynamic_id,
+              do:
+                if(@search_query == "",
+                  do: "product-grid-all",
+                  else: "product-grid-#{String.replace(@search_query, " ", "-")}"
+                ),
+              else: "product-grid"
+          }
+          phx-update="stream"
+          phx-viewport-bottom={@viewport_bottom}
+        >
           <%= for {dom_id, product} <- @products do %>
             <%= if @mode == :browse do %>
               <.live_component
@@ -345,8 +358,8 @@ defmodule HudsonWeb.ProductComponents do
               />
             <% end %>
           <% end %>
-        <% end %>
-      </div>
+        </div>
+      <% end %>
 
       <%= if !@is_empty && @has_more do %>
         <div id="product-grid-loader" class="product-grid__loader">
