@@ -108,3 +108,10 @@
   font-size: var(--text-sm);
   color: var(--color-accent-red);
 }
+
+/* Darker inputs in modals for better contrast */
+.modal .input,
+.modal .select,
+.modal .textarea {
+  background-color: var(--color-surface-tertiary);
+}
