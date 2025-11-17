@@ -550,6 +550,46 @@ defmodule HudsonWeb.SessionsLive.Index do
   end
 
   @impl true
+  def handle_event("duplicate_session", %{"session-id" => session_id}, socket) do
+    session_id = normalize_id(session_id)
+
+    case Sessions.duplicate_session(session_id) do
+      {:ok, new_session} ->
+        # Reload sessions and expand the new duplicate
+        previous_sessions = socket.assigns.sessions
+        new_sessions = Sessions.list_sessions_with_details()
+
+        sorted_sessions =
+          sort_sessions_preserving_expanded(new_sessions, new_session.id, previous_sessions)
+
+        # Build URL to expand the newly created session
+        path = ~p"/sessions?#{%{s: new_session.id}}"
+
+        # Prepare edit modal for the duplicated session
+        changeset = Session.changeset(new_session, %{})
+
+        socket =
+          socket
+          |> assign(:sessions, sorted_sessions)
+          |> assign(:previous_sessions, sorted_sessions)
+          |> assign(:expanded_session_id, new_session.id)
+          |> assign(:editing_session, new_session)
+          |> assign(:session_edit_form, to_form(changeset))
+          |> push_patch(to: path)
+          |> put_flash(:info, "Session duplicated successfully")
+
+        {:noreply, socket}
+
+      {:error, _changeset} ->
+        socket =
+          socket
+          |> put_flash(:error, "Failed to duplicate session")
+
+        {:noreply, socket}
+    end
+  end
+
+  @impl true
   def handle_event("show_edit_product_modal", %{"product-id" => product_id}, socket) do
     product = Catalog.get_product_with_images!(product_id)
 

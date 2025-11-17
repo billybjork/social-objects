@@ -480,11 +480,11 @@
 }
 
 .session-menu__item--danger {
-  color: var(--color-error);
+  color: var(--color-accent-red);
 }
 
 .session-menu__item--danger:hover {
-  background-color: var(--color-error-bg);
+  background-color: rgba(239, 68, 68, 0.1);
 }
 
 .session-menu__divider {

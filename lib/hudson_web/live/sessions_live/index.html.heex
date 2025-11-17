@@ -84,6 +84,19 @@
                     Edit
                   </button>
 
+                  <button
+                    class="session-menu__item"
+                    role="menuitem"
+                    phx-click={
+                      JS.push("duplicate_session")
+                      |> JS.hide(to: "#session-menu-#{session.id}", transition: "fade-out")
+                    }
+                    phx-value-session-id={session.id}
+                  >
+                    <.icon name="hero-document-duplicate" class="size-4" />
+                    Duplicate
+                  </button>
+
                   <div class="session-menu__divider"></div>
 
                   <button

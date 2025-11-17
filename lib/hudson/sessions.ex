@@ -94,6 +94,95 @@ defmodule Hudson.Sessions do
   end
 
   @doc """
+  Duplicates an existing session with all its products.
+
+  Creates a new session with the same brand, notes, and product lineup as the original.
+  The new session will have "Copy of " prepended to its name and a unique slug.
+  All session products are duplicated with their positions, sections, featured overrides, and notes.
+
+  Returns {:ok, session} or {:error, changeset}.
+  """
+  def duplicate_session(session_id) do
+    Repo.transaction(fn ->
+      # Load the original session with products
+      original_session = get_session!(session_id)
+
+      # Generate new name and slug
+      new_name = "Copy of #{original_session.name}"
+      new_slug = generate_unique_slug(new_name)
+
+      # Create new session with same attributes
+      session_attrs = %{
+        brand_id: original_session.brand_id,
+        name: new_name,
+        slug: new_slug,
+        notes: original_session.notes
+      }
+
+      # Create the new session
+      case create_session(session_attrs) do
+        {:ok, new_session} ->
+          # Duplicate all session products
+          case duplicate_session_products(original_session.session_products, new_session.id) do
+            :ok -> new_session
+            {:error, reason} -> Repo.rollback(reason)
+          end
+
+        {:error, changeset} ->
+          Repo.rollback(changeset)
+      end
+    end)
+  end
+
+  defp duplicate_session_products(session_products, new_session_id) do
+    session_products
+    |> Enum.reduce_while(:ok, fn sp, _acc ->
+      attrs = %{
+        session_id: new_session_id,
+        product_id: sp.product_id,
+        position: sp.position,
+        section: sp.section,
+        featured_name: sp.featured_name,
+        featured_talking_points_md: sp.featured_talking_points_md,
+        featured_original_price_cents: sp.featured_original_price_cents,
+        featured_sale_price_cents: sp.featured_sale_price_cents,
+        notes: sp.notes
+      }
+
+      case Repo.insert(SessionProduct.changeset(%SessionProduct{}, attrs)) do
+        {:ok, _} -> {:cont, :ok}
+        {:error, changeset} -> {:halt, {:error, changeset}}
+      end
+    end)
+  end
+
+  defp generate_unique_slug(name) do
+    base_slug = slugify(name)
+    ensure_unique_slug(base_slug, 0)
+  end
+
+  defp ensure_unique_slug(base_slug, attempt) do
+    slug = if attempt == 0, do: base_slug, else: "#{base_slug}-#{attempt}"
+
+    case Repo.get_by(Session, slug: slug) do
+      nil -> slug
+      _ -> ensure_unique_slug(base_slug, attempt + 1)
+    end
+  end
+
+  defp slugify(name) do
+    slug =
+      name
+      |> String.downcase()
+      |> String.replace(~r/[^\w\s-]/, "")
+      |> String.replace(~r/\s+/, "-")
+      |> String.trim("-")
+
+    # Fallback for empty slugs
+    if slug == "", do: "session-#{:os.system_time(:second)}", else: slug
+  end
+
+  @doc """
   Updates a session.
   """
   def update_session(%Session{} = session, attrs) do
