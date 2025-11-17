@@ -213,6 +213,17 @@ defmodule Hudson.Catalog do
 
   @doc """
   Gets a single product.
+  Returns `{:ok, product}` if found, `nil` if not found.
+  """
+  def get_product(id) do
+    case Repo.get(Product, id) do
+      nil -> nil
+      product -> {:ok, product}
+    end
+  end
+
+  @doc """
+  Gets a single product.
   Raises `Ecto.NoResultsError` if the Product does not exist.
   """
   def get_product!(id), do: Repo.get!(Product, id)

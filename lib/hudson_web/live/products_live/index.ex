@@ -3,18 +3,21 @@ defmodule HudsonWeb.ProductsLive.Index do
 
   on_mount {HudsonWeb.NavHooks, :set_current_page}
 
+  alias Hudson.AI
   alias Hudson.Catalog
   alias Hudson.Catalog.Product
   alias Hudson.Settings
+  alias Hudson.Workers.ShopifySyncWorker
 
   import HudsonWeb.ProductComponents
   import HudsonWeb.ViewHelpers
 
   @impl true
   def mount(_params, _session, socket) do
-    # Subscribe to Shopify sync events
+    # Subscribe to Shopify sync events and AI generation events
     if connected?(socket) do
       Phoenix.PubSub.subscribe(Hudson.PubSub, "shopify:sync")
+      Phoenix.PubSub.subscribe(Hudson.PubSub, "ai:talking_points")
     end
 
     brands = Catalog.list_brands()
@@ -28,12 +31,14 @@ defmodule HudsonWeb.ProductsLive.Index do
       |> assign(:editing_product, nil)
       |> assign(:product_edit_form, to_form(Product.changeset(%Product{}, %{})))
       |> assign(:current_edit_image_index, 0)
+      |> assign(:generating_in_modal, false)
       |> assign(:product_search_query, "")
       |> assign(:product_page, 1)
       |> assign(:product_total_count, 0)
       |> assign(:products_has_more, false)
       |> assign(:loading_products, false)
       |> stream(:products, [])
+      |> assign(:generating_product_id, nil)
 
     # Don't load products here - handle_params will do it based on URL params
     {:ok, socket}
@@ -93,10 +98,72 @@ defmodule HudsonWeb.ProductsLive.Index do
   end
 
   @impl true
+  def handle_info({:generation_started, _generation}, socket) do
+    socket =
+      socket
+      |> put_flash(:info, "Generating talking points...")
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:generation_progress, _generation, _product_id, _product_name}, socket) do
+    # No-op for individual products (could add progress indicator if needed)
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:generation_completed, generation}, socket) do
+    # If a product modal is currently open, refresh it with updated talking points
+    socket =
+      if socket.assigns.editing_product do
+        product = Catalog.get_product_with_images!(socket.assigns.editing_product.id)
+
+        changes = %{
+          "talking_points_md" => product.talking_points_md
+        }
+
+        form = to_form(Product.changeset(product, changes))
+
+        socket
+        |> assign(:editing_product, product)
+        |> assign(:product_edit_form, form)
+      else
+        socket
+      end
+
+    # Reload products to show updated talking points
+    socket =
+      socket
+      |> assign(:generating_product_id, nil)
+      |> assign(:generating_in_modal, false)
+      |> assign(:product_page, 1)
+      |> assign(:loading_products, true)
+      |> load_products_for_browse()
+      |> put_flash(
+        :info,
+        "Successfully generated talking points for #{generation.completed_count} product(s)!"
+      )
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:generation_failed, _generation, reason}, socket) do
+    socket =
+      socket
+      |> assign(:generating_product_id, nil)
+      |> assign(:generating_in_modal, false)
+      |> put_flash(:error, "Failed to generate talking points: #{inspect(reason)}")
+
+    {:noreply, socket}
+  end
+
+  @impl true
   def handle_event("trigger_shopify_sync", _params, socket) do
     # Enqueue a Shopify sync job
     %{}
-    |> Hudson.Workers.ShopifySyncWorker.new()
+    |> ShopifySyncWorker.new()
     |> Oban.insert()
 
     socket =
@@ -239,6 +306,28 @@ defmodule HudsonWeb.ProductsLive.Index do
       {:noreply, assign(socket, current_edit_image_index: new_index)}
     else
       {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("generate_product_talking_points", %{"product-id" => product_id}, socket) do
+    product_id = String.to_integer(product_id)
+
+    case AI.generate_talking_points_async(product_id) do
+      {:ok, _generation} ->
+        socket =
+          socket
+          |> assign(:generating_product_id, product_id)
+          |> assign(:generating_in_modal, true)
+
+        {:noreply, socket}
+
+      {:error, reason} ->
+        socket =
+          socket
+          |> put_flash(:error, "Failed to start generation: #{reason}")
+
+        {:noreply, socket}
     end
   end
 

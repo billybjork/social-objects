@@ -61,11 +61,13 @@ defmodule HudsonWeb.SessionsLive.Index do
 
   on_mount {HudsonWeb.NavHooks, :set_current_page}
 
+  alias Hudson.AI
   alias Hudson.Catalog
   alias Hudson.Catalog.Product
   alias Hudson.Sessions
   alias Hudson.Sessions.{Session, SessionProduct}
 
+  import HudsonWeb.AIComponents
   import HudsonWeb.ProductComponents
   import HudsonWeb.ViewHelpers
 
@@ -75,6 +77,7 @@ defmodule HudsonWeb.SessionsLive.Index do
     if connected?(socket) do
       Phoenix.PubSub.subscribe(Hudson.PubSub, "sessions:list")
       Phoenix.PubSub.subscribe(Hudson.PubSub, "shopify:sync")
+      Phoenix.PubSub.subscribe(Hudson.PubSub, "ai:talking_points")
     end
 
     sessions = Sessions.list_sessions_with_details()
@@ -92,6 +95,7 @@ defmodule HudsonWeb.SessionsLive.Index do
       |> assign(:show_new_session_modal, false)
       |> assign(:editing_product, nil)
       |> assign(:current_image_index, 0)
+      |> assign(:generating_in_modal, false)
       |> assign(
         :product_form,
         to_form(SessionProduct.changeset(%SessionProduct{}, %{}))
@@ -125,6 +129,9 @@ defmodule HudsonWeb.SessionsLive.Index do
       |> assign(:loading_add_products, false)
       |> assign(:add_product_products_map, %{})
       |> stream(:add_product_products, [])
+      |> assign(:current_generation, nil)
+      |> assign(:current_product_name, nil)
+      |> assign(:show_generation_modal, false)
 
     {:ok, socket}
   end
@@ -198,6 +205,92 @@ defmodule HudsonWeb.SessionsLive.Index do
     socket =
       socket
       |> put_flash(:error, message)
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:generation_started, generation}, socket) do
+    socket =
+      socket
+      |> assign(:current_generation, generation)
+      |> assign(:show_generation_modal, false)
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:generation_progress, generation, _product_id, product_name}, socket) do
+    socket =
+      socket
+      |> assign(:current_generation, generation)
+      |> assign(:current_product_name, product_name)
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:generation_completed, generation}, socket) do
+    # Update the generation status immediately so the banner shows completion
+    socket =
+      socket
+      |> assign(:current_generation, generation)
+      |> assign(:current_product_name, nil)
+      |> assign(:generating_in_modal, false)
+
+    # Defer the session reload slightly to let the DOM settle
+    # This prevents a brief period where products are unclickable during re-render
+    Process.send_after(self(), {:reload_sessions_after_generation, generation}, 100)
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:reload_sessions_after_generation, generation}, socket) do
+    # Reload sessions to show updated talking points
+    expanded_id = socket.assigns.expanded_session_id
+    previous_sessions = socket.assigns.sessions
+    new_sessions = Sessions.list_sessions_with_details()
+
+    sorted_sessions =
+      sort_sessions_preserving_expanded(new_sessions, expanded_id, previous_sessions)
+
+    # If a product modal is currently open, refresh it with updated talking points
+    socket =
+      if socket.assigns.editing_product do
+        product = Catalog.get_product_with_images!(socket.assigns.editing_product.id)
+
+        changes = %{
+          "original_price_cents" => format_cents_to_dollars(product.original_price_cents),
+          "sale_price_cents" => format_cents_to_dollars(product.sale_price_cents),
+          "talking_points_md" => product.talking_points_md
+        }
+
+        form = to_form(Product.changeset(product, changes))
+
+        socket
+        |> assign(:editing_product, product)
+        |> assign(:product_edit_form, form)
+      else
+        socket
+      end
+
+    socket =
+      socket
+      |> assign(:sessions, sorted_sessions)
+      |> assign(:previous_sessions, sorted_sessions)
+      |> assign(:current_generation, generation)
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:generation_failed, generation, _reason}, socket) do
+    socket =
+      socket
+      |> assign(:current_generation, generation)
+      |> assign(:current_product_name, nil)
+      |> assign(:generating_in_modal, false)
 
     {:noreply, socket}
   end
@@ -891,6 +984,50 @@ defmodule HudsonWeb.SessionsLive.Index do
       end
 
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("generate_session_talking_points", %{"session-id" => session_id}, socket) do
+    session_id = normalize_id(session_id)
+
+    case AI.generate_session_talking_points_async(session_id) do
+      {:ok, _generation} ->
+        # The handle_info callbacks will handle the UI updates
+        {:noreply, socket}
+
+      {:error, reason} ->
+        socket =
+          socket
+          |> put_flash(:error, "Failed to start generation: #{reason}")
+
+        {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("generate_product_talking_points", %{"product-id" => product_id}, socket) do
+    product_id = String.to_integer(product_id)
+
+    case AI.generate_talking_points_async(product_id) do
+      {:ok, _generation} ->
+        socket =
+          socket
+          |> assign(:generating_in_modal, true)
+
+        {:noreply, socket}
+
+      {:error, reason} ->
+        socket =
+          socket
+          |> put_flash(:error, "Failed to start generation: #{reason}")
+
+        {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("close_generation_modal", _params, socket) do
+    {:noreply, assign(socket, :show_generation_modal, false)}
   end
 
   # Helper functions

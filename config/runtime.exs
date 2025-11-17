@@ -16,7 +16,16 @@ end
 if config_env() == :dev do
   config :hudson,
     shopify_access_token: System.get_env("SHOPIFY_ACCESS_TOKEN"),
-    shopify_store_name: System.get_env("SHOPIFY_STORE_NAME")
+    shopify_store_name: System.get_env("SHOPIFY_STORE_NAME"),
+    openai_api_key: System.get_env("OPENAI_API_KEY")
+
+  # OpenAI client configuration
+  config :hudson, Hudson.AI.OpenAIClient,
+    model: System.get_env("OPENAI_MODEL", "gpt-4o-mini"),
+    temperature: String.to_float(System.get_env("OPENAI_TEMPERATURE", "0.7")),
+    max_tokens: String.to_integer(System.get_env("OPENAI_MAX_TOKENS", "500")),
+    max_retries: String.to_integer(System.get_env("OPENAI_MAX_RETRIES", "3")),
+    initial_backoff_ms: String.to_integer(System.get_env("OPENAI_INITIAL_BACKOFF_MS", "1000"))
 end
 
 # ## Using releases
@@ -69,7 +78,16 @@ if config_env() == :prod do
   # Shopify configuration
   config :hudson,
     shopify_access_token: System.get_env("SHOPIFY_ACCESS_TOKEN"),
-    shopify_store_name: System.get_env("SHOPIFY_STORE_NAME")
+    shopify_store_name: System.get_env("SHOPIFY_STORE_NAME"),
+    openai_api_key: System.get_env("OPENAI_API_KEY")
+
+  # OpenAI client configuration
+  config :hudson, Hudson.AI.OpenAIClient,
+    model: System.get_env("OPENAI_MODEL", "gpt-4o-mini"),
+    temperature: String.to_float(System.get_env("OPENAI_TEMPERATURE", "0.7")),
+    max_tokens: String.to_integer(System.get_env("OPENAI_MAX_TOKENS", "500")),
+    max_retries: String.to_integer(System.get_env("OPENAI_MAX_RETRIES", "3")),
+    initial_backoff_ms: String.to_integer(System.get_env("OPENAI_INITIAL_BACKOFF_MS", "1000"))
 
   config :hudson, HudsonWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],

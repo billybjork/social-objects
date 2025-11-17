@@ -763,6 +763,6 @@ defmodule HudsonWeb.CoreComponents do
     end
   end
 
-  defp pluralize(word, 1), do: word
-  defp pluralize(word, _), do: "#{word}s"
+  def pluralize(word, 1), do: word
+  def pluralize(word, _), do: "#{word}s"
 end

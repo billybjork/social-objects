@@ -208,6 +208,7 @@ defmodule HudsonWeb.ProductComponents do
   attr :product_edit_form, :any, required: true, doc: "The product form"
   attr :brands, :list, required: true, doc: "List of available brands"
   attr :current_image_index, :integer, default: 0, doc: "Current image index for carousel"
+  attr :generating, :boolean, default: false, doc: "Whether talking points are being generated"
 
   def product_edit_modal(assigns) do
     ~H"""
@@ -219,7 +220,7 @@ defmodule HudsonWeb.ProductComponents do
         phx-hook="ProductEditModalKeyboard"
       >
         <div class="modal__header">
-          <h2 class="modal__title"><%= @editing_product.name %></h2>
+          <h2 class="modal__title">{@editing_product.name}</h2>
         </div>
 
         <div class="modal__body">
@@ -236,34 +237,38 @@ defmodule HudsonWeb.ProductComponents do
               />
             </div>
           <% end %>
-
-          <!-- Product details -->
+          
+    <!-- Product details -->
           <div class="stack" style="gap: var(--space-3); margin-bottom: var(--space-6);">
             <div style="color: var(--color-text-primary);">
               <strong style="font-weight: var(--font-semibold);">Brand:</strong>
-              <%= @editing_product.brand.name %>
+              {@editing_product.brand.name}
             </div>
 
             <div style="color: var(--color-text-primary);">
               <strong style="font-weight: var(--font-semibold);">Original Price:</strong>
-              $<%= format_price_cents(@editing_product.original_price_cents) %>
+              ${format_price_cents(@editing_product.original_price_cents)}
               <%= if @editing_product.sale_price_cents do %>
                 <span style="margin-left: var(--space-4);">
                   <strong style="font-weight: var(--font-semibold);">Sale Price:</strong>
-                  $<%= format_price_cents(@editing_product.sale_price_cents) %>
+                  ${format_price_cents(@editing_product.sale_price_cents)}
                 </span>
               <% end %>
             </div>
 
             <div style="color: var(--color-text-secondary); font-size: var(--text-sm);">
-              <strong style="font-weight: var(--font-semibold); color: var(--color-text-primary);">Product ID:</strong>
-              <span style="font-family: monospace;"><%= @editing_product.pid %></span>
+              <strong style="font-weight: var(--font-semibold); color: var(--color-text-primary);">
+                Product ID:
+              </strong>
+              <span style="font-family: monospace;">{@editing_product.pid}</span>
             </div>
 
             <%= if @editing_product.sku do %>
               <div style="color: var(--color-text-secondary); font-size: var(--text-sm);">
-                <strong style="font-weight: var(--font-semibold); color: var(--color-text-primary);">SKU:</strong>
-                <span style="font-family: monospace;"><%= @editing_product.sku %></span>
+                <strong style="font-weight: var(--font-semibold); color: var(--color-text-primary);">
+                  SKU:
+                </strong>
+                <span style="font-family: monospace;">{@editing_product.sku}</span>
               </div>
             <% end %>
 
@@ -273,21 +278,33 @@ defmodule HudsonWeb.ProductComponents do
                   Description
                 </strong>
                 <div style="color: var(--color-text-secondary); line-height: 1.6;">
-                  <%= Phoenix.HTML.raw(@editing_product.description) %>
+                  {Phoenix.HTML.raw(@editing_product.description)}
                 </div>
               </div>
             <% end %>
           </div>
-
-          <%= if @editing_product.product_variants && length(@editing_product.product_variants) > 0 do %>
-            <.product_variants variants={@editing_product.product_variants} />
-          <% end %>
-
-          <!-- Editable fields form -->
+          
+    <!-- Talking Points - Editable field -->
           <div style="margin-top: var(--space-3);">
-            <strong style="font-weight: var(--font-semibold); color: var(--color-text-primary); display: block; margin-bottom: var(--space-2);">
-              Talking Points
-            </strong>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-2);">
+              <strong style="font-weight: var(--font-semibold); color: var(--color-text-primary);">
+                Talking Points
+              </strong>
+              <button
+                type="button"
+                class={["button button--sm button--ghost", @generating && "button--disabled"]}
+                phx-click="generate_product_talking_points"
+                phx-value-product-id={@editing_product.id}
+                disabled={@generating}
+                style="display: flex; align-items: center; gap: var(--space-1);"
+              >
+                <%= if @generating do %>
+                  <.icon name="hero-arrow-path" class="size-4 animate-spin" /> Generating...
+                <% else %>
+                  ✨ Generate
+                <% end %>
+              </button>
+            </div>
             <.form
               id="edit-product-form"
               for={@product_edit_form}
@@ -301,6 +318,10 @@ defmodule HudsonWeb.ProductComponents do
               />
             </.form>
           </div>
+
+          <%= if @editing_product.product_variants && length(@editing_product.product_variants) > 0 do %>
+            <.product_variants variants={@editing_product.product_variants} />
+          <% end %>
         </div>
 
         <div class="modal__footer">

@@ -69,6 +69,8 @@ defmodule Hudson.MixProject do
       {:earmark, "~> 1.4"},
       # Password hashing for authentication
       {:bcrypt_elixir, "~> 3.0"},
+      # OpenAI API integration for AI-generated content
+      {:openai_ex, "~> 0.9.18"},
       # Load .env files in development
       {:dotenvy, "~> 0.8.0", only: [:dev, :test]},
       # Static type analysis

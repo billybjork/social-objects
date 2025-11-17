@@ -1,6 +1,12 @@
 <.nav_tabs current_page={@current_page} />
 
-<div class="container container--xl region" phx-window-keydown="keydown" phx-key="Escape">
+<%!-- AI Generation Progress Banner --%>
+<.generation_progress_banner
+  generation={@current_generation}
+  current_product={@current_product_name}
+/>
+
+<div class="container container--xl region" phx-window-keydown={JS.push("keydown") |> JS.hide(to: ".session-menu", transition: "fade-out")} phx-key="Escape">
   <div class="stack stack--lg">
     <%= if @sessions == [] do %>
       <div class="session-card__empty-state">
@@ -8,7 +14,12 @@
       </div>
     <% else %>
       <%= for session <- @sessions do %>
-        <article class="session-card" phx-click="toggle_expand" phx-value-session-id={session.id}>
+        <article
+          id={"session-#{session.id}"}
+          class="session-card"
+          phx-click="toggle_expand"
+          phx-value-session-id={session.id}
+        >
           <div class="session-card__header">
             <div class="session-card__title-group">
               <div class="session-card__title-row">
@@ -99,6 +110,18 @@
                     <.icon name="hero-document-duplicate" class="size-4" /> Duplicate
                   </button>
 
+                  <button
+                    class="session-menu__item"
+                    role="menuitem"
+                    phx-click={
+                      JS.push("generate_session_talking_points")
+                      |> JS.hide(to: "#session-menu-#{session.id}", transition: "fade-out")
+                    }
+                    phx-value-session-id={session.id}
+                  >
+                    <.icon name="hero-sparkles" class="size-4" /> Generate Talking Points
+                  </button>
+
                   <div class="session-menu__divider"></div>
 
                   <button
@@ -155,7 +178,11 @@
                   class="session-card__product-list"
                 >
                   <%= for sp <- session.session_products do %>
-                    <div class="session-card__product-item" data-id={sp.id}>
+                    <div
+                      id={"session-product-#{sp.id}"}
+                      class="session-card__product-item"
+                      data-id={sp.id}
+                    >
                       <div class="drag-handle session-card__drag-handle" title="Drag to reorder">
                         ⋮⋮
                       </div>
@@ -258,7 +285,10 @@
         phx-disable-with="Adding..."
         disabled={MapSet.size(@add_product_selected_ids) == 0}
       >
-        Add {MapSet.size(@add_product_selected_ids)} Product<%= if MapSet.size(@add_product_selected_ids) != 1 do %>s<% end %>
+        Add {MapSet.size(@add_product_selected_ids)} {pluralize(
+          "Product",
+          MapSet.size(@add_product_selected_ids)
+        )}
       </.button>
     </div>
   </.modal>
@@ -360,6 +390,7 @@
   product_edit_form={@product_edit_form}
   brands={@brands}
   current_image_index={@current_image_index}
+  generating={@generating_in_modal}
 />
 
 <!-- Edit Session Modal -->
@@ -421,4 +452,14 @@
       </.button>
     </div>
   </.modal>
+<% end %>
+
+<%!-- AI Generation Progress Modal --%>
+<%= if @current_generation do %>
+  <.generation_progress_modal
+    show={@show_generation_modal}
+    generation={@current_generation}
+    current_product={@current_product_name}
+    on_close="close_generation_modal"
+  />
 <% end %>
