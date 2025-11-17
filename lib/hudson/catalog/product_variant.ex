@@ -65,8 +65,7 @@ defmodule Hudson.Catalog.ProductVariant do
   """
   def format_options(options) when is_map(options) do
     options
-    |> Enum.map(fn {name, value} -> "#{name}: #{value}" end)
-    |> Enum.join(", ")
+    |> Enum.map_join(", ", fn {name, value} -> "#{name}: #{value}" end)
   end
 
   def format_options(_), do: ""

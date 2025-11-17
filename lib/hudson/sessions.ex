@@ -129,16 +129,11 @@ defmodule Hudson.Sessions do
       }
 
       # Create the new session
-      case create_session(session_attrs) do
-        {:ok, new_session} ->
-          # Duplicate all session products
-          case duplicate_session_products(original_session.session_products, new_session.id) do
-            :ok -> new_session
-            {:error, reason} -> Repo.rollback(reason)
-          end
-
-        {:error, changeset} ->
-          Repo.rollback(changeset)
+      with {:ok, new_session} <- create_session(session_attrs),
+           :ok <- duplicate_session_products(original_session.session_products, new_session.id) do
+        new_session
+      else
+        {:error, reason} -> Repo.rollback(reason)
       end
     end)
   end
@@ -609,11 +604,8 @@ defmodule Hudson.Sessions do
       updated_count =
         session_products
         |> Enum.with_index(1)
-        |> Enum.reduce(0, fn {sp, new_position}, acc ->
-          case update_session_product_position({sp, new_position}) do
-            :ok -> acc
-            _ -> acc + 1
-          end
+        |> Enum.count(fn {sp, new_position} ->
+          update_session_product_position({sp, new_position}) != :ok
         end)
 
       # Touch session to update its timestamp

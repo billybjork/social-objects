@@ -200,13 +200,11 @@ defmodule HudsonWeb.HostViewComponents do
 
   def talking_points_section(assigns) do
     ~H"""
-    <div class="talking-points">
-      <%= if @talking_points_html do %>
+    <%= if @talking_points_html do %>
+      <div class="talking-points">
         {@talking_points_html}
-      <% else %>
-        <p class="no-talking-points">No talking points available</p>
-      <% end %>
-    </div>
+      </div>
+    <% end %>
     """
   end
 

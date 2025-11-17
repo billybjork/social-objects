@@ -1,11 +1,13 @@
 defmodule HudsonWeb.SessionHostLive do
   @moduledoc """
-  Read-only host view for displaying product information during live streaming.
-  This view is controlled remotely by the producer and displays:
+  Host view for displaying product information during live streaming.
+  This view supports the same keyboard shortcuts as the producer view and displays:
   - Current product information
   - Product images
   - Talking points
   - Live messages from producer (as floating banner)
+
+  Changes made from either producer or host view are synchronized via PubSub.
   """
   use HudsonWeb, :live_view
 
@@ -67,6 +69,115 @@ defmodule HudsonWeb.SessionHostLive do
   @impl true
   def handle_event("image_loaded", _params, socket) do
     {:noreply, socket}
+  end
+
+  # PRIMARY NAVIGATION: Direct jump to product by number
+  @impl true
+  def handle_event("jump_to_product", %{"position" => position}, socket) do
+    position = String.to_integer(position)
+
+    case Sessions.jump_to_product(socket.assigns.session_id, position) do
+      {:ok, new_state} ->
+        socket =
+          push_patch(socket,
+            to:
+              ~p"/sessions/#{socket.assigns.session_id}/host?sp=#{new_state.current_session_product_id}&img=0"
+          )
+
+        {:noreply, socket}
+
+      {:error, :invalid_position} ->
+        {:noreply, put_flash(socket, :error, "Invalid product number")}
+    end
+  end
+
+  # CONVENIENCE: Sequential next/previous with arrow keys
+  @impl true
+  def handle_event("next_product", _params, socket) do
+    case Sessions.advance_to_next_product(socket.assigns.session_id) do
+      {:ok, new_state} ->
+        socket =
+          push_patch(socket,
+            to:
+              ~p"/sessions/#{socket.assigns.session_id}/host?sp=#{new_state.current_session_product_id}&img=#{new_state.current_image_index}"
+          )
+
+        {:noreply, socket}
+
+      {:error, :end_of_session} ->
+        {:noreply, put_flash(socket, :info, "End of session reached")}
+    end
+  end
+
+  @impl true
+  def handle_event("previous_product", _params, socket) do
+    case Sessions.go_to_previous_product(socket.assigns.session_id) do
+      {:ok, new_state} ->
+        socket =
+          push_patch(socket,
+            to:
+              ~p"/sessions/#{socket.assigns.session_id}/host?sp=#{new_state.current_session_product_id}&img=#{new_state.current_image_index}"
+          )
+
+        {:noreply, socket}
+
+      {:error, :start_of_session} ->
+        {:noreply, put_flash(socket, :info, "Already at first product")}
+    end
+  end
+
+  @impl true
+  def handle_event("next_image", _params, socket) do
+    case Sessions.cycle_product_image(socket.assigns.session_id, :next) do
+      {:ok, _state} -> {:noreply, socket}
+      {:error, _} -> {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("previous_image", _params, socket) do
+    case Sessions.cycle_product_image(socket.assigns.session_id, :previous) do
+      {:ok, _state} -> {:noreply, socket}
+      {:error, _} -> {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("jump_to_first", _params, socket) do
+    # Jump to position 1 (first product)
+    case Sessions.jump_to_product(socket.assigns.session_id, 1) do
+      {:ok, new_state} ->
+        socket =
+          push_patch(socket,
+            to:
+              ~p"/sessions/#{socket.assigns.session_id}/host?sp=#{new_state.current_session_product_id}&img=0"
+          )
+
+        {:noreply, socket}
+
+      {:error, _} ->
+        {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("jump_to_last", _params, socket) do
+    # Jump to last product (total_products)
+    last_position = socket.assigns.total_products
+
+    case Sessions.jump_to_product(socket.assigns.session_id, last_position) do
+      {:ok, new_state} ->
+        socket =
+          push_patch(socket,
+            to:
+              ~p"/sessions/#{socket.assigns.session_id}/host?sp=#{new_state.current_session_product_id}&img=0"
+          )
+
+        {:noreply, socket}
+
+      {:error, _} ->
+        {:noreply, socket}
+    end
   end
 
   # Handle PubSub broadcasts from producer
