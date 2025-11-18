@@ -35,6 +35,13 @@ defmodule Pavoi.Catalog do
   end
 
   @doc """
+  Gets a brand by name.
+  """
+  def get_brand_by_name(name) do
+    Repo.get_by(Brand, name: name)
+  end
+
+  @doc """
   Creates a brand.
   """
   def create_brand(attrs \\ %{}) do
@@ -251,6 +258,31 @@ defmodule Pavoi.Catalog do
   """
   def get_product_by_pid(pid) do
     Repo.get_by(Product, pid: pid)
+  end
+
+  @doc """
+  Gets multiple products by their Shopify product IDs (PIDs).
+  Returns a list of products that match any of the given PIDs.
+  """
+  def list_products_by_pids(pids) when is_list(pids) do
+    Product
+    |> where([p], p.pid in ^pids)
+    |> Repo.all()
+  end
+
+  @doc """
+  Finds a product by SKU with partial matching.
+
+  Returns the first product where the database SKU contains the search SKU.
+  This handles cases where Google Sheets has shortened SKUs.
+
+  Returns nil if no match found.
+  """
+  def find_product_by_sku(sku) when is_binary(sku) do
+    Product
+    |> where([p], ilike(p.sku, ^"%#{sku}%"))
+    |> limit(1)
+    |> Repo.one()
   end
 
   @doc """

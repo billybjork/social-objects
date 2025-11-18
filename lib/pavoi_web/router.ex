@@ -14,8 +14,23 @@ defmodule PavoiWeb.Router do
     plug :accepts, ["json"]
   end
 
-  scope "/", PavoiWeb do
+  # Protected pipeline - requires password in production if SITE_PASSWORD env var is set
+  pipeline :protected do
+    plug PavoiWeb.Plugs.RequirePassword
+  end
+
+  # Authentication routes (not protected to avoid infinite redirect)
+  scope "/auth", PavoiWeb do
     pipe_through :browser
+
+    get "/login", AuthController, :login
+    post "/authenticate", AuthController, :authenticate
+    get "/logout", AuthController, :logout
+  end
+
+  # Main application routes (protected in production)
+  scope "/", PavoiWeb do
+    pipe_through [:browser, :protected]
 
     # Redirect root to sessions manager
     get "/", Redirector, :redirect_to_sessions

@@ -62,6 +62,7 @@ defmodule Pavoi.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
+      {:nimble_csv, "~> 1.2"},
 
       # Pavoi-specific dependencies
       # Markdown rendering for talking points

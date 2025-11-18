@@ -7,7 +7,7 @@ This guide tracks implementation progress and provides instructions for remainin
 ### ✅ Completed (Core MVP)
 
 - [x] **Project Setup** - Phoenix 1.8 with LiveView, no Tailwind
-- [x] **Database Configuration** - PostgreSQL (Supabase or local) with SSL/TLS support
+- [x] **Database Configuration** - PostgreSQL (hosted or local) with SSL/TLS support
 - [x] **Dependencies** - earmark, req, oban, openai_ex
 - [x] **Domain Model** - All schemas and migrations (brands, products, product_images, sessions, session_products, session_states)
 - [x] **Contexts** - Catalog and Sessions contexts with CRUD operations
@@ -150,11 +150,7 @@ if config_env() == :prod do
   config :pavoi, Pavoi.Repo,
     url: database_url,
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
-    ssl: true,
-    ssl_opts: [
-      cacertfile: System.fetch_env!("SUPABASE_CA_CERT"),
-      server_name_indication: ~c"db.supabase.net"
-    ]
+    ssl: true
 
   config :pavoi, PavoiWeb.Endpoint,
     server: true,  # CRITICAL for deployment

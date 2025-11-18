@@ -12,7 +12,7 @@ This document outlines planned features and enhancements beyond the MVP scope.
 - ✅ Session planning and management
 - ✅ Real-time host/producer views
 - ✅ Keyboard-driven navigation
-- ✅ Image management (Supabase Storage)
+- ✅ Image management (object storage)
 - ✅ Per-session product overrides
 - ✅ State persistence across refreshes
 - ✅ Localhost deployment

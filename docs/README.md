@@ -47,10 +47,10 @@ Pavoi provides:
 ### Tech Stack
 
 - **Backend:** Elixir + Phoenix + LiveView
-- **Database:** PostgreSQL (Supabase-hosted)
-- **Storage:** Supabase Storage buckets
+- **Database:** PostgreSQL (cloud-hosted or local)
+- **Storage:** Object storage for product images
 - **Real-time:** Phoenix PubSub
-- **Deployment:** Cloud-hosted web application (Fly.io, Render, etc.)
+- **Deployment:** Cloud-hosted web application
 
 ### Key Features
 
@@ -93,7 +93,7 @@ Pavoi provides:
                  │ Ecto
                  │
 ┌────────────────▼────────────────────┐
-│      PostgreSQL (Supabase)          │
+│         PostgreSQL Database         │
 │  - Products, Sessions, State        │
 └─────────────────────────────────────┘
 ```
@@ -102,7 +102,7 @@ Pavoi provides:
 
 1. **Local Development:**
    - `mix phx.server` for hot-reload development
-   - Connect to Supabase DB via `DATABASE_URL`
+   - Connect to PostgreSQL via `DATABASE_URL` (or use local database)
    - LiveDashboard at `/dev/dashboard`
 
 2. **Testing:**
@@ -152,4 +152,3 @@ Pavoi.Catalog.create_product(%{
 
 - **Phoenix Framework:** https://phoenixframework.org
 - **Phoenix LiveView:** https://hexdocs.pm/phoenix_live_view
-- **Supabase:** https://supabase.com/docs

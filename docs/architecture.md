@@ -11,8 +11,8 @@
 - **Ecto 3.11+** - Database wrapper and query language
 
 **Database & Storage:**
-- **PostgreSQL 15+** (Supabase-hosted) - Primary data store
-- **Supabase Storage** - Object storage for product images
+- **PostgreSQL 15+** (cloud-hosted or local) - Primary data store
+- **Object Storage** - Product image storage (Shopify CDN or cloud provider)
 
 **Real-Time:**
 - **Phoenix PubSub** - Distributed pub/sub with pg2 adapter
@@ -39,11 +39,11 @@
 - Proven for long-running processes (3-4 hour sessions)
 - Hot code reloading without downtime
 
-**Supabase Benefits:**
-- Managed PostgreSQL with backups
-- Built-in storage with CDN
+**Managed Database Benefits:**
+- Automated backups and point-in-time recovery
+- Built-in connection pooling and scaling
 - Easy remote access for development
-- Row-Level Security for fine-grained permissions
+- SSL/TLS encryption in transit
 
 ---
 
@@ -95,7 +95,7 @@
                      │ Ecto (Database)
                      │
 ┌────────────────────▼────────────────────────────────────────┐
-│              PostgreSQL (Supabase)                          │
+│              PostgreSQL Database                            │
 │  Tables:                                                    │
 │    - brands, hosts                                          │
 │    - products, product_images                               │
@@ -103,13 +103,13 @@
 │    - session_states                                         │
 └──────────────────────────┬──────────────────────────────────┘
                            │
-                  RLS Policies
+              Image Paths Stored in DB
                            │
 ┌──────────────────────────▼──────────────────────────────────┐
-│              Supabase Storage                               │
-│  Buckets:                                                   │
-│    - products/ (images)                                     │
-│      - pavoi/products/{product_id}/{filename}               │
+│              Object Storage / CDN                           │
+│  Product images served via:                                 │
+│    - Shopify CDN (for synced products)                      │
+│    - Cloud object storage (for manual uploads)              │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -156,13 +156,13 @@ Phoenix contexts provide API boundaries around domain functionality. Keep contex
 **Responsibilities:**
 - Manage brands, products, and product images
 - CRUD operations for catalog entities
-- Image upload coordination with Supabase Storage
+- Image path management for product images
 - Product search and filtering
 
 **Key Functions:**
 - `list_products(filters)` - Query products with filtering
 - `create_product(attrs)` - Insert new product
-- `upload_product_image(product_id, file)` - Upload to Supabase
+- `get_product_image_url(path)` - Build full URL from stored path
 - `search_products(query)` - Full-text search
 
 **Schemas:** Brand, Product, ProductImage
@@ -385,21 +385,21 @@ _See [Implementation Guide](implementation_guide.md#error-handling) for patterns
 
 **Future:** Generate real user accounts with `mix phx.gen.auth` and layered authorization (Admin, Producer, Host, Cataloger). Keeping the MVP interface role-aware now (separate plugs + assigns) makes that migration trivial.
 
-### 8.2 Supabase Security
+### 8.2 Database & Storage Security
 
 **Critical principles:**
-- **Never expose service role key** to frontend
-- **Storage bucket is read-public** (product images are already public marketing assets) while writes remain server-only
-- **Persist storage object paths only**; Phoenix builds public CDN URLs on the fly via the Supabase project/base path
-- **RLS policies** still enforce that only service key can write/delete objects
+- **Never expose database credentials** to frontend
+- **Product images are public** (already used for marketing) - CDN/storage can be read-public
+- **Persist image paths only**; Phoenix builds full URLs on the fly from configured base paths
+- **Database access is server-only** with credentials in environment variables
 - **HTTPS** enforced in production
 - **Secrets** in environment variables, never committed
 
-_See [Implementation Guide](implementation_guide.md#supabase-security) for configuration._
+_See [Implementation Guide](implementation_guide.md) for configuration details._
 
 ### 8.3 Transport Security
 
-- **TLS verification stays enabled**. Point `:ssl_opts` at Supabase’s CA bundle (via `castore` or custom `cacertfile`) instead of `verify: :verify_none`.
+- **TLS verification stays enabled**. Use `ssl: true` in database config and ensure trusted CA certificates are available.
 - **Strict-Transport-Security** headers on the Phoenix endpoint so browsers refuse to downgrade.
 - **WebSocket over WSS** only; block insecure origins in the Endpoint.
 
@@ -437,9 +437,9 @@ _See [Implementation Guide](implementation_guide.md#testing) for test examples._
 ### Scalability Path
 
 **Phase 1: Single Machine (MVP)**
-- Localhost deployment
+- Localhost or cloud deployment
 - All processes on one BEAM instance
-- Supabase for database/storage
+- Managed PostgreSQL for database
 
 **Phase 2: Horizontal Scaling**
 - Deploy to Fly.io or Render
@@ -481,18 +481,18 @@ _See [Implementation Guide](implementation_guide.md#testing) for test examples._
 
 **Trade-offs:** Slightly higher latency than memory-only, more database load
 
-### ADR-003: Supabase for Database & Storage
+### ADR-003: Managed PostgreSQL Database
 
-**Decision:** Use Supabase-hosted PostgreSQL and Storage
+**Decision:** Use managed PostgreSQL hosting (e.g., Railway, Neon, Supabase)
 
 **Rationale:**
 - Remote access for development
-- Managed backups and scaling
-- Built-in storage with CDN
-- RLS for fine-grained permissions
-- Easy migration path to self-hosted Postgres later
+- Automated backups and point-in-time recovery
+- Built-in connection pooling and scaling
+- SSL/TLS encryption in transit
+- Easy migration between providers (standard PostgreSQL)
 
-**Trade-offs:** Vendor dependency, Supabase-specific auth handling
+**Trade-offs:** Hosting cost, network latency vs local database
 
 ### ADR-004: Temporary Assigns for Memory Management
 

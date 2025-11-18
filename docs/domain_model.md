@@ -200,7 +200,7 @@ Images associated with products. Products can have multiple images with ordering
 | `id` | bigserial | PRIMARY KEY | Auto-incrementing ID |
 | `product_id` | bigint | NOT NULL, REFERENCES products(id) ON DELETE CASCADE | Parent product |
 | `position` | integer | NOT NULL, DEFAULT 0 | Sort order (0 = primary) |
-| `path` | varchar(1000) | NOT NULL | Supabase object path (e.g., `products/123/full/a.jpg`) |
+| `path` | varchar(1000) | NOT NULL | Object storage path (e.g., `products/123/full/a.jpg`) |
 | `thumbnail_path` | varchar(1000) | NULLABLE | Low-res placeholder object path |
 | `alt_text` | varchar(500) | NULLABLE | Accessibility text |
 | `is_primary` | boolean | NOT NULL, DEFAULT false | Primary image flag |
@@ -244,7 +244,7 @@ end
 - `position = 0` by convention means primary image
 - `CASCADE DELETE` ensures images are removed with product
 - Only one image can be marked `is_primary` per product (enforced by constraint)
-- Paths (not full URLs) are persisted so Phoenix can prepend the Supabase public storage base URL and serve via CDN without storing hostnames in the DB.
+- Paths (not full URLs) are persisted so Phoenix can prepend the storage base URL and serve via CDN without storing hostnames in the DB.
 
 ---
 

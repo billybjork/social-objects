@@ -80,10 +80,8 @@ defmodule PavoiWeb.SessionsLive.Index do
       Phoenix.PubSub.subscribe(Pavoi.PubSub, "ai:talking_points")
     end
 
-    # Desktop pilot: offline mode with empty data when Neon is disabled
-    neon_enabled? = Application.get_env(:pavoi, :neon_enabled, true)
-    sessions = if neon_enabled?, do: Sessions.list_sessions_with_details(), else: []
-    brands = if neon_enabled?, do: Catalog.list_brands(), else: []
+    sessions = Sessions.list_sessions_with_details()
+    brands = Catalog.list_brands()
 
     socket =
       socket
