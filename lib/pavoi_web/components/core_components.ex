@@ -400,6 +400,8 @@ defmodule PavoiWeb.CoreComponents do
       <.nav_tabs current_page={:products} />
   """
   attr :current_page, :atom, required: true
+  attr :syncing, :boolean, default: false
+  attr :last_sync_at, :any, default: nil
 
   def nav_tabs(assigns) do
     ~H"""
@@ -433,6 +435,22 @@ defmodule PavoiWeb.CoreComponents do
         >
           New Session
         </.button>
+        <%= if @current_page == :products do %>
+          <%= if @last_sync_at do %>
+            <div class="navbar__sync-meta">
+              Last synced: <%= format_relative_time(@last_sync_at) %>
+            </div>
+          <% end %>
+          <.button
+            variant="primary"
+            size="sm"
+            phx-click="trigger_shopify_sync"
+            class={@syncing && "button--disabled"}
+            disabled={@syncing}
+          >
+            <%= if @syncing, do: "Syncing...", else: "Initiate Shopify Sync" %>
+          </.button>
+        <% end %>
         <.theme_toggle />
       </div>
     </nav>

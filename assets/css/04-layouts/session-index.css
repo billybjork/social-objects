@@ -3,15 +3,6 @@
    Base layout for the sessions list page
    ============================================================================ */
 
-.session-layout {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--space-6);
-  padding: var(--space-6);
-  min-height: 100vh;
-  background-color: var(--color-bg-primary);
-}
-
 .session-header {
   display: flex;
   justify-content: space-between;
@@ -33,21 +24,6 @@
   display: flex;
   align-items: center;
   gap: var(--space-6);
-}
-
-.session-controls {
-  position: sticky;
-  top: var(--space-4);
-  background-color: var(--color-surface-primary);
-  padding: var(--space-4);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-}
-
-.session-products {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: var(--space-4);
 }
 
 /* Product selection section */
@@ -89,12 +65,5 @@
   .sessions-header {
     margin-bottom: var(--space-3);
     padding-bottom: var(--space-2);
-  }
-}
-
-/* Responsive adjustments */
-@media (min-width: 768px) {
-  .session-layout {
-    grid-template-columns: 300px 1fr;
   }
 }

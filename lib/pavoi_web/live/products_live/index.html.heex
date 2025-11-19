@@ -1,4 +1,4 @@
-<.nav_tabs current_page={@current_page} />
+<.nav_tabs current_page={@current_page} syncing={@syncing} last_sync_at={@last_sync_at} />
 
 <div class="products-index">
   <.product_grid
@@ -22,10 +22,6 @@
       @products_has_more && !@loading_products && @product_search_query == "" &&
         "load_more_products"
     }
-    show_sync_button={true}
-    last_sync_at={@last_sync_at}
-    syncing={@syncing}
-    on_sync="trigger_shopify_sync"
   />
 
   <.product_edit_modal

@@ -12,67 +12,6 @@ defmodule PavoiWeb.Layouts do
   embed_templates "layouts/*"
 
   @doc """
-  Renders your app layout.
-
-  This function is typically invoked from every template,
-  and it often contains your application menu, sidebar,
-  or similar.
-
-  ## Examples
-
-      <Layouts.app flash={@flash}>
-        <h1>Content</h1>
-      </Layouts.app>
-
-  """
-  attr :flash, :map, required: true, doc: "the map of flash messages"
-
-  attr :current_scope, :map,
-    default: nil,
-    doc: "the current [scope](https://hexdocs.pm/phoenix/scopes.html)"
-
-  slot :inner_block, required: true
-
-  def app(assigns) do
-    ~H"""
-    <nav class="navbar">
-      <div class="navbar__start">
-        <a href="/" class="navbar__brand">
-          <img src={~p"/images/logo.svg"} width="36" class="navbar__logo" />
-          <span class="navbar__version">v{Application.spec(:phoenix, :vsn)}</span>
-        </a>
-      </div>
-      <div class="navbar__end">
-        <ul class="navbar__nav">
-          <li>
-            <a href="https://phoenixframework.org/" class="navbar__link">Website</a>
-          </li>
-          <li>
-            <a href="https://github.com/phoenixframework/phoenix" class="navbar__link">GitHub</a>
-          </li>
-          <li>
-            <a
-              href="https://hexdocs.pm/phoenix/overview.html"
-              class="navbar__link navbar__link--active"
-            >
-              Get Started <span aria-hidden="true">&rarr;</span>
-            </a>
-          </li>
-        </ul>
-      </div>
-    </nav>
-
-    <main class="region">
-      <div class="container container--md">
-        {render_slot(@inner_block)}
-      </div>
-    </main>
-
-    <.flash_group flash={@flash} />
-    """
-  end
-
-  @doc """
   Shows the flash group with standard titles and content.
 
   ## Examples

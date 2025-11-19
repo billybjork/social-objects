@@ -423,10 +423,6 @@ defmodule PavoiWeb.ProductComponents do
     default: false,
     doc: "Whether to use dynamic ID based on search query (for URL-based search)"
 
-  attr :show_sync_button, :boolean, default: false, doc: "Whether to show sync button"
-  attr :last_sync_at, :any, default: nil, doc: "Last sync timestamp (DateTime)"
-  attr :syncing, :boolean, default: false, doc: "Whether sync is in progress"
-  attr :on_sync, :string, default: nil, doc: "Event to trigger on sync button click"
   attr :show_sort, :boolean, default: false, doc: "Whether to show sort dropdown"
   attr :sort_by, :string, default: "", doc: "Current sort option"
   attr :on_sort_change, :string, default: nil, doc: "Event to trigger on sort change"
@@ -473,27 +469,6 @@ defmodule PavoiWeb.ProductComponents do
           <%= if @mode == :select do %>
             <div class="product-grid__count">
               ({MapSet.size(@selected_ids)} selected)
-            </div>
-          <% end %>
-          <%= if @show_sync_button do %>
-            <div class="product-grid__sync">
-              <button
-                type="button"
-                phx-click={@on_sync}
-                class={["button button--primary button--sm", @syncing && "button--disabled"]}
-                disabled={@syncing}
-              >
-                <%= if @syncing do %>
-                  Syncing...
-                <% else %>
-                  Initiate Shopify Sync
-                <% end %>
-              </button>
-              <%= if @last_sync_at do %>
-                <div class="product-grid__sync-meta">
-                  Last synced: {format_relative_time(@last_sync_at)}
-                </div>
-              <% end %>
             </div>
           <% end %>
         </div>

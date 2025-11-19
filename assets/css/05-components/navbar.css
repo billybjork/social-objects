@@ -34,11 +34,6 @@
   text-decoration: none;
 }
 
-.navbar__version {
-  font-size: var(--text-sm);
-  font-weight: var(--font-semibold);
-}
-
 .navbar__logo {
   height: 36px;
   width: auto;
@@ -89,6 +84,13 @@
   background-color: var(--color-bg-hover);
 }
 
+.navbar__sync-meta {
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-normal);
+  white-space: nowrap;
+}
+
 /* Mobile responsive */
 @media (max-width: 768px) {
   .navbar {
@@ -115,5 +117,9 @@
 
   .navbar__end {
     gap: var(--space-2);
+  }
+
+  .navbar__sync-meta {
+    font-size: var(--text-xs);
   }
 }
