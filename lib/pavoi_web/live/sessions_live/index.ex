@@ -1152,7 +1152,9 @@ defmodule PavoiWeb.SessionsLive.Index do
     session_id = normalize_id(session_id_str)
     # Verify session exists before expanding
     if Enum.any?(socket.assigns.sessions, &(&1.id == session_id)) do
-      assign(socket, :expanded_session_id, session_id)
+      socket
+      |> assign(:expanded_session_id, session_id)
+      |> push_event("scroll-to-session", %{session_id: session_id})
     else
       # Session not found, ignore param
       assign(socket, :expanded_session_id, nil)

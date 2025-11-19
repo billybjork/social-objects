@@ -5,7 +5,7 @@
 .navbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: var(--space-6);
   padding: var(--space-4) var(--space-6);
   background-color: var(--color-surface-primary);
   border-bottom: 1px solid var(--color-border-secondary);
@@ -21,6 +21,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-4);
+  margin-left: auto;
 }
 
 .navbar__brand {
@@ -91,16 +92,28 @@
 /* Mobile responsive */
 @media (max-width: 768px) {
   .navbar {
-    flex-direction: column;
-    gap: var(--space-4);
+    padding: var(--space-3) var(--space-4);
+    gap: var(--space-3);
+  }
+
+  .navbar__start {
+    gap: var(--space-3);
+  }
+
+  .navbar__logo {
+    height: 24px;
   }
 
   .navbar__nav {
-    flex-direction: column;
-    width: 100%;
+    gap: var(--space-2);
   }
 
   .navbar__link {
-    width: 100%;
+    padding: var(--space-2);
+    font-size: var(--text-xs);
+  }
+
+  .navbar__end {
+    gap: var(--space-2);
   }
 }

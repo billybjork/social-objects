@@ -80,6 +80,18 @@
   max-width: 400px;
 }
 
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .sessions-search {
+    max-width: 100%;
+  }
+
+  .sessions-header {
+    margin-bottom: var(--space-3);
+    padding-bottom: var(--space-2);
+  }
+}
+
 /* Responsive adjustments */
 @media (min-width: 768px) {
   .session-layout {

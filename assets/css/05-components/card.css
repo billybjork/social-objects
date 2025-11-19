@@ -55,6 +55,9 @@
 
   /* Fade in + slide up animation for initial load and infinite scroll */
   animation: fadeInSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+
+  /* Padding from top when scrolling to expanded session */
+  scroll-margin-top: var(--space-6);
 }
 
 .session-card:hover {
@@ -696,16 +699,94 @@
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
+  /* Reduce card padding on mobile */
+  .session-card {
+    padding: var(--space-4);
+  }
+
+  /* Make title smaller and more compact */
+  .session-card__title {
+    font-size: var(--text-lg);
+  }
+
+  .session-card__title-row {
+    margin-bottom: var(--space-2);
+  }
+
+  /* Make meta items more compact */
+  .session-card__meta {
+    gap: var(--space-3);
+    font-size: var(--text-xs);
+  }
+
+  .session-card__meta-item {
+    gap: var(--space-1);
+  }
+
+  /* Hide icons on mobile to save space */
+  .session-card__meta-item .size-4 {
+    display: none;
+  }
+
+  /* Keep header as row on mobile - don't stack */
   .session-card__header {
-    flex-direction: column;
-    gap: var(--space-4);
+    gap: var(--space-2);
+    align-items: flex-start;
   }
 
+  /* Allow title group to wrap and shrink */
+  .session-card__title-group {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Actions stay compact on the right */
   .session-card__actions {
-    width: 100%;
+    flex-direction: column;
+    gap: var(--space-1);
+    flex-shrink: 0;
+    align-items: flex-end;
   }
 
+  /* Make buttons much more compact - just icons/abbreviations */
+  .session-card__actions .button--sm {
+    padding: var(--space-1) var(--space-2);
+    font-size: 10px;
+    min-width: 60px;
+    white-space: nowrap;
+  }
+
+  /* Make menu trigger smaller and match button width */
+  .menu-trigger {
+    width: 60px;
+    height: 28px;
+    font-size: 16px;
+  }
+
+  /* Notes text smaller */
+  .session-card__notes {
+    font-size: var(--text-xs);
+    padding-right: 0;
+  }
+
+  /* Thumbnails slightly smaller on mobile */
+  .session-card__thumbnail {
+    width: 44px;
+    height: 44px;
+  }
+
+  /* Product list single column */
   .session-card__product-list {
     grid-template-columns: 1fr;
+  }
+
+  /* Smaller product images in expanded view */
+  .session-card__product-image {
+    width: 56px;
+    height: 56px;
+  }
+
+  .session-card__product-name {
+    font-size: var(--text-sm);
   }
 }

@@ -54,6 +54,22 @@ window.addEventListener("modal:hide", (e) => {
   if (modal) modal.close()
 })
 
+// Scroll to session on expand (deep link or regular click)
+window.addEventListener("phx:scroll-to-session", (e) => {
+  const sessionId = e.detail.session_id
+  const sessionElement = document.getElementById(`session-${sessionId}`)
+
+  if (sessionElement) {
+    // Use setTimeout to ensure DOM has fully updated (especially for expansion animation)
+    setTimeout(() => {
+      sessionElement.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      })
+    }, 100)
+  }
+})
+
 // connect if there are any LiveViews on the page
 liveSocket.connect()
 

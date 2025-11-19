@@ -88,7 +88,9 @@
   border: 1px solid var(--color-border-secondary);
   border-radius: var(--radius-md);
   background-color: var(--color-surface-primary);
-  justify-content: center;
+  justify-content: flex-start;
+  width: max-content;
+  max-width: 100%;
   /* Allow grid to grow naturally for infinite scroll */
   min-height: min-content;
 }
@@ -297,6 +299,73 @@ infinite-scroll-trigger {
   gap: var(--space-2);
   color: var(--color-text-secondary);
   font-size: var(--text-sm);
+}
+
+/* Mobile responsive - maximize space efficiency */
+@media (max-width: 640px) {
+  .product-grid {
+    gap: var(--space-3);
+  }
+
+  .product-grid__header {
+    gap: var(--space-2);
+    padding-bottom: var(--space-2);
+    padding-top: 0;
+  }
+
+  .product-grid__controls {
+    gap: var(--space-2);
+    flex-wrap: nowrap;
+  }
+
+  .product-grid__search {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .product-grid__sort {
+    flex: 0 0 auto;
+    min-width: 140px;
+    max-width: 180px;
+  }
+
+  /* Make sync section more compact on mobile */
+  .product-grid__sync {
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .product-grid__sync-meta {
+    font-size: var(--text-xs);
+    order: -1;
+  }
+
+  /* Smaller sync button on mobile */
+  .product-grid__sync .button {
+    font-size: var(--text-xs);
+    padding: var(--space-2) var(--space-3);
+  }
+
+  /* Tighter grid spacing */
+  .product-grid--browse .product-grid__grid {
+    gap: var(--space-3);
+  }
+
+  /* Smaller card padding */
+  .product-card-browse__info {
+    padding: var(--space-2);
+    gap: var(--space-1);
+  }
+
+  .product-card-browse__name {
+    font-size: var(--text-sm);
+  }
+
+  .product-card-browse__pricing {
+    font-size: var(--text-xs);
+  }
 }
 
 /* Responsive adjustments */
