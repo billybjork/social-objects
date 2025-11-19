@@ -314,15 +314,27 @@ defmodule PavoiWeb.SessionsLive.Index do
     session_id = normalize_id(session_id)
     current_expanded_id = socket.assigns.expanded_session_id
 
-    # Toggle: if clicking the same session, collapse it; otherwise expand the new one
-    path =
+    # Build query params, preserving search query
+    query_params =
       if current_expanded_id == session_id do
-        ~p"/sessions"
+        # Collapsing - only preserve search
+        if socket.assigns.session_search_query != "" do
+          %{q: socket.assigns.session_search_query}
+        else
+          %{}
+        end
       else
-        ~p"/sessions?#{%{s: session_id}}"
+        # Expanding - preserve both search and session
+        base_params = %{s: session_id}
+
+        if socket.assigns.session_search_query != "" do
+          Map.put(base_params, :q, socket.assigns.session_search_query)
+        else
+          base_params
+        end
       end
 
-    {:noreply, push_patch(socket, to: path)}
+    {:noreply, push_patch(socket, to: ~p"/sessions?#{query_params}")}
   end
 
   @impl true
