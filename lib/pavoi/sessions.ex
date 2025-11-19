@@ -40,6 +40,58 @@ defmodule Pavoi.Sessions do
   end
 
   @doc """
+  Returns a paginated list of sessions with brands and products preloaded, ordered by most recently modified.
+
+  ## Options
+    * `:page` - The page number to fetch (default: 1)
+    * `:per_page` - Number of sessions per page (default: 20)
+
+  ## Returns
+  A map with the following keys:
+    * `:sessions` - List of session structs with preloaded associations
+    * `:page` - Current page number
+    * `:per_page` - Number of sessions per page
+    * `:total` - Total count of sessions
+    * `:has_more` - Boolean indicating if there are more sessions to load
+  """
+  def list_sessions_with_details_paginated(opts \\ []) do
+    page = Keyword.get(opts, :page, 1)
+    per_page = Keyword.get(opts, :per_page, 20)
+
+    ordered_images = from(pi in ProductImage, order_by: [asc: pi.position])
+    ordered_variants = from(pv in ProductVariant, order_by: [asc: pv.position])
+
+    base_query =
+      Session
+      |> order_by([s], desc: s.updated_at)
+
+    total = Repo.aggregate(base_query, :count)
+
+    sessions =
+      base_query
+      |> limit(^per_page)
+      |> offset(^((page - 1) * per_page))
+      |> preload([
+        :brand,
+        session_products: [
+          product: [
+            product_images: ^ordered_images,
+            product_variants: ^ordered_variants
+          ]
+        ]
+      ])
+      |> Repo.all()
+
+    %{
+      sessions: sessions,
+      page: page,
+      per_page: per_page,
+      total: total,
+      has_more: total > page * per_page
+    }
+  end
+
+  @doc """
   Gets a single session.
   Raises `Ecto.NoResultsError` if the Session does not exist.
   """

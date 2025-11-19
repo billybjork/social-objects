@@ -11,19 +11,18 @@
   phx-window-keydown={JS.push("keydown") |> JS.hide(to: ".session-menu", transition: "fade-out")}
   phx-key="Escape"
 >
-  <div class="stack stack--lg">
-    <%= if @sessions == [] do %>
-      <div class="session-card__empty-state">
-        <p>No sessions yet. Create your first session to get started.</p>
-      </div>
-    <% else %>
-      <%= for session <- @sessions do %>
-        <article
-          id={"session-#{session.id}"}
-          class="session-card"
-          phx-click="toggle_expand"
-          phx-value-session-id={session.id}
-        >
+  <div
+    id="sessions-list"
+    class="stack stack--lg"
+    phx-viewport-bottom={@sessions_has_more && !@loading_sessions && "load_more_sessions"}
+  >
+    <%= for session <- @sessions do %>
+      <article
+        id={"session-#{session.id}"}
+        class="session-card"
+        phx-click="toggle_expand"
+        phx-value-session-id={session.id}
+      >
           <div class="session-card__header">
             <div class="session-card__title-group">
               <div class="session-card__title-row">
@@ -244,8 +243,22 @@
           <% end %>
         </article>
       <% end %>
+
+    <%!-- Loading indicator --%>
+    <%= if @loading_sessions do %>
+      <div class="session-card__loading">
+        <div class="spinner"></div>
+        <span>Loading more sessions...</span>
+      </div>
     <% end %>
   </div>
+
+  <%!-- Empty state (shown when no sessions exist) --%>
+  <%= if @session_page == 1 && !@loading_sessions && Enum.empty?(@sessions) do %>
+    <div class="session-card__empty-state">
+      <p>No sessions yet. Create your first session to get started.</p>
+    </div>
+  <% end %>
 </div>
 <!-- Add Product Modal -->
 <%= if @selected_session_for_product do %>

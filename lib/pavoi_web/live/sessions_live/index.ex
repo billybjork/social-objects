@@ -80,14 +80,17 @@ defmodule PavoiWeb.SessionsLive.Index do
       Phoenix.PubSub.subscribe(Pavoi.PubSub, "ai:talking_points")
     end
 
-    sessions = Sessions.list_sessions_with_details()
     brands = Catalog.list_brands()
 
     socket =
       socket
-      |> assign(:sessions, sessions)
-      |> assign(:previous_sessions, sessions)
+      |> assign(:session_page, 1)
+      |> assign(:sessions_has_more, false)
+      |> assign(:loading_sessions, false)
+      |> assign(:sessions, [])
+      |> assign(:previous_sessions, [])
       |> assign(:brands, brands)
+      |> load_sessions()
       |> assign(:expanded_session_id, nil)
       |> assign(:selected_session_for_product, nil)
       |> assign(:available_products, [])
@@ -148,17 +151,11 @@ defmodule PavoiWeb.SessionsLive.Index do
   @impl true
   def handle_info({:session_list_changed}, socket) do
     # Reload sessions from database while preserving UI state
-    expanded_id = socket.assigns.expanded_session_id
-    previous_sessions = socket.assigns.sessions
-    new_sessions = Sessions.list_sessions_with_details()
-
-    sorted_sessions =
-      sort_sessions_preserving_expanded(new_sessions, expanded_id, previous_sessions)
-
+    # Reset pagination to page 1 and reload
     socket =
       socket
-      |> assign(:sessions, sorted_sessions)
-      |> assign(:previous_sessions, sorted_sessions)
+      |> assign(:session_page, 1)
+      |> load_sessions()
 
     {:noreply, socket}
   end
@@ -175,17 +172,11 @@ defmodule PavoiWeb.SessionsLive.Index do
   @impl true
   def handle_info({:sync_completed, counts}, socket) do
     # Reload sessions to pick up any product changes
-    expanded_id = socket.assigns.expanded_session_id
-    previous_sessions = socket.assigns.sessions
-    new_sessions = Sessions.list_sessions_with_details()
-
-    sorted_sessions =
-      sort_sessions_preserving_expanded(new_sessions, expanded_id, previous_sessions)
-
+    # Reset pagination to page 1 and reload
     socket =
       socket
-      |> assign(:sessions, sorted_sessions)
-      |> assign(:previous_sessions, sorted_sessions)
+      |> assign(:session_page, 1)
+      |> load_sessions()
       |> put_flash(
         :info,
         "Shopify sync complete: #{counts.products} products, #{counts.brands} brands, #{counts.images} images"
@@ -340,6 +331,16 @@ defmodule PavoiWeb.SessionsLive.Index do
   end
 
   @impl true
+  def handle_event("load_more_sessions", _params, socket) do
+    socket =
+      socket
+      |> assign(:loading_sessions, true)
+      |> load_sessions(append: true)
+
+    {:noreply, socket}
+  end
+
+  @impl true
   def handle_event("load_products_for_session", %{"session-id" => session_id}, socket) do
     session_id = normalize_id(session_id)
     session = Enum.find(socket.assigns.sessions, &(&1.id == session_id))
@@ -473,11 +474,6 @@ defmodule PavoiWeb.SessionsLive.Index do
       {:ok, _created_session} ->
         # Preserve expanded state across reload (or expand the newly created session)
         expanded_id = socket.assigns.expanded_session_id
-        previous_sessions = socket.assigns.sessions
-        new_sessions = Sessions.list_sessions_with_details()
-
-        sorted_sessions =
-          sort_sessions_preserving_expanded(new_sessions, expanded_id, previous_sessions)
 
         # Remove "new" param from URL, preserve expanded session if any
         path =
@@ -488,8 +484,7 @@ defmodule PavoiWeb.SessionsLive.Index do
 
         socket =
           socket
-          |> assign(:sessions, sorted_sessions)
-          |> assign(:previous_sessions, sorted_sessions)
+          |> reload_sessions()
           |> assign(:show_new_session_modal, false)
           |> assign(
             :session_form,
@@ -523,18 +518,9 @@ defmodule PavoiWeb.SessionsLive.Index do
     # Add each product to the end of the queue
     case add_products_to_session(session_id, selected_ids) do
       :ok ->
-        # Preserve expanded state across reload
-        expanded_id = socket.assigns.expanded_session_id
-        previous_sessions = socket.assigns.sessions
-        new_sessions = Sessions.list_sessions_with_details()
-
-        sorted_sessions =
-          sort_sessions_preserving_expanded(new_sessions, expanded_id, previous_sessions)
-
         socket =
           socket
-          |> assign(:sessions, sorted_sessions)
-          |> assign(:previous_sessions, sorted_sessions)
+          |> reload_sessions()
           |> assign(:selected_session_for_product, nil)
           |> assign(:show_modal_for_session, nil)
           |> assign(:add_product_search_query, "")
@@ -616,18 +602,9 @@ defmodule PavoiWeb.SessionsLive.Index do
 
     case Sessions.remove_product_from_session(sp_id) do
       {:ok, _session_product} ->
-        # Preserve expanded state across reload
-        expanded_id = socket.assigns.expanded_session_id
-        previous_sessions = socket.assigns.sessions
-        new_sessions = Sessions.list_sessions_with_details()
-
-        sorted_sessions =
-          sort_sessions_preserving_expanded(new_sessions, expanded_id, previous_sessions)
-
         socket =
           socket
-          |> assign(:sessions, sorted_sessions)
-          |> assign(:previous_sessions, sorted_sessions)
+          |> reload_sessions()
           |> put_flash(:info, "Product removed from session")
 
         {:noreply, socket}
@@ -657,19 +634,7 @@ defmodule PavoiWeb.SessionsLive.Index do
     # Update positions in database
     case Sessions.reorder_products(session_id, product_ids) do
       {:ok, _count} ->
-        # Reload sessions with new order
-        expanded_id = socket.assigns.expanded_session_id
-        previous_sessions = socket.assigns.sessions
-        new_sessions = Sessions.list_sessions_with_details()
-
-        sorted_sessions =
-          sort_sessions_preserving_expanded(new_sessions, expanded_id, previous_sessions)
-
-        socket =
-          socket
-          |> assign(:sessions, sorted_sessions)
-          |> assign(:previous_sessions, sorted_sessions)
-
+        socket = reload_sessions(socket)
         {:noreply, socket}
 
       {:error, reason} ->
@@ -691,12 +656,6 @@ defmodule PavoiWeb.SessionsLive.Index do
             do: nil,
             else: socket.assigns.expanded_session_id
 
-        previous_sessions = socket.assigns.sessions
-        new_sessions = Sessions.list_sessions_with_details()
-
-        sorted_sessions =
-          sort_sessions_preserving_expanded(new_sessions, expanded_id, previous_sessions)
-
         # Update URL based on whether we cleared the expanded session
         path =
           case expanded_id do
@@ -706,8 +665,8 @@ defmodule PavoiWeb.SessionsLive.Index do
 
         socket =
           socket
-          |> assign(:sessions, sorted_sessions)
-          |> assign(:previous_sessions, sorted_sessions)
+          |> assign(:expanded_session_id, expanded_id)
+          |> reload_sessions()
           |> push_patch(to: path)
           |> put_flash(:info, "Session deleted successfully")
 
@@ -728,13 +687,6 @@ defmodule PavoiWeb.SessionsLive.Index do
 
     case Sessions.duplicate_session(session_id) do
       {:ok, new_session} ->
-        # Reload sessions and expand the new duplicate
-        previous_sessions = socket.assigns.sessions
-        new_sessions = Sessions.list_sessions_with_details()
-
-        sorted_sessions =
-          sort_sessions_preserving_expanded(new_sessions, new_session.id, previous_sessions)
-
         # Build URL to expand the newly created session
         path = ~p"/sessions?#{%{s: new_session.id}}"
 
@@ -743,9 +695,8 @@ defmodule PavoiWeb.SessionsLive.Index do
 
         socket =
           socket
-          |> assign(:sessions, sorted_sessions)
-          |> assign(:previous_sessions, sorted_sessions)
           |> assign(:expanded_session_id, new_session.id)
+          |> reload_sessions()
           |> assign(:editing_session, new_session)
           |> assign(:session_edit_form, to_form(changeset))
           |> push_patch(to: path)
@@ -874,18 +825,9 @@ defmodule PavoiWeb.SessionsLive.Index do
 
     case Sessions.update_session(socket.assigns.editing_session, session_params) do
       {:ok, _session} ->
-        # Preserve expanded state across reload
-        expanded_id = socket.assigns.expanded_session_id
-        previous_sessions = socket.assigns.sessions
-        new_sessions = Sessions.list_sessions_with_details()
-
-        sorted_sessions =
-          sort_sessions_preserving_expanded(new_sessions, expanded_id, previous_sessions)
-
         socket =
           socket
-          |> assign(:sessions, sorted_sessions)
-          |> assign(:previous_sessions, sorted_sessions)
+          |> reload_sessions()
           |> assign(:editing_session, nil)
           |> assign(:session_edit_form, to_form(Session.changeset(%Session{}, %{})))
           |> put_flash(:info, "Session updated successfully")
@@ -909,18 +851,9 @@ defmodule PavoiWeb.SessionsLive.Index do
 
     case Catalog.update_product(socket.assigns.editing_product, product_params) do
       {:ok, _product} ->
-        # Refresh the sessions list
-        expanded_id = socket.assigns.expanded_session_id
-        previous_sessions = socket.assigns.sessions
-        new_sessions = Sessions.list_sessions_with_details()
-
-        sorted_sessions =
-          sort_sessions_preserving_expanded(new_sessions, expanded_id, previous_sessions)
-
         socket =
           socket
-          |> assign(:sessions, sorted_sessions)
-          |> assign(:previous_sessions, sorted_sessions)
+          |> reload_sessions()
           |> assign(:editing_product, nil)
           |> assign(:product_edit_form, to_form(Product.changeset(%Product{}, %{})))
           |> put_flash(:info, "Product updated successfully")
@@ -1040,10 +973,10 @@ defmodule PavoiWeb.SessionsLive.Index do
 
   # Reloads just one session in the list without a full database reload
   defp reload_single_session(socket, session_id) do
-    previous_sessions = socket.assigns.sessions
+    sessions = socket.assigns.sessions
 
     # Find and reload just the affected session
-    case Enum.find_index(previous_sessions, &(&1.id == session_id)) do
+    case Enum.find_index(sessions, &(&1.id == session_id)) do
       nil ->
         # Session not in the current list, do nothing
         socket
@@ -1053,9 +986,9 @@ defmodule PavoiWeb.SessionsLive.Index do
         updated_session = Sessions.get_session!(session_id)
 
         # Replace the session in the list
-        updated_sessions = List.replace_at(previous_sessions, index, updated_session)
+        updated_sessions = List.replace_at(sessions, index, updated_session)
 
-        # Update the socket with the new sessions list
+        # Update both sessions and previous_sessions
         socket
         |> assign(:sessions, updated_sessions)
         |> assign(:previous_sessions, updated_sessions)
@@ -1288,6 +1221,37 @@ defmodule PavoiWeb.SessionsLive.Index do
 
   defp find_product_in_stream(products_map, product_id) do
     Map.get(products_map, product_id)
+  end
+
+  # Loads sessions for the sessions list with pagination support.
+  # Supports both initial load and appending additional pages.
+  defp load_sessions(socket, opts \\ []) do
+    append = Keyword.get(opts, :append, false)
+    page = if append, do: socket.assigns.session_page + 1, else: 1
+
+    result = Sessions.list_sessions_with_details_paginated(page: page, per_page: 20)
+
+    # When appending, concatenate with existing sessions
+    sessions =
+      if append do
+        socket.assigns.sessions ++ result.sessions
+      else
+        result.sessions
+      end
+
+    socket
+    |> assign(:loading_sessions, false)
+    |> assign(:sessions, sessions)
+    |> assign(:previous_sessions, sessions)
+    |> assign(:session_page, result.page)
+    |> assign(:sessions_has_more, result.has_more)
+  end
+
+  # Helper to reload sessions from page 1 (used after modifications)
+  defp reload_sessions(socket) do
+    socket
+    |> assign(:session_page, 1)
+    |> load_sessions()
   end
 
   # Sorts sessions while preserving the display position of the expanded session.
