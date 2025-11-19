@@ -72,6 +72,9 @@
   /* Pricing/Special - Gold */
   --color-accent-gold: #F59E0B;
 
+  /* Purple */
+  --color-accent-purple: #8B5CF6;
+
   /* ========================================================================
      STATUS COLORS
      ======================================================================== */
@@ -220,6 +223,8 @@
 
   --color-accent-amber: #FBBF24;
   --color-accent-gold: #FBBF24;
+
+  --color-accent-purple: #A78BFA;
 
   /* ========================================================================
      STATUS COLORS

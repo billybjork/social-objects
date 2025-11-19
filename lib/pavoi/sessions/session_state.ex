@@ -14,6 +14,7 @@ defmodule Pavoi.Sessions.SessionState do
     field :current_host_message_text, :string
     field :current_host_message_id, :string
     field :current_host_message_timestamp, :utc_datetime
+    field :current_host_message_color, :string
     field :updated_at, :utc_datetime
 
     belongs_to :session, Pavoi.Sessions.Session
@@ -29,7 +30,8 @@ defmodule Pavoi.Sessions.SessionState do
       :current_image_index,
       :current_host_message_text,
       :current_host_message_id,
-      :current_host_message_timestamp
+      :current_host_message_timestamp,
+      :current_host_message_color
     ])
     |> validate_required([:session_id])
     |> validate_number(:current_image_index, greater_than_or_equal_to: 0)

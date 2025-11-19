@@ -20,6 +20,7 @@ defmodule PavoiWeb.SessionProducerLive do
   @impl true
   def mount(%{"id" => session_id}, _session, socket) do
     session = Sessions.get_session!(session_id)
+    message_presets = Sessions.list_message_presets()
 
     socket =
       assign(socket,
@@ -35,7 +36,9 @@ defmodule PavoiWeb.SessionProducerLive do
         total_products: length(session.session_products),
         host_message: nil,
         view_mode: :split_screen,
-        message_draft: ""
+        message_draft: "",
+        message_presets: message_presets,
+        show_preset_modal: false
       )
 
     # Subscribe to PubSub ONLY after WebSocket connection
@@ -224,6 +227,107 @@ defmodule PavoiWeb.SessionProducerLive do
     end
   end
 
+  # Message Preset Controls
+  @impl true
+  def handle_event("open_preset_modal", _params, socket) do
+    {:noreply, assign(socket, :show_preset_modal, true)}
+  end
+
+  @impl true
+  def handle_event("skip", _params, socket) do
+    # No-op event to prevent modal clicks from bubbling up
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("close_preset_modal", _params, socket) do
+    {:noreply, assign(socket, :show_preset_modal, false)}
+  end
+
+  @impl true
+  def handle_event("select_preset", %{"id" => preset_id}, socket) do
+    preset = Enum.find(socket.assigns.message_presets, &(&1.id == preset_id))
+
+    case preset do
+      nil ->
+        {:noreply, put_flash(socket, :error, "Preset not found")}
+
+      %{message_text: text, color: color} ->
+        # Immediately send the preset message
+        case Sessions.send_host_message(socket.assigns.session_id, text, color) do
+          {:ok, _state} ->
+            socket =
+              socket
+              |> assign(:message_draft, text)
+              |> assign(:show_preset_modal, false)
+              |> put_flash(:info, "Message sent to host")
+
+            {:noreply, socket}
+
+          {:error, _reason} ->
+            {:noreply, put_flash(socket, :error, "Failed to send message")}
+        end
+    end
+  end
+
+  @impl true
+  def handle_event(
+        "create_preset",
+        %{"message_text" => message_text, "color" => color},
+        socket
+      ) do
+    case Sessions.create_message_preset(%{
+           message_text: message_text,
+           color: color
+         }) do
+      {:ok, _preset} ->
+        # Reload presets
+        message_presets = Sessions.list_message_presets()
+
+        socket =
+          socket
+          |> assign(:message_presets, message_presets)
+          |> put_flash(:info, "Preset created")
+
+        {:noreply, socket}
+
+      {:error, changeset} ->
+        errors =
+          Ecto.Changeset.traverse_errors(changeset, fn {msg, _opts} -> msg end)
+          |> Enum.map(fn {field, msgs} -> "#{field}: #{Enum.join(msgs, ", ")}" end)
+          |> Enum.join("; ")
+
+        {:noreply, put_flash(socket, :error, "Failed to create preset: #{errors}")}
+    end
+  end
+
+  @impl true
+  def handle_event("delete_preset", %{"id" => preset_id}, socket) do
+    preset = Enum.find(socket.assigns.message_presets, &(&1.id == preset_id))
+
+    case preset do
+      nil ->
+        {:noreply, put_flash(socket, :error, "Preset not found")}
+
+      preset ->
+        case Sessions.delete_message_preset(preset) do
+          {:ok, _} ->
+            # Reload presets
+            message_presets = Sessions.list_message_presets()
+
+            socket =
+              socket
+              |> assign(:message_presets, message_presets)
+              |> put_flash(:info, "Preset deleted")
+
+            {:noreply, socket}
+
+          {:error, _reason} ->
+            {:noreply, put_flash(socket, :error, "Failed to delete preset")}
+        end
+    end
+  end
+
   # Handle PubSub broadcasts from other clients
   @impl true
   def handle_info({:state_changed, new_state}, socket) do
@@ -309,7 +413,8 @@ defmodule PavoiWeb.SessionProducerLive do
         |> assign(:host_message, %{
           text: state.current_host_message_text,
           id: state.current_host_message_id,
-          timestamp: state.current_host_message_timestamp
+          timestamp: state.current_host_message_timestamp,
+          color: state.current_host_message_color || "amber"
         })
         |> assign(:message_draft, state.current_host_message_text)
       else

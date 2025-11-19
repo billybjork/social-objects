@@ -232,6 +232,31 @@
   box-shadow: var(--shadow-xl);
 }
 
+/* Color variants */
+.host-message-banner--amber {
+  background-color: var(--color-accent-amber);
+}
+
+.host-message-banner--blue {
+  background-color: var(--color-accent-blue);
+}
+
+.host-message-banner--green {
+  background-color: var(--color-accent-green);
+}
+
+.host-message-banner--red {
+  background-color: var(--color-accent-red);
+}
+
+.host-message-banner--purple {
+  background-color: var(--color-accent-purple);
+}
+
+.host-message-banner--gray {
+  background-color: var(--color-text-secondary);
+}
+
 /* When inside preview, use normal flow (not absolute) */
 .host-preview .host-message-banner {
   position: relative;

@@ -101,7 +101,11 @@ defmodule PavoiWeb.HostViewComponents do
 
   def host_message_banner(assigns) do
     ~H"""
-    <div class="host-message-banner" id={"host-message-#{@message.id}"} key={@message.id}>
+    <div
+      class={"host-message-banner host-message-banner--#{@message.color || "amber"}"}
+      id={"host-message-#{@message.id}"}
+      key={@message.id}
+    >
       <div class="host-message-content">
         {@message.text}
       </div>

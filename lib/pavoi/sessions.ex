@@ -7,7 +7,7 @@ defmodule Pavoi.Sessions do
   alias Pavoi.Repo
 
   alias Pavoi.Catalog.{ProductImage, ProductVariant}
-  alias Pavoi.Sessions.{Session, SessionProduct, SessionState}
+  alias Pavoi.Sessions.{Session, SessionProduct, SessionState, MessagePreset}
 
   ## Sessions
 
@@ -632,14 +632,15 @@ defmodule Pavoi.Sessions do
   Sends a message to the host by updating the session state.
   The message is persisted in the database and broadcast to all connected clients.
   """
-  def send_host_message(session_id, message_text) do
+  def send_host_message(session_id, message_text, color \\ "amber") do
     message_id = generate_message_id()
     timestamp = DateTime.utc_now() |> DateTime.truncate(:second)
 
     update_session_state(session_id, %{
       current_host_message_text: message_text,
       current_host_message_id: message_id,
-      current_host_message_timestamp: timestamp
+      current_host_message_timestamp: timestamp,
+      current_host_message_color: color
     })
   end
 
@@ -650,8 +651,56 @@ defmodule Pavoi.Sessions do
     update_session_state(session_id, %{
       current_host_message_text: nil,
       current_host_message_id: nil,
-      current_host_message_timestamp: nil
+      current_host_message_timestamp: nil,
+      current_host_message_color: nil
     })
+  end
+
+  ## Message Presets
+
+  @doc """
+  Returns the list of message presets, ordered by position.
+  """
+  def list_message_presets do
+    MessagePreset
+    |> order_by([mp], asc: mp.position)
+    |> Repo.all()
+  end
+
+  @doc """
+  Gets a single message preset.
+
+  Raises `Ecto.NoResultsError` if the message preset does not exist.
+  """
+  def get_message_preset!(id), do: Repo.get!(MessagePreset, id)
+
+  @doc """
+  Creates a message preset.
+  """
+  def create_message_preset(attrs \\ %{}) do
+    # If no position provided, set it to be last
+    attrs =
+      if Map.has_key?(attrs, :position) or Map.has_key?(attrs, "position") do
+        attrs
+      else
+        max_position =
+          MessagePreset
+          |> select([mp], max(mp.position))
+          |> Repo.one()
+
+        Map.put(attrs, :position, (max_position || 0) + 1)
+      end
+
+    %MessagePreset{}
+    |> MessagePreset.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc """
+  Deletes a message preset.
+  """
+  def delete_message_preset(%MessagePreset{} = message_preset) do
+    Repo.delete(message_preset)
   end
 
   @doc """
