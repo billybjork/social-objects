@@ -106,6 +106,7 @@ export default {
     this.setupWorker();
     this.setupUI();
     this.loadMicrophones();
+    this.preloadAssets();
   },
 
   /**
@@ -835,6 +836,32 @@ export default {
     // Auto-stop on error
     if (this.isActive) {
       this.stop({ keepStatus: true });
+    }
+  },
+
+  /**
+   * Preload heavy assets (WASM + VAD model/worklet) to reduce first-start delay
+   */
+  async preloadAssets() {
+    const assets = [
+      '/assets/js/ort-wasm-simd-threaded.jsep.wasm',
+      '/assets/js/ort-wasm-simd-threaded.wasm',
+      '/assets/vad/silero_vad.onnx',
+      '/assets/vad/vad.worklet.bundle.min.js'
+    ];
+
+    try {
+      await Promise.all(
+        assets.map(async (url) => {
+          const res = await fetch(url, { cache: 'force-cache' });
+          if (!res.ok) throw new Error(`Failed to preload ${url}: ${res.status}`);
+          // Read body to ensure cache population (ignore content)
+          await res.arrayBuffer();
+        })
+      );
+      console.log('[VoiceControl] Preloaded WASM/VAD assets');
+    } catch (error) {
+      console.warn('[VoiceControl] Asset preload failed:', error);
     }
   },
 
