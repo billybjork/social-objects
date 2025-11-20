@@ -273,10 +273,11 @@ defmodule PavoiWeb.SessionProducerLive do
   @impl true
   def handle_event(
         "create_preset",
-        %{"message_text" => message_text, "color" => color},
+        %{"label" => label, "message_text" => message_text, "color" => color},
         socket
       ) do
     case Sessions.create_message_preset(%{
+           label: label,
            message_text: message_text,
            color: color
          }) do
