@@ -14,7 +14,7 @@ cmds = [
   "mix compile",
   "mix assets.deploy",
   "mix release",
-  "cp -r priv/static/* _build/prod/rel/pavoi/lib/pavoi-0.1.0/priv/static/"
+  "cp -rf priv/static/. _build/prod/rel/pavoi/lib/pavoi-0.1.0/priv/static/"
 ]
 
 [start]
