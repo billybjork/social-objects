@@ -29,13 +29,13 @@ defmodule Mix.Tasks.Assets.CopyVendor do
       {"onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.wasm",
        "assets/js/ort-wasm-simd-threaded.jsep.wasm"},
       # Standard WASM backend (fallback)
-      {"onnxruntime-web/dist/ort-wasm-simd-threaded.mjs",
-       "assets/js/ort-wasm-simd-threaded.mjs"},
+      {"onnxruntime-web/dist/ort-wasm-simd-threaded.mjs", "assets/js/ort-wasm-simd-threaded.mjs"},
       {"onnxruntime-web/dist/ort-wasm-simd-threaded.wasm",
        "assets/js/ort-wasm-simd-threaded.wasm"},
       # VAD model + worklet
       {"@ricky0123/vad-web/dist/silero_vad.onnx", "assets/vad/silero_vad.onnx"},
-      {"@ricky0123/vad-web/dist/vad.worklet.bundle.min.js", "assets/vad/vad.worklet.bundle.min.js"}
+      {"@ricky0123/vad-web/dist/vad.worklet.bundle.min.js",
+       "assets/vad/vad.worklet.bundle.min.js"}
     ]
 
     Mix.shell().info("Copying vendor files to static assets...")
@@ -71,7 +71,10 @@ defmodule Mix.Tasks.Assets.CopyVendor do
     else
       Mix.shell().info("node_modules not found; installing with npm ci --production=false...")
 
-      case System.cmd("npm", ["ci", "--production=false"], cd: assets_root, stderr_to_stdout: true) do
+      case System.cmd("npm", ["ci", "--production=false"],
+             cd: assets_root,
+             stderr_to_stdout: true
+           ) do
         {output, 0} ->
           Mix.shell().info(output)
 
