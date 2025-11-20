@@ -148,11 +148,17 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
         {:ok, product_data}
 
       {:ok, response} ->
-        Logger.error("Unexpected TikTok API response for product #{tiktok_product_id}: #{inspect(response)}")
+        Logger.error(
+          "Unexpected TikTok API response for product #{tiktok_product_id}: #{inspect(response)}"
+        )
+
         {:error, :unexpected_response}
 
       {:error, reason} ->
-        Logger.error("Failed to fetch product details for #{tiktok_product_id}: #{inspect(reason)}")
+        Logger.error(
+          "Failed to fetch product details for #{tiktok_product_id}: #{inspect(reason)}"
+        )
+
         {:error, reason}
     end
   end
@@ -190,7 +196,9 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
       {product, result} =
         if matching_product do
           # Update existing product with TikTok data
-          result = update_existing_product(matching_product, tiktok_product_id, tiktok_skus, is_matched)
+          result =
+            update_existing_product(matching_product, tiktok_product_id, tiktok_skus, is_matched)
+
           {matching_product, result}
         else
           # Create new TikTok-only product
@@ -411,10 +419,15 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
     tiktok_skus
     |> Enum.with_index()
     |> Enum.reduce(0, fn {tiktok_sku, index}, count ->
+      seller_sku = tiktok_sku["seller_sku"]
+      # Handle both nil and empty string cases for title
+      variant_title =
+        if seller_sku in [nil, ""], do: "Variant #{index + 1}", else: seller_sku
+
       variant_attrs = %{
         product_id: product.id,
         tiktok_sku_id: tiktok_sku["id"],
-        title: tiktok_sku["seller_sku"] || "Variant #{index + 1}",
+        title: variant_title,
         sku: tiktok_sku["seller_sku"],
         price_cents: parse_tiktok_price(tiktok_sku["price"]),
         compare_at_price_cents: nil,
