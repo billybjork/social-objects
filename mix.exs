@@ -91,9 +91,10 @@ defmodule Pavoi.MixProject do
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
       "assets.setup": ["esbuild.install --if-missing"],
-      "assets.build": ["compile", "esbuild pavoi"],
+      "assets.build": ["compile", "esbuild pavoi", "assets.copy_vendor"],
       "assets.deploy": [
         "esbuild pavoi --minify",
+        "assets.copy_vendor",
         "phx.digest"
       ],
       precommit: [
