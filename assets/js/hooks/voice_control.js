@@ -138,8 +138,7 @@ export default {
           break;
 
         case 'model_ready':
-          console.log('[VoiceControl] Model ready on device:', data.device);
-          this.updateStatus('ready', `Ready (${data.device})`);
+          this.updateStatus('ready', 'Ready');
           this.modelReady = true;
           this.toggleBtn.disabled = false;
           this.toggleBtn.querySelector('.text').textContent = 'Start';
