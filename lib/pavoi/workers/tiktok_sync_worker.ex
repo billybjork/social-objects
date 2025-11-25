@@ -263,7 +263,13 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
   end
 
   defp sync_images_in_parallel(products_needing_images) do
-    count = length(products_needing_images)
+    # Deduplicate by product_id to avoid race conditions in parallel processing
+    # (multiple TikTok products can map to the same local product)
+    unique_products =
+      products_needing_images
+      |> Enum.uniq_by(fn {product, _tiktok_id} -> product.id end)
+
+    count = length(unique_products)
 
     if count == 0 do
       Logger.info("No products need TikTok image fetching")
@@ -271,7 +277,7 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
     else
       Logger.info("Fetching images for #{count} products in parallel (10 concurrent)...")
 
-      products_needing_images
+      unique_products
       |> Task.async_stream(
         fn {product, tiktok_id} ->
           fetch_and_sync_images(product, tiktok_id)
