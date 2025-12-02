@@ -91,54 +91,49 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
   def sync_all_products do
     counts = %{products: 0, variants: 0, new_products: 0, matched: 0}
 
-    case fetch_all_products_with_pagination() do
-      {:ok, tiktok_products} ->
-        Logger.info("Fetched #{length(tiktok_products)} products from TikTok Shop")
-
-        # Filter out products with invalid pricing (0 or nil)
-        valid_products =
-          Enum.filter(tiktok_products, fn product ->
-            skus = product["skus"] || []
-            min_price = get_minimum_sku_price(skus)
-            min_price != nil && min_price > 0
-          end)
-
-        Logger.info(
-          "Filtered to #{length(valid_products)} products with valid pricing (skipped #{length(tiktok_products) - length(valid_products)} products)"
-        )
-
-        # Phase 1: Sync product/variant data (DB operations only - fast)
-        # Collect products that need image fetching for Phase 2
-        initial_state = {:ok, counts, []}
-
-        result =
-          valid_products
-          |> Enum.with_index(1)
-          |> Enum.reduce_while(initial_state, fn {tiktok_product, index},
-                                                 {:ok, acc, image_queue} ->
-            # Log progress every 100 products
-            if rem(index, 100) == 0 do
-              Logger.info("Syncing product #{index}/#{length(valid_products)}...")
-            end
-
-            sync_and_accumulate(tiktok_product, acc, image_queue)
-          end)
-
-        # Phase 2: Fetch and sync images in parallel (HTTP operations)
-        case result do
-          {:ok, final_counts, products_needing_images} ->
-            images_synced = sync_images_in_parallel(products_needing_images)
-            Logger.info("Images synced for #{images_synced} products")
-            {:ok, final_counts}
-
-          {:error, reason} ->
-            {:error, reason}
-        end
-
-      {:error, reason} ->
-        {:error, reason}
+    with {:ok, tiktok_products} <- fetch_all_products_with_pagination(),
+         _ <- Logger.info("Fetched #{length(tiktok_products)} products from TikTok Shop"),
+         valid_products <- filter_products_with_valid_pricing(tiktok_products),
+         {:ok, final_counts, products_needing_images} <-
+           sync_products_phase1(valid_products, counts) do
+      images_synced = sync_images_in_parallel(products_needing_images)
+      Logger.info("Images synced for #{images_synced} products")
+      {:ok, final_counts}
     end
   end
+
+  defp filter_products_with_valid_pricing(products) do
+    valid =
+      Enum.filter(products, fn product ->
+        skus = product["skus"] || []
+        min_price = get_minimum_sku_price(skus)
+        min_price != nil && min_price > 0
+      end)
+
+    Logger.info(
+      "Filtered to #{length(valid)} products with valid pricing (skipped #{length(products) - length(valid)} products)"
+    )
+
+    valid
+  end
+
+  defp sync_products_phase1(valid_products, counts) do
+    initial_state = {:ok, counts, []}
+    total = length(valid_products)
+
+    valid_products
+    |> Enum.with_index(1)
+    |> Enum.reduce_while(initial_state, fn {tiktok_product, index}, {:ok, acc, image_queue} ->
+      log_sync_progress(index, total)
+      sync_and_accumulate(tiktok_product, acc, image_queue)
+    end)
+  end
+
+  defp log_sync_progress(index, total) when rem(index, 100) == 0 do
+    Logger.info("Syncing product #{index}/#{total}...")
+  end
+
+  defp log_sync_progress(_index, _total), do: :ok
 
   defp fetch_all_products_with_pagination(page_token \\ nil, accumulated_products \\ []) do
     # Build query parameters with pagination (50 is a good balance for TikTok API)
@@ -522,44 +517,49 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
   end
 
   defp update_variant_with_tiktok_data(variant, tiktok_sku_id, tiktok_sku, count) do
-    # Skip if this variant already has this TikTok SKU ID assigned
-    if variant.tiktok_sku_id == tiktok_sku_id do
-      count + 1
-    else
-      # Check if another variant already has this TikTok SKU ID (avoid unique constraint error)
-      existing =
-        from(v in Pavoi.Catalog.ProductVariant,
-          where: v.tiktok_sku_id == ^tiktok_sku_id and v.id != ^variant.id,
-          limit: 1
-        )
-        |> Repo.one()
+    cond do
+      # Skip if this variant already has this TikTok SKU ID assigned
+      variant.tiktok_sku_id == tiktok_sku_id ->
+        count + 1
 
-      if existing do
+      # Check if another variant already has this TikTok SKU ID
+      tiktok_sku_already_assigned?(tiktok_sku_id, variant.id) ->
         Logger.debug(
-          "TikTok SKU ID #{tiktok_sku_id} already assigned to variant #{existing.id}, skipping"
+          "TikTok SKU ID #{tiktok_sku_id} already assigned to another variant, skipping"
         )
 
         count
-      else
-        tiktok_attrs = %{
-          tiktok_sku_id: tiktok_sku_id,
-          tiktok_price_cents: parse_tiktok_price(tiktok_sku["price"]),
-          tiktok_compare_at_price_cents: nil
-        }
 
-        case Catalog.update_product_variant(variant, tiktok_attrs) do
-          {:ok, _} ->
-            count + 1
+      true ->
+        apply_tiktok_sku_update(variant, tiktok_sku_id, tiktok_sku, count)
+    end
+  end
 
-          {:error, changeset} ->
-            Logger.warning(
-              "Skipping variant #{variant.id} TikTok SKU update: #{inspect(changeset.errors)}"
-            )
+  defp tiktok_sku_already_assigned?(tiktok_sku_id, exclude_variant_id) do
+    from(v in Pavoi.Catalog.ProductVariant,
+      where: v.tiktok_sku_id == ^tiktok_sku_id and v.id != ^exclude_variant_id,
+      limit: 1
+    )
+    |> Repo.exists?()
+  end
 
-            # Continue without incrementing - don't fail the sync
-            count
-        end
-      end
+  defp apply_tiktok_sku_update(variant, tiktok_sku_id, tiktok_sku, count) do
+    tiktok_attrs = %{
+      tiktok_sku_id: tiktok_sku_id,
+      tiktok_price_cents: parse_tiktok_price(tiktok_sku["price"]),
+      tiktok_compare_at_price_cents: nil
+    }
+
+    case Catalog.update_product_variant(variant, tiktok_attrs) do
+      {:ok, _} ->
+        count + 1
+
+      {:error, changeset} ->
+        Logger.warning(
+          "Skipping variant #{variant.id} TikTok SKU update: #{inspect(changeset.errors)}"
+        )
+
+        count
     end
   end
 

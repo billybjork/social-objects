@@ -1,0 +1,64 @@
+defmodule Pavoi.Creators.CreatorVideo do
+  @moduledoc """
+  Tracks video content created by creators.
+
+  Captures TikTok video performance metrics including GMV, items sold,
+  impressions, engagement, and estimated commission.
+  """
+  use Ecto.Schema
+  import Ecto.Changeset
+
+  schema "creator_videos" do
+    belongs_to :creator, Pavoi.Creators.Creator
+
+    # Video Identity
+    field :tiktok_video_id, :string
+    field :video_url, :string
+    field :title, :string
+
+    # Timing
+    field :posted_at, :utc_datetime
+
+    # Performance Metrics
+    field :gmv_cents, :integer, default: 0
+    field :items_sold, :integer, default: 0
+    field :affiliate_orders, :integer, default: 0
+    field :impressions, :integer, default: 0
+    field :likes, :integer, default: 0
+    field :comments, :integer, default: 0
+    field :shares, :integer, default: 0
+    field :ctr, :decimal
+
+    # Commission
+    field :est_commission_cents, :integer
+
+    # Associations
+    has_many :video_products, Pavoi.Creators.CreatorVideoProduct
+
+    timestamps()
+  end
+
+  @doc false
+  def changeset(creator_video, attrs) do
+    creator_video
+    |> cast(attrs, [
+      :creator_id,
+      :tiktok_video_id,
+      :video_url,
+      :title,
+      :posted_at,
+      :gmv_cents,
+      :items_sold,
+      :affiliate_orders,
+      :impressions,
+      :likes,
+      :comments,
+      :shares,
+      :ctr,
+      :est_commission_cents
+    ])
+    |> validate_required([:creator_id, :tiktok_video_id])
+    |> unique_constraint(:tiktok_video_id)
+    |> foreign_key_constraint(:creator_id)
+  end
+end

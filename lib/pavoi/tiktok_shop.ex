@@ -221,11 +221,9 @@ defmodule Pavoi.TiktokShop do
     end
   end
 
-  defp token_expired_error?(reason) when is_binary(reason) do
+  defp token_expired_error?(reason) do
     String.contains?(reason, "105002") or String.contains?(reason, "Expired credentials")
   end
-
-  defp token_expired_error?(_), do: false
 
   @doc """
   Generates HMAC-SHA256 signature for TikTok Shop API requests.
