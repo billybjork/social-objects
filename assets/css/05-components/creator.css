@@ -422,14 +422,34 @@
   color: var(--color-text-primary);
 }
 
-/* Compact table styling for modal */
+/* Compact table styling for modal - override fixed layout from main table */
 .creator-modal-content .creator-table {
   font-size: var(--text-sm);
+  table-layout: auto;
 }
 
 .creator-modal-content .creator-table th,
 .creator-modal-content .creator-table td {
   padding: var(--space-2) var(--space-3);
+  width: auto;
+  white-space: nowrap;
+}
+
+/* First column (Product/Video) should expand to fill available space */
+.creator-modal-content .creator-table th:first-child,
+.creator-modal-content .creator-table td:first-child {
+  width: 100%;
+  white-space: normal;
+  max-width: none;
+}
+
+/* Sample product name can wrap */
+.creator-modal-content .sample-product {
+  min-width: 0;
+}
+
+.creator-modal-content .sample-product span {
+  word-break: break-word;
 }
 
 /* Responsive adjustments */
