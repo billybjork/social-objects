@@ -1169,13 +1169,23 @@ defmodule PavoiWeb.SessionsLive.Index do
 
   defp maybe_show_new_session_modal(socket, _value) do
     # "new" param exists (any value), show the new session modal and initialize state
+    # Always use PAVOI brand
+    pavoi_brand = Catalog.get_brand_by_name("PAVOI")
+    brand_id = if pavoi_brand, do: pavoi_brand.id, else: nil
+
+    # Initialize session form with brand_id pre-set
+    session_form =
+      to_form(Session.changeset(%Session{}, %{"brand_id" => brand_id}))
+
     socket
     |> assign(:show_new_session_modal, true)
+    |> assign(:session_form, session_form)
     |> assign(:product_search_query, "")
     |> assign(:product_page, 1)
     |> assign(:selected_product_ids, MapSet.new())
     |> stream(:new_session_products, [], reset: true)
     |> assign(:new_session_has_more, false)
+    |> load_products_for_new_session()
   end
 
   defp load_products_for_add_modal(socket, opts \\ [append: false]) do

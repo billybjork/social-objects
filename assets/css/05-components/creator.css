@@ -294,7 +294,7 @@
 .creator-modal-stats {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-4);
+  gap: var(--space-6);
   padding: var(--space-4);
   background: var(--color-surface-secondary);
   border-radius: var(--radius-md);
@@ -340,18 +340,11 @@
   padding: var(--space-2) 0;
 }
 
-.contact-tab__header {
+.contact-tab__footer {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--space-4);
-}
-
-.contact-tab__title {
-  font-size: var(--text-base);
-  font-weight: var(--font-semibold);
-  color: var(--color-text-primary);
-  margin: 0;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
 }
 
 /* Contact info grid (display mode) */

@@ -226,7 +226,6 @@ defmodule PavoiWeb.CreatorComponents do
               on_sort={@on_sort}
               class="text-right"
             />
-            <th>Badge</th>
           </tr>
         </thead>
         <tbody>
@@ -258,7 +257,6 @@ defmodule PavoiWeb.CreatorComponents do
               <td class="text-right">{format_gmv(creator.total_gmv_cents)}</td>
               <td class="text-right">{creator.sample_count || 0}</td>
               <td class="text-right">{creator.total_videos || 0}</td>
-              <td><.badge_pill level={creator.tiktok_badge_level} /></td>
             </tr>
           <% end %>
         </tbody>
@@ -688,10 +686,6 @@ defmodule PavoiWeb.CreatorComponents do
             <span class="creator-modal-stat__label">Videos</span>
             <span class="creator-modal-stat__value">{length(@creator.creator_videos)}</span>
           </div>
-          <div class="creator-modal-stat">
-            <span class="creator-modal-stat__label">Brands</span>
-            <span class="creator-modal-stat__value">{length(@creator.brands)}</span>
-          </div>
         </div>
 
         <div class="creator-modal-tabs">
@@ -763,15 +757,6 @@ defmodule PavoiWeb.CreatorComponents do
   def contact_tab(assigns) do
     ~H"""
     <div class="contact-tab">
-      <div class="contact-tab__header">
-        <h3 class="contact-tab__title">Contact Information</h3>
-        <%= if !@editing do %>
-          <.button variant="ghost" size="sm" phx-click="edit_contact">
-            <.icon name="hero-pencil" class="size-4" /> Edit
-          </.button>
-        <% end %>
-      </div>
-
       <%= if @editing && @form do %>
         <.form for={@form} phx-submit="save_contact" phx-change="validate_contact" class="stack">
           <div class="contact-form-grid">
@@ -791,7 +776,7 @@ defmodule PavoiWeb.CreatorComponents do
           </div>
           <.input field={@form[:notes]} type="textarea" label="Notes" rows={3} />
           <.input field={@form[:is_whitelisted]} type="checkbox" label="Whitelisted Creator" />
-          <div class="flex gap-2 justify-end">
+          <div class="contact-tab__footer">
             <.button type="button" variant="ghost" phx-click="cancel_edit">Cancel</.button>
             <.button type="submit" variant="primary">Save</.button>
           </div>
@@ -844,20 +829,11 @@ defmodule PavoiWeb.CreatorComponents do
               </dd>
             </div>
           </div>
-          <%= if @creator.brands && length(@creator.brands) > 0 do %>
-            <div class="contact-info-row contact-info-row--full">
-              <div class="contact-info-item">
-                <dt>Brands</dt>
-                <dd>
-                  <div class="brands-list brands-list--inline">
-                    <%= for brand <- @creator.brands do %>
-                      <span class="brand-tag">{brand.name}</span>
-                    <% end %>
-                  </div>
-                </dd>
-              </div>
-            </div>
-          <% end %>
+        </div>
+        <div class="contact-tab__footer">
+          <.button variant="primary" phx-click="edit_contact">
+            Edit
+          </.button>
         </div>
       <% end %>
     </div>

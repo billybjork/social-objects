@@ -106,12 +106,7 @@ defmodule PavoiWeb.ProductComponents do
             <div class="product-variants__grid-wrapper">
               <div class="product-variants__grid">
                 <%= for variant <- @variants do %>
-                  <div class="product-variant-chip">
-                    <span class="product-variant-chip__title">{variant.title}</span>
-                    <span class="product-variant-chip__price">
-                      ${format_price_cents(variant.price_cents)}
-                    </span>
-                  </div>
+                  <.variant_chip variant={variant} />
                 <% end %>
               </div>
             </div>
@@ -133,79 +128,66 @@ defmodule PavoiWeb.ProductComponents do
             </button>
           </div>
         <% else %>
-          <%!-- Full mode: detailed list with expand/collapse --%>
-          <div class="product-variants__list">
-            <%= for variant <- @initial_variants do %>
-              <div class="product-variant">
-                <div class="product-variant__header">
-                  <div class="product-variant__info">
-                    <span class="product-variant__title">{variant.title}</span>
-                    <%= if variant.sku do %>
-                      <span class="product-variant__sku">SKU: {variant.sku}</span>
-                    <% end %>
-                  </div>
-                  <span class="product-variant__price">
-                    <%= if variant.compare_at_price_cents do %>
-                      <span class="product-variant__price-sale">
-                        ${format_price_cents(variant.price_cents)}
-                      </span>
-                      <span class="product-variant__price-original">
-                        ${format_price_cents(variant.compare_at_price_cents)}
-                      </span>
-                    <% else %>
-                      ${format_price_cents(variant.price_cents)}
-                    <% end %>
-                  </span>
+          <%!-- Full mode: grid of chips with expand/collapse for many variants --%>
+          <div class="product-variants__grid-wrapper product-variants__grid-wrapper--expanded">
+            <div class="product-variants__grid">
+              <%= for variant <- @initial_variants do %>
+                <.variant_chip variant={variant} />
+              <% end %>
+
+              <%= if @has_more do %>
+                <div id={"#{@variant_id}-more"} class="product-variants__more product-variants__more--hidden">
+                  <%= for variant <- @remaining_variants do %>
+                    <.variant_chip variant={variant} />
+                  <% end %>
                 </div>
-              </div>
-            <% end %>
-
-            <%= if @has_more do %>
-              <div id={"#{@variant_id}-more"} class="product-variants__more" style="display: none;">
-                <%= for variant <- @remaining_variants do %>
-                  <div class="product-variant">
-                    <div class="product-variant__header">
-                      <div class="product-variant__info">
-                        <span class="product-variant__title">{variant.title}</span>
-                        <%= if variant.sku do %>
-                          <span class="product-variant__sku">SKU: {variant.sku}</span>
-                        <% end %>
-                      </div>
-                      <span class="product-variant__price">
-                        <%= if variant.compare_at_price_cents do %>
-                          <span class="product-variant__price-sale">
-                            ${format_price_cents(variant.price_cents)}
-                          </span>
-                          <span class="product-variant__price-original">
-                            ${format_price_cents(variant.compare_at_price_cents)}
-                          </span>
-                        <% else %>
-                          ${format_price_cents(variant.price_cents)}
-                        <% end %>
-                      </span>
-                    </div>
-                  </div>
-                <% end %>
-              </div>
-
-              <button
-                type="button"
-                id={"#{@variant_id}-toggle"}
-                class="product-variants__toggle"
-                phx-click={
-                  JS.toggle(to: "##{@variant_id}-more")
-                  |> JS.toggle_class("product-variants__toggle--expanded",
-                    to: "##{@variant_id}-toggle"
-                  )
-                }
-              >
-                Show all {@remaining_count} more variants
-              </button>
-            <% end %>
+              <% end %>
+            </div>
           </div>
+
+          <%= if @has_more do %>
+            <button
+              type="button"
+              id={"#{@variant_id}-toggle"}
+              class="product-variants__toggle"
+              phx-click={
+                JS.toggle_class("product-variants__more--hidden",
+                  to: "##{@variant_id}-more"
+                )
+                |> JS.toggle_class("product-variants__toggle--expanded",
+                  to: "##{@variant_id}-toggle"
+                )
+              }
+            >
+              Show all {@remaining_count} more variants
+            </button>
+          <% end %>
         <% end %>
       </div>
     <% end %>
+    """
+  end
+
+  # Shared variant chip component used by both compact and full modes
+  attr :variant, :map, required: true
+
+  defp variant_chip(assigns) do
+    ~H"""
+    <div class="product-variant-chip">
+      <span class="product-variant-chip__title">{@variant.title}</span>
+      <%= if @variant.compare_at_price_cents do %>
+        <span class="product-variant-chip__price-sale">
+          ${format_price_cents(@variant.price_cents)}
+        </span>
+        <span class="product-variant-chip__price-original">
+          ${format_price_cents(@variant.compare_at_price_cents)}
+        </span>
+      <% else %>
+        <span class="product-variant-chip__price">
+          ${format_price_cents(@variant.price_cents)}
+        </span>
+      <% end %>
+    </div>
     """
   end
 
@@ -273,17 +255,12 @@ defmodule PavoiWeb.ProductComponents do
           
     <!-- Product details -->
           <div class="stack" style="gap: var(--space-3);">
-            <div style="color: var(--color-text-primary);">
-              <strong style="font-weight: var(--font-semibold);">Brand:</strong>
-              {@editing_product.brand.name}
-            </div>
-
-            <div style="color: var(--color-text-primary);">
-              <strong style="font-weight: var(--font-semibold);">Original Price:</strong>
+            <div style="color: var(--color-text-secondary);">
+              <strong style="font-weight: var(--font-semibold); color: var(--color-text-primary);">Original Price:</strong>
               ${format_price_cents(@editing_product.original_price_cents)}
               <%= if @editing_product.sale_price_cents do %>
                 <span style="margin-left: var(--space-4);">
-                  <strong style="font-weight: var(--font-semibold);">Sale Price:</strong>
+                  <strong style="font-weight: var(--font-semibold); color: var(--color-text-primary);">Sale Price:</strong>
                   ${format_price_cents(@editing_product.sale_price_cents)}
                 </span>
               <% end %>

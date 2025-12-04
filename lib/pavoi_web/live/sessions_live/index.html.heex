@@ -348,13 +348,7 @@
         phx-submit="save_session"
         class="stack"
       >
-        <.input
-          field={@session_form[:brand_id]}
-          type="select"
-          label="Brand"
-          options={Enum.map(@brands, fn b -> {b.name, b.id} end)}
-          prompt="Select a brand"
-        />
+        <input type="hidden" name={@session_form[:brand_id].name} value={@session_form[:brand_id].value} />
 
         <.input
           field={@session_form[:name]}
@@ -370,32 +364,23 @@
           placeholder="Any additional notes about this session"
         />
       </.form>
-      
+
 <!-- Product Selection Section (outside the form) -->
-      <%= if @session_form.params["brand_id"] && @session_form.params["brand_id"] != "" do %>
-        <div class="stack product-selection-section">
-          <h3 class="product-selection-heading">
-            Select Products
-          </h3>
-          <.product_grid
-            products={@streams.new_session_products}
-            mode={:select}
-            search_query={@product_search_query}
-            has_more={@new_session_has_more}
-            selected_ids={@selected_product_ids}
-            on_product_click="toggle_product_selection"
-            on_search="search_products"
-            on_load_more="load_more_products"
-            show_search={true}
-            loading={@loading_products}
-            is_empty={@product_total_count == 0}
-          />
-        </div>
-      <% else %>
-        <p class="text-sm text-secondary product-selection-placeholder">
-          Please select a brand to choose products.
-        </p>
-      <% end %>
+      <div class="product-selection-section">
+        <.product_grid
+          products={@streams.new_session_products}
+          mode={:select}
+          search_query={@product_search_query}
+          has_more={@new_session_has_more}
+          selected_ids={@selected_product_ids}
+          on_product_click="toggle_product_selection"
+          on_search="search_products"
+          on_load_more="load_more_products"
+          show_search={true}
+          loading={@loading_products}
+          is_empty={@product_total_count == 0}
+        />
+      </div>
     </div>
 
     <div class="modal__footer">

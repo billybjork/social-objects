@@ -442,59 +442,75 @@ defmodule PavoiWeb.CoreComponents do
         </div>
       </div>
       <div class="navbar__end">
-        <.button
-          class={if @current_page != :sessions, do: "invisible"}
-          variant="primary"
-          size="sm"
-          phx-click="show_new_session_modal"
+        <button
+          class="navbar__menu-trigger"
+          aria-label="Open menu"
+          aria-haspopup="true"
+          phx-click={JS.toggle(to: "#navbar-menu", in: "fade-in", out: "fade-out")}
         >
-          New Session
-        </.button>
-        <%= if @current_page == :products do %>
-          <div class="navbar__sync-meta">
-            Shopify synced: {if @last_sync_at, do: format_relative_time(@last_sync_at), else: "Never"}
-          </div>
+          ⋮
+        </button>
+        <div
+          id="navbar-menu"
+          class="navbar__menu"
+          phx-click-away={JS.hide(to: "#navbar-menu", transition: "fade-out")}
+        >
           <.button
+            :if={@current_page == :sessions}
             variant="primary"
             size="sm"
-            phx-click="trigger_shopify_sync"
-            class={@syncing && "button--disabled"}
-            disabled={@syncing}
+            phx-click="show_new_session_modal"
           >
-            {if @syncing, do: "Syncing Shopify...", else: "Sync Shopify"}
+            New Session
           </.button>
-          <div class="navbar__sync-meta">
-            TikTok synced: {if @tiktok_last_sync_at,
-              do: format_relative_time(@tiktok_last_sync_at),
-              else: "Never"}
-          </div>
-          <.button
-            variant="primary"
-            size="sm"
-            phx-click="trigger_tiktok_sync"
-            class={@tiktok_syncing && "button--disabled"}
-            disabled={@tiktok_syncing}
-          >
-            {if @tiktok_syncing, do: "Syncing TikTok...", else: "Sync TikTok Shop"}
-          </.button>
-        <% end %>
-        <%= if @current_page == :creators do %>
-          <div class="navbar__sync-meta">
-            Orders synced: {if @bigquery_last_sync_at,
-              do: format_relative_time(@bigquery_last_sync_at),
-              else: "Never"}
-          </div>
-          <.button
-            variant="primary"
-            size="sm"
-            phx-click="trigger_bigquery_sync"
-            class={@bigquery_syncing && "button--disabled"}
-            disabled={@bigquery_syncing}
-          >
-            {if @bigquery_syncing, do: "Syncing Orders...", else: "Sync BigQuery Orders"}
-          </.button>
-        <% end %>
-        <.theme_toggle />
+          <%= if @current_page == :products do %>
+            <div class="navbar__sync-group">
+              <.button
+                variant="primary"
+                size="xs"
+                phx-click="trigger_shopify_sync"
+                class={@syncing && "button--disabled"}
+                disabled={@syncing}
+              >
+                {if @syncing, do: "Syncing Shopify...", else: "Sync Shopify"}
+              </.button>
+              <div class="navbar__sync-meta">
+                Synced: {if @last_sync_at, do: format_relative_time(@last_sync_at), else: "Never"}
+              </div>
+            </div>
+            <div class="navbar__sync-group">
+              <.button
+                variant="primary"
+                size="xs"
+                phx-click="trigger_tiktok_sync"
+                class={@tiktok_syncing && "button--disabled"}
+                disabled={@tiktok_syncing}
+              >
+                {if @tiktok_syncing, do: "Syncing TikTok...", else: "Sync TikTok Shop"}
+              </.button>
+              <div class="navbar__sync-meta">
+                Synced: {if @tiktok_last_sync_at, do: format_relative_time(@tiktok_last_sync_at), else: "Never"}
+              </div>
+            </div>
+          <% end %>
+          <%= if @current_page == :creators do %>
+            <div class="navbar__sync-group">
+              <.button
+                variant="primary"
+                size="xs"
+                phx-click="trigger_bigquery_sync"
+                class={@bigquery_syncing && "button--disabled"}
+                disabled={@bigquery_syncing}
+              >
+                {if @bigquery_syncing, do: "Syncing Orders...", else: "Sync TikTok Orders"}
+              </.button>
+              <div class="navbar__sync-meta">
+                Synced: {if @bigquery_last_sync_at, do: format_relative_time(@bigquery_last_sync_at), else: "Never"}
+              </div>
+            </div>
+          <% end %>
+          <.theme_toggle />
+        </div>
       </div>
     </nav>
     """

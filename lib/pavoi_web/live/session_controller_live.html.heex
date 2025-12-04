@@ -3,7 +3,24 @@
   class="controller-container"
   phx-hook="ControllerHaptic"
 >
-  <%!-- TOP: Message to Host (Collapsible, starts collapsed) --%>
+  <%!-- TOP: Header with back button, session name, and count --%>
+  <div class="controller-header">
+    <.link navigate={~p"/sessions"} class="controller-back-link">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="controller-back-icon">
+        <polyline points="15 18 9 12 15 6"></polyline>
+      </svg>
+    </.link>
+    <span class="controller-header__title"><%= @session.name %></span>
+    <span class="controller-header__count">
+      <%= if @current_position do %>
+        <%= @current_position %>/<%= @total_products %>
+      <% else %>
+        <%= @total_products %>
+      <% end %>
+    </span>
+  </div>
+
+  <%!-- Message to Host (Collapsible, starts collapsed) --%>
   <div id="message-panel" class="controller-panel controller-panel--message controller-panel--collapsed">
     <button
       type="button"
@@ -60,22 +77,6 @@
 
   <%!-- MIDDLE: Product Grid (Scrollable, takes remaining space) --%>
   <div class="controller-products" phx-hook="ControllerKeyboard" id="controller-products">
-    <div class="controller-products__header">
-      <.link navigate={~p"/sessions"} class="controller-back-link">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="controller-back-icon">
-          <polyline points="15 18 9 12 15 6"></polyline>
-        </svg>
-      </.link>
-      <span class="controller-products__title"><%= @session.name %></span>
-      <span class="controller-products__count">
-        <%= if @current_position do %>
-          <%= @current_position %>/<%= @total_products %>
-        <% else %>
-          <%= @total_products %>
-        <% end %>
-      </span>
-    </div>
-
     <div class="controller-products__grid">
       <%= for sp <- Enum.sort_by(@session.session_products, & &1.position) do %>
         <button

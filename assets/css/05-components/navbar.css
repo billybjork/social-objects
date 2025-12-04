@@ -3,6 +3,7 @@
    ============================================================================ */
 
 .navbar {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-6);
@@ -85,11 +86,49 @@
   background-color: var(--color-bg-hover);
 }
 
+.navbar__sync-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+
 .navbar__sync-meta {
   color: var(--color-text-secondary);
-  font-size: var(--text-sm);
+  font-size: 11px;
   font-weight: var(--font-normal);
   white-space: nowrap;
+}
+
+/* Menu trigger button - hidden on desktop */
+.navbar__menu-trigger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background-color: transparent;
+  border: 1px solid var(--color-border-secondary);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  font-size: 20px;
+  font-weight: var(--font-bold);
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.navbar__menu-trigger:hover {
+  background-color: var(--color-bg-hover);
+  border-color: var(--color-border-primary);
+  color: var(--color-text-primary);
+}
+
+/* Collapsible menu - inline flex on desktop */
+.navbar__menu {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
 }
 
 /* Mobile responsive */
@@ -121,7 +160,58 @@
     gap: var(--space-2);
   }
 
-  .navbar__sync-meta {
-    font-size: var(--text-xs);
+  /* Show menu trigger on mobile */
+  .navbar__menu-trigger {
+    display: flex;
+  }
+
+  /* Convert menu to dropdown on mobile */
+  .navbar__menu {
+    position: absolute;
+    right: var(--space-4);
+    top: 100%;
+    min-width: 200px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding: var(--space-2);
+    background-color: var(--color-surface-primary);
+    border: 1px solid var(--color-border-secondary);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    z-index: 9999;
+  }
+
+  .navbar__menu .navbar__sync-group {
+    align-items: center;
+    margin-bottom: var(--space-2);
+  }
+
+  .navbar__menu .navbar__sync-group:last-of-type {
+    margin-bottom: 0;
+  }
+
+  .navbar__menu .button {
+    justify-content: center;
+  }
+
+  .navbar__menu .navbar__sync-meta {
+    padding: 0;
+    margin-top: var(--space-1);
+    font-size: 11px;
+    opacity: 0.7;
+    text-align: center;
+  }
+
+  .navbar__menu .theme-toggle {
+    align-self: center;
+    margin-top: var(--space-3);
+  }
+}
+
+/* Desktop: ensure menu visible even if JS set display:none */
+@media (min-width: 769px) {
+  .navbar__menu {
+    display: flex !important;
   }
 }

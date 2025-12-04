@@ -18,9 +18,12 @@
   border-bottom: 1px solid var(--color-border-secondary);
 }
 
-/* Match modal background for select mode */
+/* Match modal background for select mode - no divider */
 .product-grid--select .product-grid__header {
   background-color: var(--color-surface-primary);
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-bottom: var(--space-3);
 }
 
 /* Match page background for browse mode */

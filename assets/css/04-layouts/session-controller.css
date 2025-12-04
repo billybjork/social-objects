@@ -204,26 +204,18 @@
 }
 
 /* ==========================================================================
-   PRODUCTS SECTION
-   Takes remaining space, scrollable grid
+   HEADER
+   Top bar with back button, session name, and product count
    ========================================================================== */
 
-.controller-products {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.controller-products__header {
+.controller-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
-  background-color: var(--color-surface-secondary);
-  border-bottom: 1px solid var(--color-border-secondary);
+  background-color: var(--color-surface-primary);
+  border-bottom: 1px solid var(--color-border-primary);
   flex-shrink: 0;
 }
 
@@ -251,7 +243,7 @@
   height: 20px;
 }
 
-.controller-products__title {
+.controller-header__title {
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
   color: var(--color-text-primary);
@@ -262,7 +254,7 @@
   min-width: 0;
 }
 
-.controller-products__count {
+.controller-header__count {
   font-size: var(--text-xs);
   font-weight: var(--font-medium);
   color: var(--color-text-tertiary);
@@ -270,6 +262,19 @@
   background-color: var(--color-bg-tertiary);
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
+}
+
+/* ==========================================================================
+   PRODUCTS SECTION
+   Takes remaining space, scrollable grid
+   ========================================================================== */
+
+.controller-products {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .controller-products__grid {

@@ -163,12 +163,14 @@ defmodule Pavoi.Creators do
   Gets a creator with all associations preloaded.
   """
   def get_creator_with_details!(id) do
+    videos_query = from(v in CreatorVideo, order_by: [desc: v.gmv_cents], preload: :video_products)
+
     Creator
     |> where([c], c.id == ^id)
     |> preload([
       :brands,
       creator_samples: [:brand, product: :product_images],
-      creator_videos: :video_products,
+      creator_videos: ^videos_query,
       performance_snapshots: []
     ])
     |> Repo.one!()
