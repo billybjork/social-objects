@@ -409,11 +409,12 @@
   box-shadow: 0 0 0 2px var(--color-accent-blue);
 }
 
-/* Image container with position badge */
+/* Image container - uses padding trick for reliable square aspect ratio */
 .controller-product-card__image-container {
   position: relative;
-  aspect-ratio: 1;
-  flex-shrink: 0;
+  width: 100%;
+  padding-bottom: 100%; /* Creates 1:1 aspect ratio */
+  background-color: var(--color-bg-tertiary);
 }
 
 /* Position Badge */
@@ -436,17 +437,17 @@
 }
 
 .controller-product-card__image {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
-  aspect-ratio: 1;
+  height: 100%;
   object-fit: cover;
-  flex-shrink: 0;
 }
 
 .controller-product-card__placeholder {
-  width: 100%;
-  aspect-ratio: 1;
-  background-color: var(--color-bg-tertiary);
-  flex-shrink: 0;
+  /* No longer needed - container has background color */
+  display: none;
 }
 
 /* Product Name */
