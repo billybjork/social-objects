@@ -29,6 +29,10 @@
   --color-surface: #FEFDFB;             /* Alias */
   --color-background: #F5F4F1;          /* Alias */
 
+  /* High-contrast panels - for elements that need to clearly stand out */
+  --color-panel-bg: #FFFFFF;            /* Pure white panels for maximum contrast */
+  --color-panel-border: #D0CCC4;        /* Visible border */
+
   /* ========================================================================
      TEXT COLORS (Warm Undertones)
      ======================================================================== */
@@ -186,6 +190,10 @@
   --color-surface-tertiary: #141414;    /* Darker inputs */
   --color-surface: #1F1F1F;
   --color-background: #0A0A0A;
+
+  /* High-contrast panels - clearly visible on dark background */
+  --color-panel-bg: #1A1A1A;            /* Distinct from pure black bg */
+  --color-panel-border: #404040;        /* Visible border */
 
   /* ========================================================================
      TEXT COLORS

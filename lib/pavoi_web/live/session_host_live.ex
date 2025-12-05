@@ -288,8 +288,34 @@ defmodule PavoiWeb.SessionHostLive do
 
   defp render_markdown(markdown) do
     case Earmark.as_html(markdown) do
-      {:ok, html, _} -> Phoenix.HTML.raw(html)
-      _ -> nil
+      {:ok, html, _} ->
+        # Convert paragraphs to list items for bullet display
+        html
+        |> convert_paragraphs_to_list_items()
+        |> Phoenix.HTML.raw()
+
+      _ ->
+        nil
+    end
+  end
+
+  # Convert <p> tags to <li> tags wrapped in <ul> for bullet display
+  defp convert_paragraphs_to_list_items(html) do
+    # Check if already a list
+    if String.contains?(html, "<ul>") or String.contains?(html, "<ol>") do
+      html
+    else
+      # Convert <p>...</p> to <li>...</li>
+      html
+      |> String.replace(~r/<p>/, "<li>")
+      |> String.replace(~r/<\/p>/, "</li>")
+      |> then(fn content ->
+        if String.contains?(content, "<li>") do
+          "<ul class=\"host-talking-points-list\">#{content}</ul>"
+        else
+          content
+        end
+      end)
     end
   end
 

@@ -49,29 +49,23 @@ defmodule PavoiWeb.HostViewComponents do
 
   def host_content(assigns) do
     ~H"""
-    <%!-- Session Header Bar (fixed at top, differentiated from product content) --%>
-    <%= if @show_header do %>
-      <.session_header_bar session={@session} total_products={@total_products} />
-    <% end %>
-
-    <%!-- Message Banner (when active) --%>
+    <%!-- Message Banner (when active, above everything) --%>
     <%= if @host_message do %>
       <.host_message_banner message={@host_message} />
     <% end %>
 
     <%= if @current_session_product && @current_product do %>
-      <%!-- Product Header: Position block + Name + Price --%>
-      <.product_header
-        session_product={@current_session_product}
-        product={@current_product}
-        current_position={@current_position}
-        total_products={@total_products}
-      />
+      <%!-- TOP SECTION: Session Info (left) + Product Image (right) --%>
+      <div class="host-top-section">
+        <%!-- Session Info Panel --%>
+        <%= if @show_header do %>
+          <div class="host-session-panel">
+            <.session_info session={@session} total_products={@total_products} />
+          </div>
+        <% end %>
 
-      <%!-- Main Content Area: Images | Text --%>
-      <div class="host-content-area">
-        <%!-- Images Column --%>
-        <div class="host-images-column">
+        <%!-- Image Panel --%>
+        <div class={["host-image-panel", !@show_header && "host-image-panel--full"]}>
           <.product_image_display
             product_images={@product_images}
             current_image_index={@current_image_index}
@@ -79,26 +73,36 @@ defmodule PavoiWeb.HostViewComponents do
             id_prefix={@id_prefix}
           />
         </div>
-
-        <%!-- Text Content Column --%>
-        <div class="host-text-column">
-          <%= if @current_product.description && String.trim(@current_product.description) != "" do %>
-            <.product_description description={@current_product.description} />
-          <% end %>
-
-          <.talking_points_section talking_points_html={@talking_points_html} />
-        </div>
       </div>
 
-      <%!-- Variants (compact, at bottom) --%>
-      <%= if @current_product.product_variants && length(@current_product.product_variants) > 0 do %>
-        <div class="host-variants">
-          <PavoiWeb.ProductComponents.product_variants
-            variants={@current_product.product_variants}
-            compact={true}
-          />
-        </div>
-      <% end %>
+      <%!-- PRODUCT SECTION: Header + Description + Talking Points + Variants --%>
+      <div class="host-product-section">
+        <%!-- Product Header: Position block + Name + Price --%>
+        <.product_header
+          session_product={@current_session_product}
+          product={@current_product}
+          current_position={@current_position}
+          total_products={@total_products}
+        />
+
+        <%!-- Description (compact) --%>
+        <%= if @current_product.description && String.trim(@current_product.description) != "" do %>
+          <.product_description description={@current_product.description} />
+        <% end %>
+
+        <%!-- Talking Points (primary content area) --%>
+        <.talking_points_section talking_points_html={@talking_points_html} />
+
+        <%!-- Variants (compact, at bottom) --%>
+        <%= if @current_product.product_variants && length(@current_product.product_variants) > 0 do %>
+          <div class="host-variants">
+            <PavoiWeb.ProductComponents.product_variants
+              variants={@current_product.product_variants}
+              compact={true}
+            />
+          </div>
+        <% end %>
+      </div>
     <% else %>
       <%= if @total_products == 0 do %>
         <.empty_session_state />
@@ -129,23 +133,23 @@ defmodule PavoiWeb.HostViewComponents do
   end
 
   @doc """
-  Session header bar - fixed compact bar at top with session info.
-  Differentiated from product content with distinct background.
+  Session info panel - displays session title, product count, and notes.
+  Rendered inside the session panel with distinct background.
   """
   attr :session, :map, required: true
   attr :total_products, :integer, required: true
 
-  def session_header_bar(assigns) do
+  def session_info(assigns) do
     ~H"""
-    <header class="host-session-header">
-      <div class="host-session-header__left">
-        <span class="host-session-header__title">{@session.name}</span>
-        <span class="host-session-header__count">{@total_products} products</span>
+    <div class="host-session-info">
+      <div class="host-session-info__header">
+        <span class="host-session-info__title">{@session.name}</span>
+        <span class="host-session-info__count">{@total_products} products</span>
       </div>
       <%= if @session.notes && String.trim(@session.notes) != "" do %>
-        <div class="host-session-header__notes">{@session.notes}</div>
+        <div class="host-session-info__notes">{@session.notes}</div>
       <% end %>
-    </header>
+    </div>
     """
   end
 

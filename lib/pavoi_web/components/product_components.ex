@@ -97,12 +97,30 @@ defmodule PavoiWeb.ProductComponents do
     ~H"""
     <%= if @variants && length(@variants) > 0 do %>
       <div class={["product-variants", @compact && "product-variants--compact"]}>
-        <h3 class="product-variants__title">
-          Variants ({length(@variants)})
-        </h3>
         <%= if @compact do %>
           <%!-- Compact mode: grid of chips with 1-line limit --%>
           <div id={@variant_id} class="product-variants__compact-container" phx-hook="VariantOverflow">
+            <div class="product-variants__header">
+              <h3 class="product-variants__title">
+                Variants ({length(@variants)})
+              </h3>
+              <button
+                type="button"
+                id={"#{@variant_id}-expand"}
+                class="product-variants__expand"
+                style="display: none;"
+                phx-click={
+                  JS.toggle_class("product-variants__grid-wrapper--expanded",
+                    to: "##{@variant_id} .product-variants__grid-wrapper"
+                  )
+                  |> JS.toggle_class("product-variants__expand--expanded",
+                    to: "##{@variant_id}-expand"
+                  )
+                }
+              >
+                <span class="product-variants__expand-icon"></span>
+              </button>
+            </div>
             <div class="product-variants__grid-wrapper">
               <div class="product-variants__grid">
                 <%= for variant <- @variants do %>
@@ -110,24 +128,11 @@ defmodule PavoiWeb.ProductComponents do
                 <% end %>
               </div>
             </div>
-            <button
-              type="button"
-              id={"#{@variant_id}-expand"}
-              class="product-variants__expand"
-              style="display: none;"
-              phx-click={
-                JS.toggle_class("product-variants__grid-wrapper--expanded",
-                  to: "##{@variant_id} .product-variants__grid-wrapper"
-                )
-                |> JS.toggle_class("product-variants__expand--expanded",
-                  to: "##{@variant_id}-expand"
-                )
-              }
-            >
-              <span class="product-variants__expand-icon"></span>
-            </button>
           </div>
         <% else %>
+          <h3 class="product-variants__title">
+            Variants ({length(@variants)})
+          </h3>
           <%!-- Full mode: grid of chips with expand/collapse for many variants --%>
           <div class="product-variants__grid-wrapper product-variants__grid-wrapper--expanded">
             <div class="product-variants__grid">
