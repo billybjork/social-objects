@@ -28,7 +28,8 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--space-4);
-  height: clamp(220px, 40vh, 380px);
+  height: 40vh;
+  min-height: 220px;
   flex-shrink: 0;
 }
 
@@ -64,7 +65,7 @@
 }
 
 .host-session-info__title {
-  font-size: clamp(var(--text-xl), 2vw, var(--text-2xl));
+  font-size: clamp(var(--text-xl), 2vw, 2.5rem);
   font-weight: var(--font-bold);
   color: var(--color-text-primary);
 }
@@ -80,7 +81,7 @@
 }
 
 .host-session-info__notes {
-  font-size: clamp(var(--text-base), 1.6vw, var(--text-xl));
+  font-size: clamp(var(--text-base), 1.6vw, 1.75rem);
   color: var(--color-text-primary);
   line-height: var(--leading-relaxed);
   white-space: pre-line;
@@ -228,12 +229,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: clamp(56px, 6vw, 72px);
-  height: clamp(56px, 6vw, 72px);
+  min-width: clamp(56px, 6vw, 120px);
+  height: clamp(56px, 6vw, 120px);
   padding: 0 var(--space-3);
   background-color: var(--color-accent-blue);
   color: white;
-  font-size: clamp(var(--text-2xl), 3.5vw, var(--text-4xl));
+  font-size: clamp(var(--text-2xl), 3.5vw, 4rem);
   font-weight: var(--font-bold);
   border-radius: var(--radius-md);
   flex-shrink: 0;
@@ -242,7 +243,7 @@
 .host-product-name {
   flex: 1;
   min-width: 0;
-  font-size: clamp(var(--text-2xl), 3vw, var(--text-4xl));
+  font-size: clamp(var(--text-2xl), 3vw, 4rem);
   font-weight: var(--font-bold);
   color: var(--color-text-primary);
   line-height: var(--leading-tight);
@@ -261,19 +262,19 @@
 }
 
 .host-product-price {
-  font-size: clamp(var(--text-xl), 2.5vw, var(--text-3xl));
+  font-size: clamp(var(--text-xl), 2.5vw, 3rem);
   font-weight: var(--font-bold);
   color: var(--color-accent-gold);
 }
 
 .host-product-price--sale {
-  font-size: clamp(var(--text-xl), 2.5vw, var(--text-3xl));
+  font-size: clamp(var(--text-xl), 2.5vw, 3rem);
   font-weight: var(--font-bold);
   color: var(--color-accent-green);
 }
 
 .host-product-price--original {
-  font-size: clamp(var(--text-base), 1.5vw, var(--text-lg));
+  font-size: clamp(var(--text-base), 1.5vw, 1.5rem);
   color: var(--color-text-tertiary);
   text-decoration: line-through;
 }
@@ -411,7 +412,7 @@
   border-radius: var(--radius-md);
   padding: var(--space-2) var(--space-3);
   /* Font scales with viewport height - smaller on short viewports */
-  font-size: clamp(var(--text-xs), 1.5vh, var(--text-base));
+  font-size: clamp(var(--text-xs), 1.5vh, 1.25rem);
   line-height: var(--leading-normal);
   color: var(--color-text-primary);
 }
@@ -442,7 +443,7 @@
   flex: 1;
   min-height: 0;
   /* Font scales with viewport height */
-  font-size: clamp(var(--text-sm), 1.8vh, var(--text-lg));
+  font-size: clamp(var(--text-sm), 1.8vh, 1.5rem);
   line-height: var(--leading-normal);
   color: var(--color-text-primary);
 }
@@ -508,7 +509,7 @@
 }
 
 .host-message-content {
-  font-size: clamp(var(--text-base), 1.8vw, var(--text-xl));
+  font-size: clamp(var(--text-base), 1.8vw, 1.75rem);
   font-weight: var(--font-bold);
   text-align: center;
   line-height: var(--leading-snug);
@@ -592,7 +593,8 @@
   .host-top-section {
     /* Keep 50/50 split even on narrow viewports */
     grid-template-columns: 1fr 1fr;
-    height: clamp(150px, 30vh, 280px);
+    height: 30vh;
+    min-height: 150px;
   }
 
   .host-product-header__main {
