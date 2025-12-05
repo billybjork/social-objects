@@ -382,11 +382,6 @@
   color: var(--color-text-primary);
 }
 
-.notes-content {
-  white-space: pre-wrap;
-  line-height: 1.5;
-}
-
 /* Contact form grid (edit mode) */
 .contact-form-grid {
   display: grid;

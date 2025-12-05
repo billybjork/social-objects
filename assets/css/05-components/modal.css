@@ -76,23 +76,6 @@
   max-width: 820px;
 }
 
-/* Also support modal__content for consistency */
-.modal__content {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  max-width: 600px;
-  max-height: 90vh;
-  background-color: var(--color-surface-primary);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-xl);
-  padding: var(--space-6);
-  opacity: 1;
-  transform: translateY(0);
-  transition: opacity 300ms ease-out, transform 300ms ease-out;
-}
-
 .modal__header {
   flex-shrink: 0;
   display: flex;
@@ -138,11 +121,6 @@
   scroll-behavior: smooth;
   /* Minimum height to prevent collapsing */
   min-height: 0;
-}
-
-/* Scrollable modal body for product grids - deprecated, body is now scrollable by default */
-.modal__body--scrollable {
-  /* No additional styles needed - body handles scrolling */
 }
 
 .modal__footer {

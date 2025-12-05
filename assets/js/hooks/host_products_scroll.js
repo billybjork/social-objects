@@ -11,8 +11,8 @@ const HostProductsScroll = {
       this.observer = new MutationObserver(() => {
         // When panel expands (collapsed class removed), scroll to current
         if (!panel.classList.contains("host-products-panel--collapsed")) {
-          // Small delay to let animation start
-          setTimeout(() => this.scrollToCurrentProduct(), 50);
+          // Delay matches CSS transition duration (300ms) for smooth scroll after animation
+          setTimeout(() => this.scrollToCurrentProduct(), 300);
         }
       });
 

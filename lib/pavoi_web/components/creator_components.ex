@@ -297,7 +297,13 @@ defmodule PavoiWeb.CreatorComponents do
         >
           {@label}
           <span class={["sortable-header__icon", !@is_active && "sortable-header__icon--inactive"]}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="sort-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              class="sort-icon"
+            >
               <%= if @dir == "asc" do %>
                 <polyline points="18 15 12 9 6 15"></polyline>
               <% else %>
@@ -499,15 +505,20 @@ defmodule PavoiWeb.CreatorComponents do
                 <div class="sample-product">
                   <%= if sample.product && sample.product.product_images != [] do %>
                     <img
-                      src={hd(sample.product.product_images).thumbnail_path || hd(sample.product.product_images).path}
+                      src={
+                        hd(sample.product.product_images).thumbnail_path ||
+                          hd(sample.product.product_images).path
+                      }
                       alt=""
                       class="sample-product__thumb"
                     />
                   <% end %>
-                  <span>{sample.product_name || (sample.product && sample.product.name) || "Unknown"}</span>
+                  <span>
+                    {sample.product_name || (sample.product && sample.product.name) || "Unknown"}
+                  </span>
                 </div>
               </td>
-              <td>{sample.brand && sample.brand.name || "-"}</td>
+              <td>{(sample.brand && sample.brand.name) || "-"}</td>
               <td>{sample.quantity}</td>
               <td>
                 <span class={["status-badge", "status-badge--#{sample.status || "pending"}"]}>
@@ -515,7 +526,9 @@ defmodule PavoiWeb.CreatorComponents do
                 </span>
               </td>
               <td class="text-secondary">
-                {if sample.ordered_at, do: Calendar.strftime(sample.ordered_at, "%b %d, %Y"), else: "-"}
+                {if sample.ordered_at,
+                  do: Calendar.strftime(sample.ordered_at, "%b %d, %Y"),
+                  else: "-"}
               </td>
             </tr>
           <% end %>
@@ -741,7 +754,6 @@ defmodule PavoiWeb.CreatorComponents do
             <% end %>
           </div>
         </div>
-
       </.modal>
     <% end %>
     """
@@ -822,9 +834,9 @@ defmodule PavoiWeb.CreatorComponents do
               <dt>Notes</dt>
               <dd>
                 <%= if @creator.notes && @creator.notes != "" do %>
-                  <div class="notes-content">{@creator.notes}</div>
+                  <div class="notes-card__content">{@creator.notes}</div>
                 <% else %>
-                  <span class="text-secondary">No notes</span>
+                  <span class="notes-card__empty">No notes</span>
                 <% end %>
               </dd>
             </div>

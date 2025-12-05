@@ -14,7 +14,6 @@ defmodule PavoiWeb.SessionHostLive do
   on_mount {PavoiWeb.NavHooks, :set_current_page}
 
   alias Pavoi.Sessions
-  alias Pavoi.Sessions.SessionProduct
 
   @impl true
   def mount(%{"id" => session_id}, _session, socket) do
@@ -328,31 +327,21 @@ defmodule PavoiWeb.SessionHostLive do
 
   # Convert <p> tags to <li> tags wrapped in <ul> for bullet display
   defp convert_paragraphs_to_list_items(html) do
-    # Check if already a list
-    if String.contains?(html, "<ul>") or String.contains?(html, "<ol>") do
-      html
-    else
-      # Convert <p>...</p> to <li>...</li>
+    if already_a_list?(html), do: html, else: convert_to_bullet_list(html)
+  end
+
+  defp already_a_list?(html), do: String.contains?(html, "<ul>") or String.contains?(html, "<ol>")
+
+  defp convert_to_bullet_list(html) do
+    content =
       html
       |> String.replace(~r/<p>/, "<li>")
       |> String.replace(~r/<\/p>/, "</li>")
-      |> then(fn content ->
-        if String.contains?(content, "<li>") do
-          "<ul class=\"host-talking-points-list\">#{content}</ul>"
-        else
-          content
-        end
-      end)
+
+    if String.contains?(content, "<li>") do
+      "<ul class=\"host-talking-points-list\">#{content}</ul>"
+    else
+      content
     end
-  end
-
-  ## Helper functions for template
-
-  def get_effective_name(session_product) do
-    SessionProduct.effective_name(session_product)
-  end
-
-  def get_effective_prices(session_product) do
-    SessionProduct.effective_prices(session_product)
   end
 end

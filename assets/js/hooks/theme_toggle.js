@@ -83,16 +83,25 @@ const ThemeToggle = {
    * Watch for system preference changes and auto-switch if no user preference
    */
   watchSystemPreference() {
-    const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    this.darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
-    darkModeQuery.addEventListener('change', (e) => {
+    // Store handler reference for cleanup
+    this.handleSystemChange = (e) => {
       // Only auto-switch if user hasn't set a manual preference
       const userPreference = localStorage.getItem('theme');
       if (!userPreference) {
         const newTheme = e.matches ? 'dark' : 'light';
         this.applyTheme(newTheme);
       }
-    });
+    };
+
+    this.darkModeQuery.addEventListener('change', this.handleSystemChange);
+  },
+
+  destroyed() {
+    if (this.darkModeQuery && this.handleSystemChange) {
+      this.darkModeQuery.removeEventListener('change', this.handleSystemChange);
+    }
   }
 };
 

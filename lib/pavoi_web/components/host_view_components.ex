@@ -219,7 +219,8 @@ defmodule PavoiWeb.HostViewComponents do
   attr :variants, :list, default: []
 
   def product_header(assigns) do
-    assigns = assign(assigns, :variant_id, "header-variants-#{System.unique_integer([:positive])}")
+    assigns =
+      assign(assigns, :variant_id, "header-variants-#{System.unique_integer([:positive])}")
 
     ~H"""
     <div class="host-product-header">
@@ -259,7 +260,9 @@ defmodule PavoiWeb.HostViewComponents do
           <button
             type="button"
             class="host-variants-toggle"
-            phx-click={Phoenix.LiveView.JS.toggle_class("host-variants-row--expanded", to: "##{@variant_id}")}
+            phx-click={
+              Phoenix.LiveView.JS.toggle_class("host-variants-row--expanded", to: "##{@variant_id}")
+            }
           >
             <span class="host-variants-toggle__label">Variants ({length(@variants)})</span>
             <span class="host-variants-toggle__icon"></span>
@@ -273,7 +276,7 @@ defmodule PavoiWeb.HostViewComponents do
           <div class="host-variants-grid">
             <%= for variant <- @variants do %>
               <div class="host-variant-chip">
-                <span class="host-variant-chip__title">{variant.title}</span>
+                <span class="host-variant-chip__title">{variant.title || "Default"}</span>
                 <%= if variant.compare_at_price_cents do %>
                   <span class="host-variant-chip__price-sale">
                     ${format_variant_price(variant.price_cents)}
@@ -296,6 +299,7 @@ defmodule PavoiWeb.HostViewComponents do
   end
 
   defp format_variant_price(nil), do: "N/A"
+
   defp format_variant_price(cents) when is_integer(cents) do
     dollars = cents / 100
     :erlang.float_to_binary(dollars, decimals: 2)
@@ -380,7 +384,7 @@ defmodule PavoiWeb.HostViewComponents do
               phx-value-position={sp.position}
             >
               <div class="host-product-card__image-container">
-                <span class="host-product-card__position"><%= sp.position %></span>
+                <span class="host-product-card__position">{sp.position}</span>
                 <%= if image = primary_image(sp.product) do %>
                   <img
                     src={public_image_url(image.thumbnail_path || image.path)}
@@ -388,11 +392,9 @@ defmodule PavoiWeb.HostViewComponents do
                     class="host-product-card__image"
                     loading="lazy"
                   />
-                <% else %>
-                  <div class="host-product-card__placeholder"></div>
                 <% end %>
               </div>
-              <span class="host-product-card__name"><%= sp.featured_name || sp.product.name %></span>
+              <span class="host-product-card__name">{sp.featured_name || sp.product.name}</span>
             </button>
           <% end %>
         </div>
