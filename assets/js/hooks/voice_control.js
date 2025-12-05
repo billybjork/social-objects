@@ -110,6 +110,7 @@ export default {
     this.modelReady = false;
     this.isProcessing = false; // Back-pressure: prevent overlapping transcriptions
     this.isCollapsed = localStorage.getItem('pavoi_voice_collapsed') === 'true';
+    this.microphonesLoaded = false; // Track if microphones have been enumerated
 
     // Rolling buffer for continuous speech processing
     this.audioBuffer = [];              // Rolling buffer of audio samples
@@ -134,8 +135,18 @@ export default {
     // Initialize components
     this.setupWorker();
     this.setupUI();
-    this.loadMicrophones();
     this.preloadAssets();
+
+    // Check permission state and only load microphones if already granted
+    // (defers permission prompt to when user clicks Start)
+    this.checkMicrophonePermission().then(async (permState) => {
+      if (permState === 'granted') {
+        await this.loadMicrophones();
+      } else {
+        // Show placeholder - microphones will load when user clicks Start
+        this.micSelect.innerHTML = '<option value="">Click Start to enable microphone</option>';
+      }
+    });
 
     // Disable Start until the model is ready
     this.updateStatus('loading', 'Loading model...');
@@ -211,6 +222,20 @@ export default {
     }
     console.log('[VoiceControl] WebGPU not available, using WASM');
     return 'wasm';
+  },
+
+  /**
+   * Check microphone permission state without triggering a prompt
+   * @returns {Promise<string>} 'granted', 'prompt', or 'denied'
+   */
+  async checkMicrophonePermission() {
+    try {
+      const result = await navigator.permissions.query({ name: 'microphone' });
+      return result.state;
+    } catch {
+      // Firefox doesn't support this query, assume prompt needed
+      return 'prompt';
+    }
   },
 
   /**
@@ -376,6 +401,8 @@ export default {
         this.micSelect.value = savedMic;
       }
 
+      this.microphonesLoaded = true;
+
     } catch (error) {
       console.error('[VoiceControl] Failed to load microphones:', error);
       this.handleError('Microphone access denied');
@@ -420,6 +447,17 @@ export default {
       this.isStarting = true;
       this.toggleBtn.disabled = true;
       this.updateStatus('loading', 'Starting...');
+
+      // Load microphones if not already loaded (will trigger permission prompt for new users)
+      if (!this.microphonesLoaded) {
+        await this.loadMicrophones();
+        if (!this.microphonesLoaded) {
+          // Permission denied or no microphones found
+          this.isStarting = false;
+          this.toggleBtn.disabled = false;
+          return;
+        }
+      }
 
       // Setup audio context and analyser for waveform (do this BEFORE VAD starts)
       await this.setupAudioAnalysis();
