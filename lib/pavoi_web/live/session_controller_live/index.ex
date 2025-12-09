@@ -1,4 +1,4 @@
-defmodule PavoiWeb.SessionControllerLive do
+defmodule PavoiWeb.SessionControllerLive.Index do
   @moduledoc """
   Compact controller view for mobile/tablet session management.
   Optimized for touch-based product navigation with:

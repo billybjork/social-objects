@@ -1,4 +1,4 @@
-defmodule PavoiWeb.SessionHostLive do
+defmodule PavoiWeb.SessionHostLive.Index do
   @moduledoc """
   Host view for displaying product information during live streaming.
   This view supports the same keyboard shortcuts as the controller view and displays:
