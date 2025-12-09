@@ -473,6 +473,10 @@ defmodule PavoiWeb.ProductComponents do
     default: nil,
     doc: "Event to trigger on platform filter change"
 
+  attr :show_enter_hint, :boolean,
+    default: false,
+    doc: "Whether to show 'Press Enter to select' hint (for ID search mode)"
+
   def product_grid(assigns) do
     ~H"""
     <div class={[
@@ -531,11 +535,18 @@ defmodule PavoiWeb.ProductComponents do
               </div>
             <% end %>
           </div>
-          <%= if @mode == :select do %>
-            <div class="product-grid__count">
-              ({MapSet.size(@selected_ids)} selected)
-            </div>
-          <% end %>
+          <div class="product-grid__status">
+            <%= if @show_enter_hint do %>
+              <div class="product-grid__enter-hint">
+                Press Enter to select
+              </div>
+            <% end %>
+            <%= if @mode == :select do %>
+              <div class="product-grid__count">
+                ({MapSet.size(@selected_ids)} selected)
+              </div>
+            <% end %>
+          </div>
         </div>
       <% end %>
 

@@ -124,6 +124,7 @@ defmodule PavoiWeb.SessionsLive.Index do
       |> assign(:new_session_has_more, false)
       |> assign(:loading_products, false)
       |> assign(:new_session_products_map, %{})
+      |> assign(:show_product_enter_hint, false)
       |> stream(:new_session_products, [])
       |> assign(:add_product_search_query, "")
       |> assign(:add_product_page, 1)
@@ -132,6 +133,7 @@ defmodule PavoiWeb.SessionsLive.Index do
       |> assign(:add_product_has_more, false)
       |> assign(:loading_add_products, false)
       |> assign(:add_product_products_map, %{})
+      |> assign(:show_add_product_enter_hint, false)
       |> stream(:add_product_products, [])
       |> assign(:current_generation, nil)
       |> assign(:current_product_name, nil)
@@ -509,7 +511,7 @@ defmodule PavoiWeb.SessionsLive.Index do
     # Only reload products if brand actually changed
     socket =
       if brand_changed do
-        if new_brand_id && new_brand_id != "" do
+        if new_brand_id != "" do
           socket
           |> assign(:product_search_query, "")
           |> assign(:product_page, 1)
@@ -646,17 +648,19 @@ defmodule PavoiWeb.SessionsLive.Index do
           :add_product_selected_ids,
           :add_product_products,
           :add_product_products_map,
-          :add_product_total_count
+          :add_product_total_count,
+          :show_add_product_enter_hint
         )
 
       {:noreply, socket}
     else
-      # Normal text search mode
+      # Normal text search mode - hide the enter hint
       socket =
         socket
         |> assign(:add_product_search_query, query)
         |> assign(:add_product_page, 1)
         |> assign(:loading_add_products, true)
+        |> assign(:show_add_product_enter_hint, false)
         |> load_products_for_add_modal()
 
       {:noreply, socket}
@@ -672,7 +676,8 @@ defmodule PavoiWeb.SessionsLive.Index do
         socket,
         :add_product_selected_ids,
         :add_product_products,
-        :add_product_products_map
+        :add_product_products_map,
+        :show_add_product_enter_hint
       )
 
       {:noreply, socket}
@@ -1055,17 +1060,19 @@ defmodule PavoiWeb.SessionsLive.Index do
           :selected_product_ids,
           :new_session_products,
           :new_session_products_map,
-          :product_total_count
+          :product_total_count,
+          :show_product_enter_hint
         )
 
       {:noreply, socket}
     else
-      # Normal text search mode
+      # Normal text search mode - hide the enter hint
       socket =
         socket
         |> assign(:product_search_query, query)
         |> assign(:product_page, 1)
         |> assign(:loading_products, true)
+        |> assign(:show_product_enter_hint, false)
         |> load_products_for_new_session()
 
       {:noreply, socket}
@@ -1081,7 +1088,8 @@ defmodule PavoiWeb.SessionsLive.Index do
         socket,
         :selected_product_ids,
         :new_session_products,
-        :new_session_products_map
+        :new_session_products_map,
+        :show_product_enter_hint
       )
 
       {:noreply, socket}
@@ -1496,7 +1504,7 @@ defmodule PavoiWeb.SessionsLive.Index do
 
   # Display products by ID without selecting them (called on input change)
   # Shows found products in the grid, preserving existing selections
-  defp display_products_by_id(socket, ids_input, brand_id, selected_ids_key, stream_key, products_map_key, total_count_key) do
+  defp display_products_by_id(socket, ids_input, brand_id, selected_ids_key, stream_key, products_map_key, total_count_key, enter_hint_key) do
     # Parse input: split by comma, newline, or whitespace
     product_ids =
       ids_input
@@ -1506,7 +1514,7 @@ defmodule PavoiWeb.SessionsLive.Index do
       |> Enum.uniq()
 
     if Enum.empty?(product_ids) do
-      socket
+      assign(socket, enter_hint_key, false)
     else
       opts = if brand_id, do: [brand_id: brand_id], else: []
       {found_products, _not_found_ids} = Catalog.find_products_by_ids(product_ids, opts)
@@ -1526,17 +1534,21 @@ defmodule PavoiWeb.SessionsLive.Index do
       # Build new products map from found products
       new_products_map = Map.new(products_with_state, &{&1.id, &1})
 
+      # Show "Press Enter to select" hint if we found products
+      show_hint = length(found_products) > 0
+
       # Reset stream with found products and update all related state
       socket
       |> assign(products_map_key, new_products_map)
       |> assign(total_count_key, length(found_products))
+      |> assign(enter_hint_key, show_hint)
       |> stream(stream_key, products_with_state, reset: true)
     end
   end
 
   # Select all products currently displayed in the grid (called on Enter)
   # Shows flash feedback about what was found/selected
-  defp select_all_displayed_products(socket, selected_ids_key, stream_key, products_map_key) do
+  defp select_all_displayed_products(socket, selected_ids_key, stream_key, products_map_key, enter_hint_key) do
     products_map = socket.assigns[products_map_key]
 
     if map_size(products_map) == 0 do
@@ -1569,6 +1581,7 @@ defmodule PavoiWeb.SessionsLive.Index do
         socket
         |> assign(selected_ids_key, new_selected)
         |> assign(products_map_key, updated_products_map)
+        |> assign(enter_hint_key, false)
 
       # Show feedback
       cond do

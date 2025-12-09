@@ -314,6 +314,7 @@
         loading={@loading_add_products}
         is_empty={@add_product_total_count == 0}
         search_placeholder="Search by name or paste product IDs..."
+        show_enter_hint={@show_add_product_enter_hint}
       />
     </div>
 
@@ -398,6 +399,7 @@
           loading={@loading_products}
           is_empty={@product_total_count == 0}
           search_placeholder="Search by name or paste product IDs..."
+          show_enter_hint={@show_product_enter_hint}
         />
       </div>
     </div>
