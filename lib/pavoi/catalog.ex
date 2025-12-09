@@ -279,6 +279,88 @@ defmodule Pavoi.Catalog do
   end
 
   @doc """
+  Finds products by product IDs (TikTok or Shopify).
+
+  Searches across multiple ID fields:
+  - `tiktok_product_id` - Primary TikTok product ID
+  - `tiktok_product_ids` - Array of alternate TikTok IDs
+  - `pid` - Shopify product ID
+
+  Returns a tuple: `{found_products, not_found_ids}` where:
+  - `found_products` is a list of products with :product_images preloaded
+  - `not_found_ids` is a list of IDs that didn't match any products
+
+  ## Options
+  - `:brand_id` - Filter by brand ID (optional)
+  """
+  def find_products_by_ids(product_ids, opts \\ []) when is_list(product_ids) do
+    brand_id = Keyword.get(opts, :brand_id)
+
+    # Build expanded Shopify GID patterns for numeric IDs
+    # e.g., "8772010639613" -> "gid://shopify/Product/8772010639613"
+    shopify_gid_patterns =
+      product_ids
+      |> Enum.filter(&numeric_string?/1)
+      |> Enum.map(&"gid://shopify/Product/#{&1}")
+
+    all_pid_matches = product_ids ++ shopify_gid_patterns
+
+    # Build query to find products where any ID field matches
+    query =
+      from(p in Product,
+        where:
+          p.tiktok_product_id in ^product_ids or
+            p.pid in ^all_pid_matches or
+            fragment("? && ?", p.tiktok_product_ids, ^product_ids),
+        preload: :product_images
+      )
+
+    query =
+      if brand_id do
+        where(query, [p], p.brand_id == ^brand_id)
+      else
+        query
+      end
+
+    products = Repo.all(query)
+
+    # Build a set of all matched IDs (from all ID fields)
+    # Include both the full GID and the numeric portion for Shopify PIDs
+    matched_ids =
+      Enum.reduce(products, MapSet.new(), fn product, acc ->
+        acc
+        |> MapSet.put(product.tiktok_product_id)
+        |> MapSet.put(product.pid)
+        |> MapSet.put(extract_shopify_numeric_id(product.pid))
+        |> MapSet.union(MapSet.new(product.tiktok_product_ids || []))
+      end)
+
+    # Find which input IDs weren't matched
+    not_found_ids =
+      product_ids
+      |> Enum.reject(&MapSet.member?(matched_ids, &1))
+
+    {products, not_found_ids}
+  end
+
+  # Check if a string contains only digits
+  defp numeric_string?(str) when is_binary(str) do
+    String.match?(str, ~r/^\d+$/)
+  end
+
+  defp numeric_string?(_), do: false
+
+  # Extract the numeric ID from a Shopify GID like "gid://shopify/Product/8772010639613"
+  defp extract_shopify_numeric_id(nil), do: nil
+
+  defp extract_shopify_numeric_id(gid) when is_binary(gid) do
+    case String.split(gid, "/") do
+      [_, _, _, _, id] -> id
+      _ -> nil
+    end
+  end
+
+  @doc """
   Finds a product by SKU with partial matching.
 
   Returns the first product where the database SKU contains the search SKU.

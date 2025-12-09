@@ -3,6 +3,7 @@
 import SessionHostKeyboard from "./hooks/session_host_keyboard"
 import ConnectionStatus from "./hooks/connection_status"
 import ImageCarouselDrag from "./hooks/image_carousel_drag"
+import ProductContextMenu from "./hooks/product_context_menu"
 import ProductEditModalKeyboard from "./hooks/product_edit_modal_keyboard"
 import ProductSortable from "./hooks/product_sortable"
 import ThemeToggle from "./hooks/theme_toggle"
@@ -17,6 +18,7 @@ const Hooks = {
   SessionHostKeyboard,
   ConnectionStatus,
   ImageCarouselDrag,
+  ProductContextMenu,
   ProductEditModalKeyboard,
   ProductSortable,
   ThemeToggle,

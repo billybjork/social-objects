@@ -229,4 +229,27 @@ defmodule PavoiWeb.ViewHelpers do
       :error -> params
     end
   end
+
+  @doc """
+  Extracts the numeric ID from a Shopify GID.
+
+  Shopify GIDs are in the format "gid://shopify/Product/8772010639613".
+  This function extracts just the numeric ID portion.
+
+  ## Examples
+
+      iex> extract_shopify_numeric_id("gid://shopify/Product/8772010639613")
+      "8772010639613"
+
+      iex> extract_shopify_numeric_id(nil)
+      nil
+  """
+  def extract_shopify_numeric_id(nil), do: nil
+
+  def extract_shopify_numeric_id(gid) when is_binary(gid) do
+    case String.split(gid, "/") do
+      [_, _, _, _, id] -> id
+      _ -> nil
+    end
+  end
 end

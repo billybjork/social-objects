@@ -7,7 +7,9 @@
 />
 
 <div
+  id="sessions-container"
   class="container container--xl region"
+  phx-hook="ProductContextMenu"
   phx-window-keydown={JS.push("keydown") |> JS.hide(to: ".session-menu", transition: "fade-out")}
   phx-key="Escape"
 >
@@ -142,6 +144,18 @@
                   class="session-menu__item"
                   role="menuitem"
                   phx-click={
+                    JS.push("copy_product_ids")
+                    |> JS.hide(to: "#session-menu-#{session.id}", transition: "fade-out")
+                  }
+                  phx-value-session-id={session.id}
+                >
+                  <.icon name="hero-clipboard-document" class="size-4" /> Copy Product IDs
+                </button>
+
+                <button
+                  class="session-menu__item"
+                  role="menuitem"
+                  phx-click={
                     JS.push("generate_session_talking_points")
                     |> JS.hide(to: "#session-menu-#{session.id}", transition: "fade-out")
                   }
@@ -205,6 +219,8 @@
                     class="session-card__product-item"
                     data-id={sp.id}
                     data-product-id={sp.product_id}
+                    data-product-tiktok-id={sp.product.tiktok_product_id}
+                    data-product-shopify-id={extract_shopify_numeric_id(sp.product.pid)}
                   >
                     <div class="session-card__product-link">
                       <div class="session-card__product-position">
@@ -296,6 +312,11 @@
         show_search={true}
         loading={@loading_add_products}
         is_empty={@add_product_total_count == 0}
+        show_bulk_add={true}
+        bulk_add_expanded={@add_product_bulk_add_expanded}
+        on_toggle_bulk_add="toggle_add_product_bulk_add"
+        on_bulk_add="bulk_add_add_products"
+        bulk_add_result={@add_product_bulk_add_result}
       />
     </div>
 
@@ -378,6 +399,11 @@
           show_search={true}
           loading={@loading_products}
           is_empty={@product_total_count == 0}
+          show_bulk_add={true}
+          bulk_add_expanded={@bulk_add_expanded}
+          on_toggle_bulk_add="toggle_bulk_add"
+          on_bulk_add="bulk_add_products"
+          bulk_add_result={@bulk_add_result}
         />
       </div>
     </div>

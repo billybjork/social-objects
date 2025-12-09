@@ -212,6 +212,11 @@ defmodule PavoiWeb.ProductsLive.Index do
   end
 
   @impl true
+  def handle_event("product_id_copied", _params, socket) do
+    {:noreply, put_flash(socket, :info, "Product ID copied to clipboard")}
+  end
+
+  @impl true
   def handle_event("trigger_shopify_sync", _params, socket) do
     # Enqueue a Shopify sync job
     %{}

@@ -125,6 +125,9 @@ defmodule PavoiWeb.SessionsLive.Index do
       |> assign(:loading_products, false)
       |> assign(:new_session_products_map, %{})
       |> stream(:new_session_products, [])
+      # Bulk add state for new session modal
+      |> assign(:bulk_add_expanded, false)
+      |> assign(:bulk_add_result, nil)
       |> assign(:add_product_search_query, "")
       |> assign(:add_product_page, 1)
       |> assign(:add_product_total_count, 0)
@@ -133,6 +136,9 @@ defmodule PavoiWeb.SessionsLive.Index do
       |> assign(:loading_add_products, false)
       |> assign(:add_product_products_map, %{})
       |> stream(:add_product_products, [])
+      # Bulk add state for add-product modal
+      |> assign(:add_product_bulk_add_expanded, false)
+      |> assign(:add_product_bulk_add_result, nil)
       |> assign(:current_generation, nil)
       |> assign(:current_product_name, nil)
       |> assign(:show_generation_modal, false)
@@ -440,6 +446,9 @@ defmodule PavoiWeb.SessionsLive.Index do
       |> stream(:add_product_products, [], reset: true)
       |> assign(:add_product_has_more, false)
       |> assign(:loading_add_products, false)
+      # Reset bulk add state
+      |> assign(:add_product_bulk_add_expanded, false)
+      |> assign(:add_product_bulk_add_result, nil)
 
     {:noreply, socket}
   end
@@ -759,6 +768,58 @@ defmodule PavoiWeb.SessionsLive.Index do
   end
 
   @impl true
+  def handle_event("copy_product_ids", %{"session-id" => session_id}, socket) do
+    session_id = normalize_id(session_id)
+
+    # Find the session in the loaded sessions list
+    session = Enum.find(socket.assigns.sessions, &(&1.id == session_id))
+
+    if session && session.session_products do
+      # Extract product IDs from session products, in order
+      # Prefer TikTok ID, fall back to Shopify numeric ID
+      product_ids =
+        session.session_products
+        |> Enum.sort_by(& &1.position)
+        |> Enum.map(&get_best_product_id(&1.product))
+        |> Enum.reject(&is_nil/1)
+        |> Enum.join(", ")
+
+      if product_ids == "" do
+        {:noreply, put_flash(socket, :error, "No product IDs found in this session")}
+      else
+        socket =
+          socket
+          |> push_event("copy", %{text: product_ids})
+          |> put_flash(:info, "Product IDs copied to clipboard")
+
+        {:noreply, socket}
+      end
+    else
+      {:noreply, put_flash(socket, :error, "Session not found")}
+    end
+  end
+
+  # Get the best product ID for clipboard copy - prefer TikTok, fall back to Shopify numeric
+  defp get_best_product_id(product) do
+    cond do
+      product.tiktok_product_id && product.tiktok_product_id != "" ->
+        product.tiktok_product_id
+
+      product.pid && product.pid != "" ->
+        # Extract numeric ID from Shopify GID like "gid://shopify/Product/8772010639613"
+        extract_shopify_numeric_id(product.pid)
+
+      true ->
+        nil
+    end
+  end
+
+  @impl true
+  def handle_event("product_id_copied", _params, socket) do
+    {:noreply, put_flash(socket, :info, "Product ID copied to clipboard")}
+  end
+
+  @impl true
   def handle_event("show_edit_product_modal", %{"product-id" => product_id}, socket) do
     product = Catalog.get_product_with_images!(product_id)
 
@@ -968,6 +1029,128 @@ defmodule PavoiWeb.SessionsLive.Index do
       end
 
     {:noreply, socket}
+  end
+
+  # ============================================================================
+  # BULK ADD BY TIKTOK IDS - New Session Modal
+  # ============================================================================
+
+  @impl true
+  def handle_event("toggle_bulk_add", _params, socket) do
+    {:noreply, assign(socket, :bulk_add_expanded, !socket.assigns.bulk_add_expanded)}
+  end
+
+  @impl true
+  def handle_event("bulk_add_products", %{"ids" => ids_input}, socket) do
+    brand_id = socket.assigns.session_form[:brand_id].value
+
+    {socket, result} =
+      process_bulk_add(
+        socket,
+        ids_input,
+        brand_id,
+        :selected_product_ids,
+        :new_session_products,
+        :new_session_products_map
+      )
+
+    {:noreply, assign(socket, :bulk_add_result, result)}
+  end
+
+  # ============================================================================
+  # BULK ADD BY TIKTOK IDS - Add Product Modal
+  # ============================================================================
+
+  @impl true
+  def handle_event("toggle_add_product_bulk_add", _params, socket) do
+    {:noreply,
+     assign(socket, :add_product_bulk_add_expanded, !socket.assigns.add_product_bulk_add_expanded)}
+  end
+
+  @impl true
+  def handle_event("bulk_add_add_products", %{"ids" => ids_input}, socket) do
+    brand_id =
+      if socket.assigns.selected_session_for_product do
+        socket.assigns.selected_session_for_product.brand_id
+      end
+
+    {socket, result} =
+      process_bulk_add(
+        socket,
+        ids_input,
+        brand_id,
+        :add_product_selected_ids,
+        :add_product_products,
+        :add_product_products_map
+      )
+
+    {:noreply, assign(socket, :add_product_bulk_add_result, result)}
+  end
+
+  # Shared helper for bulk add processing
+  defp process_bulk_add(
+         socket,
+         ids_input,
+         brand_id,
+         selected_ids_key,
+         stream_key,
+         products_map_key
+       ) do
+    # Parse input: split by comma, newline, or whitespace
+    product_ids =
+      ids_input
+      |> String.split(~r/[\s,]+/)
+      |> Enum.map(&String.trim/1)
+      |> Enum.reject(&(&1 == ""))
+      |> Enum.uniq()
+
+    if Enum.empty?(product_ids) do
+      {socket, %{found: 0, not_found: 0, not_found_ids: [], message: "No IDs provided"}}
+    else
+      opts = if brand_id, do: [brand_id: brand_id], else: []
+      {found_products, not_found_ids} = Catalog.find_products_by_ids(product_ids, opts)
+
+      # Get the IDs of found products
+      found_product_ids = Enum.map(found_products, & &1.id) |> MapSet.new()
+
+      # Merge into current selection
+      current_selected = socket.assigns[selected_ids_key]
+      new_selected = MapSet.union(current_selected, found_product_ids)
+
+      # Update socket with new selection
+      socket = assign(socket, selected_ids_key, new_selected)
+
+      # Update stream items with :selected state for products in the map
+      products_map = socket.assigns[products_map_key]
+
+      socket =
+        update_stream_selection(socket, products_map, found_product_ids, stream_key)
+
+      found_count = length(found_products)
+      not_found_count = length(not_found_ids)
+      total_input = length(product_ids)
+
+      message =
+        cond do
+          found_count == total_input ->
+            "Found all #{found_count} products and added to selection"
+
+          found_count > 0 ->
+            "Found #{found_count} of #{total_input} products (#{not_found_count} not found)"
+
+          true ->
+            "No products found matching the provided IDs"
+        end
+
+      result = %{
+        found: found_count,
+        not_found: not_found_count,
+        not_found_ids: not_found_ids,
+        message: message
+      }
+
+      {socket, result}
+    end
   end
 
   @impl true
@@ -1185,6 +1368,9 @@ defmodule PavoiWeb.SessionsLive.Index do
     |> assign(:selected_product_ids, MapSet.new())
     |> stream(:new_session_products, [], reset: true)
     |> assign(:new_session_has_more, false)
+    # Reset bulk add state
+    |> assign(:bulk_add_expanded, false)
+    |> assign(:bulk_add_result, nil)
     |> load_products_for_new_session()
   end
 
@@ -1291,6 +1477,16 @@ defmodule PavoiWeb.SessionsLive.Index do
 
   defp find_product_in_stream(products_map, product_id) do
     Map.get(products_map, product_id)
+  end
+
+  # Updates stream items with :selected state for given product IDs
+  defp update_stream_selection(socket, products_map, product_ids, stream_key) do
+    Enum.reduce(product_ids, socket, fn product_id, acc_socket ->
+      case Map.get(products_map, product_id) do
+        nil -> acc_socket
+        product -> stream_insert(acc_socket, stream_key, Map.put(product, :selected, true))
+      end
+    end)
   end
 
   # Loads sessions for the sessions list with pagination support.

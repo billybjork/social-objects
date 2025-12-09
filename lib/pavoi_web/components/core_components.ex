@@ -475,7 +475,7 @@ defmodule PavoiWeb.CoreComponents do
             <div class="navbar__sync-group">
               <.button
                 variant="primary"
-                size="xs"
+                size="sm"
                 phx-click="trigger_shopify_sync"
                 class={@syncing && "button--disabled"}
                 disabled={@syncing}
@@ -489,7 +489,7 @@ defmodule PavoiWeb.CoreComponents do
             <div class="navbar__sync-group">
               <.button
                 variant="primary"
-                size="xs"
+                size="sm"
                 phx-click="trigger_tiktok_sync"
                 class={@tiktok_syncing && "button--disabled"}
                 disabled={@tiktok_syncing}
@@ -507,7 +507,7 @@ defmodule PavoiWeb.CoreComponents do
             <div class="navbar__sync-group">
               <.button
                 variant="primary"
-                size="xs"
+                size="sm"
                 phx-click="trigger_bigquery_sync"
                 class={@bigquery_syncing && "button--disabled"}
                 disabled={@bigquery_syncing}
