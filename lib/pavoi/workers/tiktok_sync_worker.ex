@@ -99,6 +99,14 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
       images_synced = sync_images_in_parallel(products_needing_images)
       Logger.info("Images synced for #{images_synced} products")
       {:ok, final_counts}
+    else
+      {:error, reason} = error ->
+        Logger.error("TikTok sync failed during product processing: #{inspect(reason)}")
+        error
+
+      other ->
+        Logger.error("TikTok sync failed with unexpected result: #{inspect(other)}")
+        {:error, :unexpected_result}
     end
   end
 
@@ -204,7 +212,9 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
         {:cont, {:ok, new_acc, new_image_queue}}
 
       {:error, reason} ->
-        Logger.error("Failed to sync TikTok product #{tiktok_product["id"]}: #{inspect(reason)}")
+        Logger.error(
+          "Failed to sync TikTok product #{tiktok_product["id"]} (#{tiktok_product["title"]}): #{inspect(reason)}"
+        )
 
         {:halt, {:error, reason}}
     end
