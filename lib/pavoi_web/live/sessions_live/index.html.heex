@@ -308,15 +308,12 @@
         selected_ids={@add_product_selected_ids}
         on_product_click="toggle_add_product_selection"
         on_search="search_add_products"
+        on_search_submit="search_add_products_submit"
         on_load_more="load_more_add_products"
         show_search={true}
         loading={@loading_add_products}
         is_empty={@add_product_total_count == 0}
-        show_bulk_add={true}
-        bulk_add_expanded={@add_product_bulk_add_expanded}
-        on_toggle_bulk_add="toggle_add_product_bulk_add"
-        on_bulk_add="bulk_add_add_products"
-        bulk_add_result={@add_product_bulk_add_result}
+        search_placeholder="Search by name or paste product IDs..."
       />
     </div>
 
@@ -395,15 +392,12 @@
           selected_ids={@selected_product_ids}
           on_product_click="toggle_product_selection"
           on_search="search_products"
+          on_search_submit="search_products_submit"
           on_load_more="load_more_products"
           show_search={true}
           loading={@loading_products}
           is_empty={@product_total_count == 0}
-          show_bulk_add={true}
-          bulk_add_expanded={@bulk_add_expanded}
-          on_toggle_bulk_add="toggle_bulk_add"
-          on_bulk_add="bulk_add_products"
-          bulk_add_result={@bulk_add_result}
+          search_placeholder="Search by name or paste product IDs..."
         />
       </div>
     </div>

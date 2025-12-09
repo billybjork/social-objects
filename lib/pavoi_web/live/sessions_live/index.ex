@@ -125,9 +125,6 @@ defmodule PavoiWeb.SessionsLive.Index do
       |> assign(:loading_products, false)
       |> assign(:new_session_products_map, %{})
       |> stream(:new_session_products, [])
-      # Bulk add state for new session modal
-      |> assign(:bulk_add_expanded, false)
-      |> assign(:bulk_add_result, nil)
       |> assign(:add_product_search_query, "")
       |> assign(:add_product_page, 1)
       |> assign(:add_product_total_count, 0)
@@ -136,9 +133,6 @@ defmodule PavoiWeb.SessionsLive.Index do
       |> assign(:loading_add_products, false)
       |> assign(:add_product_products_map, %{})
       |> stream(:add_product_products, [])
-      # Bulk add state for add-product modal
-      |> assign(:add_product_bulk_add_expanded, false)
-      |> assign(:add_product_bulk_add_result, nil)
       |> assign(:current_generation, nil)
       |> assign(:current_product_name, nil)
       |> assign(:show_generation_modal, false)
@@ -446,9 +440,6 @@ defmodule PavoiWeb.SessionsLive.Index do
       |> stream(:add_product_products, [], reset: true)
       |> assign(:add_product_has_more, false)
       |> assign(:loading_add_products, false)
-      # Reset bulk add state
-      |> assign(:add_product_bulk_add_expanded, false)
-      |> assign(:add_product_bulk_add_result, nil)
 
     {:noreply, socket}
   end
@@ -586,10 +577,25 @@ defmodule PavoiWeb.SessionsLive.Index do
 
         {:noreply, socket}
 
+      {:partial, added, skipped} ->
+        socket =
+          socket
+          |> reload_sessions()
+          |> assign(:selected_session_for_product, nil)
+          |> assign(:show_modal_for_session, nil)
+          |> assign(:add_product_search_query, "")
+          |> assign(:add_product_page, 1)
+          |> assign(:add_product_selected_ids, MapSet.new())
+          |> stream(:add_product_products, [], reset: true)
+          |> assign(:add_product_has_more, false)
+          |> put_flash(:warning, "Added #{added} product(s). #{skipped} already in session (skipped).")
+
+        {:noreply, socket}
+
       {:error, reason} ->
         socket =
           socket
-          |> put_flash(:error, "Failed to add products: #{reason}")
+          |> put_flash(:error, reason)
 
         {:noreply, socket}
     end
@@ -597,14 +603,59 @@ defmodule PavoiWeb.SessionsLive.Index do
 
   @impl true
   def handle_event("search_add_products", %{"value" => query}, socket) do
-    socket =
-      socket
-      |> assign(:add_product_search_query, query)
-      |> assign(:add_product_page, 1)
-      |> assign(:loading_add_products, true)
-      |> load_products_for_add_modal()
+    # Detect if input looks like product IDs (contains commas or is numeric-like)
+    if looks_like_product_ids?(query) do
+      # ID-based lookup mode - show products but don't select yet
+      brand_id =
+        if socket.assigns.selected_session_for_product do
+          socket.assigns.selected_session_for_product.brand_id
+        end
 
-    {:noreply, socket}
+      socket =
+        socket
+        |> assign(:add_product_search_query, query)
+        |> display_products_by_id(
+          query,
+          brand_id,
+          :add_product_selected_ids,
+          :add_product_products,
+          :add_product_products_map,
+          :add_product_total_count
+        )
+
+      {:noreply, socket}
+    else
+      # Normal text search mode
+      socket =
+        socket
+        |> assign(:add_product_search_query, query)
+        |> assign(:add_product_page, 1)
+        |> assign(:loading_add_products, true)
+        |> load_products_for_add_modal()
+
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("search_add_products_submit", %{"value" => query}, socket) do
+    # Detect if input looks like product IDs (contains commas or is numeric-like)
+    if looks_like_product_ids?(query) do
+      # ID-based lookup mode - select all displayed products
+      socket = select_all_displayed_products(
+        socket,
+        :add_product_selected_ids,
+        :add_product_products,
+        :add_product_products_map
+      )
+
+      {:noreply, socket}
+    else
+      # Normal text search mode - auto-select if single result
+      socket = maybe_auto_select_single_product(socket, :add_product_products_map, :add_product_selected_ids, :add_product_products)
+
+      {:noreply, socket}
+    end
   end
 
   @impl true
@@ -799,21 +850,6 @@ defmodule PavoiWeb.SessionsLive.Index do
     end
   end
 
-  # Get the best product ID for clipboard copy - prefer TikTok, fall back to Shopify numeric
-  defp get_best_product_id(product) do
-    cond do
-      product.tiktok_product_id && product.tiktok_product_id != "" ->
-        product.tiktok_product_id
-
-      product.pid && product.pid != "" ->
-        # Extract numeric ID from Shopify GID like "gid://shopify/Product/8772010639613"
-        extract_shopify_numeric_id(product.pid)
-
-      true ->
-        nil
-    end
-  end
-
   @impl true
   def handle_event("product_id_copied", _params, socket) do
     {:noreply, put_flash(socket, :info, "Product ID copied to clipboard")}
@@ -978,14 +1014,57 @@ defmodule PavoiWeb.SessionsLive.Index do
 
   @impl true
   def handle_event("search_products", %{"value" => query}, socket) do
-    socket =
-      socket
-      |> assign(:product_search_query, query)
-      |> assign(:product_page, 1)
-      |> assign(:loading_products, true)
-      |> load_products_for_new_session()
+    # Detect if input looks like product IDs (contains commas or is numeric-like)
+    if looks_like_product_ids?(query) do
+      # ID-based lookup mode - show products but don't select yet
+      brand_id = get_in(socket.assigns.session_form.params, ["brand_id"])
+      brand_id = if brand_id && brand_id != "", do: normalize_id(brand_id), else: nil
 
-    {:noreply, socket}
+      socket =
+        socket
+        |> assign(:product_search_query, query)
+        |> display_products_by_id(
+          query,
+          brand_id,
+          :selected_product_ids,
+          :new_session_products,
+          :new_session_products_map,
+          :product_total_count
+        )
+
+      {:noreply, socket}
+    else
+      # Normal text search mode
+      socket =
+        socket
+        |> assign(:product_search_query, query)
+        |> assign(:product_page, 1)
+        |> assign(:loading_products, true)
+        |> load_products_for_new_session()
+
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("search_products_submit", %{"value" => query}, socket) do
+    # Detect if input looks like product IDs (contains commas or is numeric-like)
+    if looks_like_product_ids?(query) do
+      # ID-based lookup mode - select all displayed products
+      socket = select_all_displayed_products(
+        socket,
+        :selected_product_ids,
+        :new_session_products,
+        :new_session_products_map
+      )
+
+      {:noreply, socket}
+    else
+      # Normal text search mode - auto-select if single result
+      socket = maybe_auto_select_single_product(socket, :new_session_products_map, :selected_product_ids, :new_session_products)
+
+      {:noreply, socket}
+    end
   end
 
   @impl true
@@ -1029,149 +1108,6 @@ defmodule PavoiWeb.SessionsLive.Index do
       end
 
     {:noreply, socket}
-  end
-
-  # ============================================================================
-  # BULK ADD BY TIKTOK IDS - New Session Modal
-  # ============================================================================
-
-  @impl true
-  def handle_event("toggle_bulk_add", _params, socket) do
-    {:noreply, assign(socket, :bulk_add_expanded, !socket.assigns.bulk_add_expanded)}
-  end
-
-  @impl true
-  def handle_event("bulk_add_products", %{"ids" => ids_input}, socket) do
-    brand_id = socket.assigns.session_form[:brand_id].value
-
-    {socket, result} =
-      process_bulk_add(
-        socket,
-        ids_input,
-        brand_id,
-        :selected_product_ids,
-        :new_session_products,
-        :new_session_products_map
-      )
-
-    {:noreply, assign(socket, :bulk_add_result, result)}
-  end
-
-  # ============================================================================
-  # BULK ADD BY TIKTOK IDS - Add Product Modal
-  # ============================================================================
-
-  @impl true
-  def handle_event("toggle_add_product_bulk_add", _params, socket) do
-    {:noreply,
-     assign(socket, :add_product_bulk_add_expanded, !socket.assigns.add_product_bulk_add_expanded)}
-  end
-
-  @impl true
-  def handle_event("bulk_add_add_products", %{"ids" => ids_input}, socket) do
-    brand_id =
-      if socket.assigns.selected_session_for_product do
-        socket.assigns.selected_session_for_product.brand_id
-      end
-
-    {socket, result} =
-      process_bulk_add(
-        socket,
-        ids_input,
-        brand_id,
-        :add_product_selected_ids,
-        :add_product_products,
-        :add_product_products_map
-      )
-
-    {:noreply, assign(socket, :add_product_bulk_add_result, result)}
-  end
-
-  # Shared helper for bulk add processing
-  defp process_bulk_add(
-         socket,
-         ids_input,
-         brand_id,
-         selected_ids_key,
-         stream_key,
-         products_map_key
-       ) do
-    # Parse input: split by comma, newline, or whitespace
-    product_ids =
-      ids_input
-      |> String.split(~r/[\s,]+/)
-      |> Enum.map(&String.trim/1)
-      |> Enum.reject(&(&1 == ""))
-      |> Enum.uniq()
-
-    if Enum.empty?(product_ids) do
-      {socket, %{found: 0, not_found: 0, not_found_ids: [], message: "No IDs provided"}}
-    else
-      opts = if brand_id, do: [brand_id: brand_id], else: []
-      {found_products, not_found_ids} = Catalog.find_products_by_ids(product_ids, opts)
-
-      # Get the IDs of found products
-      found_product_ids = Enum.map(found_products, & &1.id) |> MapSet.new()
-
-      # Merge into current selection
-      current_selected = socket.assigns[selected_ids_key]
-      new_selected = MapSet.union(current_selected, found_product_ids)
-
-      # Update socket with new selection
-      socket = assign(socket, selected_ids_key, new_selected)
-
-      # Update stream items with :selected state for products in the map
-      products_map = socket.assigns[products_map_key]
-
-      # Find products not already in the grid and insert them at the top (in reverse
-      # order so they appear in the correct order when inserted at position 0)
-      products_not_in_grid =
-        found_products
-        |> Enum.reject(fn p -> Map.has_key?(products_map, p.id) end)
-        |> Enum.map(fn p -> Map.put(p, :selected, true) end)
-        |> Enum.reverse()
-
-      # Insert new products at top of stream and update products_map
-      socket =
-        Enum.reduce(products_not_in_grid, socket, fn product, acc_socket ->
-          stream_insert(acc_socket, stream_key, product, at: 0)
-        end)
-
-      new_products_map =
-        products_map
-        |> Map.merge(Map.new(products_not_in_grid, &{&1.id, &1}))
-
-      socket = assign(socket, products_map_key, new_products_map)
-
-      # Update existing products in stream to show selected state
-      socket =
-        update_stream_selection(socket, products_map, found_product_ids, stream_key)
-
-      found_count = length(found_products)
-      not_found_count = length(not_found_ids)
-      total_input = length(product_ids)
-
-      message =
-        cond do
-          found_count == total_input ->
-            "Found all #{found_count} products and added to selection"
-
-          found_count > 0 ->
-            "Found #{found_count} of #{total_input} products (#{not_found_count} not found)"
-
-          true ->
-            "No products found matching the provided IDs"
-        end
-
-      result = %{
-        found: found_count,
-        not_found: not_found_count,
-        not_found_ids: not_found_ids,
-        message: message
-      }
-
-      {socket, result}
-    end
   end
 
   @impl true
@@ -1389,9 +1325,6 @@ defmodule PavoiWeb.SessionsLive.Index do
     |> assign(:selected_product_ids, MapSet.new())
     |> stream(:new_session_products, [], reset: true)
     |> assign(:new_session_has_more, false)
-    # Reset bulk add state
-    |> assign(:bulk_add_expanded, false)
-    |> assign(:bulk_add_result, nil)
     |> load_products_for_new_session()
   end
 
@@ -1480,19 +1413,21 @@ defmodule PavoiWeb.SessionsLive.Index do
         })
       end)
 
-    # Check if all additions were successful
-    if Enum.all?(results, fn result -> match?({:ok, _}, result) end) do
-      :ok
-    else
-      # Find the first error
-      error =
-        Enum.find(results, fn result -> match?({:error, _}, result) end)
-        |> case do
-          {:error, reason} -> reason
-          _ -> "Unknown error"
-        end
+    # Count successes and failures
+    successes = Enum.count(results, fn result -> match?({:ok, _}, result) end)
+    failures = length(results) - successes
 
-      {:error, error}
+    cond do
+      failures == 0 ->
+        :ok
+
+      successes > 0 ->
+        # Some succeeded, some failed (likely duplicates)
+        {:partial, successes, failures}
+
+      true ->
+        # All failed
+        {:error, "Could not add products (they may already be in this session)"}
     end
   end
 
@@ -1500,14 +1435,158 @@ defmodule PavoiWeb.SessionsLive.Index do
     Map.get(products_map, product_id)
   end
 
-  # Updates stream items with :selected state for given product IDs
-  defp update_stream_selection(socket, products_map, product_ids, stream_key) do
-    Enum.reduce(product_ids, socket, fn product_id, acc_socket ->
-      case Map.get(products_map, product_id) do
-        nil -> acc_socket
-        product -> stream_insert(acc_socket, stream_key, Map.put(product, :selected, true))
+  # Get the best product ID for clipboard copy - prefer TikTok, fall back to Shopify numeric
+  defp get_best_product_id(product) do
+    cond do
+      product.tiktok_product_id && product.tiktok_product_id != "" ->
+        product.tiktok_product_id
+
+      product.pid && product.pid != "" ->
+        # Extract numeric ID from Shopify GID like "gid://shopify/Product/8772010639613"
+        # Uses extract_shopify_numeric_id/1 imported from ViewHelpers
+        extract_shopify_numeric_id(product.pid)
+
+      true ->
+        nil
+    end
+  end
+
+  # Detect if input looks like product IDs rather than a text search
+  # Returns true if input contains commas OR is a single numeric-like value (digits only, 10+ chars for TikTok IDs)
+  defp looks_like_product_ids?(input) do
+    trimmed = String.trim(input)
+
+    cond do
+      # Empty input is not IDs
+      trimmed == "" -> false
+      # Contains commas = multiple IDs
+      String.contains?(trimmed, ",") -> true
+      # Single numeric string (likely TikTok or Shopify ID)
+      Regex.match?(~r/^\d{6,}$/, trimmed) -> true
+      # Otherwise treat as text search
+      true -> false
+    end
+  end
+
+  # Display products by ID without selecting them (called on input change)
+  # Shows found products in the grid, preserving existing selections
+  defp display_products_by_id(socket, ids_input, brand_id, selected_ids_key, stream_key, products_map_key, total_count_key) do
+    # Parse input: split by comma, newline, or whitespace
+    product_ids =
+      ids_input
+      |> String.split(~r/[\s,]+/)
+      |> Enum.map(&String.trim/1)
+      |> Enum.reject(&(&1 == ""))
+      |> Enum.uniq()
+
+    if Enum.empty?(product_ids) do
+      socket
+    else
+      opts = if brand_id, do: [brand_id: brand_id], else: []
+      {found_products, _not_found_ids} = Catalog.find_products_by_ids(product_ids, opts)
+
+      # Get current selections to preserve selected state for already-selected items
+      current_selected = socket.assigns[selected_ids_key]
+
+      # Prepare products with primary_image and preserve existing selection state
+      products_with_state =
+        found_products
+        |> Enum.map(fn p ->
+          p
+          |> add_primary_image()
+          |> Map.put(:selected, MapSet.member?(current_selected, p.id))
+        end)
+
+      # Build new products map from found products
+      new_products_map = Map.new(products_with_state, &{&1.id, &1})
+
+      # Reset stream with found products and update all related state
+      socket
+      |> assign(products_map_key, new_products_map)
+      |> assign(total_count_key, length(found_products))
+      |> stream(stream_key, products_with_state, reset: true)
+    end
+  end
+
+  # Select all products currently displayed in the grid (called on Enter)
+  # Shows flash feedback about what was found/selected
+  defp select_all_displayed_products(socket, selected_ids_key, stream_key, products_map_key) do
+    products_map = socket.assigns[products_map_key]
+
+    if map_size(products_map) == 0 do
+      socket
+    else
+      # Get all product IDs from the current display
+      displayed_product_ids = Map.keys(products_map) |> MapSet.new()
+
+      # Merge into current selection
+      current_selected = socket.assigns[selected_ids_key]
+      new_selected = MapSet.union(current_selected, displayed_product_ids)
+
+      # Update all products in the map to selected state
+      updated_products_map =
+        Map.new(products_map, fn {id, product} ->
+          {id, Map.put(product, :selected, true)}
+        end)
+
+      # Update the stream with selected state
+      socket =
+        Enum.reduce(updated_products_map, socket, fn {_id, product}, acc_socket ->
+          stream_insert(acc_socket, stream_key, product)
+        end)
+
+      # Count for feedback
+      newly_selected = MapSet.size(displayed_product_ids) - MapSet.size(MapSet.intersection(current_selected, displayed_product_ids))
+      total_displayed = map_size(products_map)
+
+      socket =
+        socket
+        |> assign(selected_ids_key, new_selected)
+        |> assign(products_map_key, updated_products_map)
+
+      # Show feedback
+      cond do
+        newly_selected == 0 ->
+          put_flash(socket, :info, "#{total_displayed} product(s) already selected")
+
+        newly_selected == total_displayed && total_displayed == 1 ->
+          put_flash(socket, :info, "Product selected")
+
+        newly_selected == total_displayed ->
+          put_flash(socket, :info, "#{total_displayed} product(s) selected")
+
+        true ->
+          put_flash(socket, :info, "#{newly_selected} new product(s) selected (#{total_displayed - newly_selected} already selected)")
+        end
+
+      socket
+    end
+  end
+
+  # Auto-select a single product if there's exactly one result in the products map
+  defp maybe_auto_select_single_product(socket, products_map_key, selected_ids_key, stream_key) do
+    products_map = socket.assigns[products_map_key]
+
+    if map_size(products_map) == 1 do
+      # Get the single product
+      [{product_id, product}] = Map.to_list(products_map)
+
+      # Only select if not already selected
+      selected_ids = socket.assigns[selected_ids_key]
+
+      if MapSet.member?(selected_ids, product_id) do
+        socket
+      else
+        new_selected_ids = MapSet.put(selected_ids, product_id)
+        updated_product = Map.put(product, :selected, true)
+
+        socket
+        |> assign(selected_ids_key, new_selected_ids)
+        |> stream_insert(stream_key, updated_product)
       end
-    end)
+    else
+      socket
+    end
   end
 
   # Loads sessions for the sessions list with pagination support.

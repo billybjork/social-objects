@@ -443,6 +443,7 @@ defmodule PavoiWeb.ProductComponents do
   attr :has_more, :boolean, default: false, doc: "Whether more products are available"
   attr :on_product_click, :string, required: true, doc: "Event to trigger on product click"
   attr :on_search, :string, default: nil, doc: "Event to trigger on search"
+  attr :on_search_submit, :string, default: nil, doc: "Event to trigger on search submit (Enter key)"
   attr :on_load_more, :string, default: nil, doc: "Event to trigger on load more"
   attr :selected_ids, :any, default: MapSet.new(), doc: "Selected product IDs (for select mode)"
   attr :show_prices, :boolean, default: false, doc: "Whether to show prices"
@@ -472,13 +473,6 @@ defmodule PavoiWeb.ProductComponents do
     default: nil,
     doc: "Event to trigger on platform filter change"
 
-  # Bulk add by IDs functionality
-  attr :show_bulk_add, :boolean, default: false, doc: "Whether to show bulk add by IDs section"
-  attr :bulk_add_expanded, :boolean, default: false, doc: "Whether bulk add section is expanded"
-  attr :on_toggle_bulk_add, :string, default: nil, doc: "Event to toggle bulk add section"
-  attr :on_bulk_add, :string, default: nil, doc: "Event to trigger bulk add"
-  attr :bulk_add_result, :map, default: nil, doc: "Result of last bulk add operation"
-
   def product_grid(assigns) do
     ~H"""
     <div class={[
@@ -493,6 +487,7 @@ defmodule PavoiWeb.ProductComponents do
               <.search_input
                 value={@search_query}
                 on_change={@on_search}
+                on_submit={@on_search_submit || @on_search}
                 placeholder={@search_placeholder}
               />
             </div>
@@ -535,18 +530,6 @@ defmodule PavoiWeb.ProductComponents do
                 </form>
               </div>
             <% end %>
-            <%= if @show_bulk_add do %>
-              <.button
-                type="button"
-                variant={if @bulk_add_expanded, do: "primary", else: "outline"}
-                size="sm"
-                phx-click={@on_toggle_bulk_add}
-                title="Batch add products by ID"
-              >
-                <.icon name="hero-clipboard-document-list" class="icon--sm" />
-                Batch Add
-              </.button>
-            <% end %>
           </div>
           <%= if @mode == :select do %>
             <div class="product-grid__count">
@@ -554,51 +537,6 @@ defmodule PavoiWeb.ProductComponents do
             </div>
           <% end %>
         </div>
-
-        <%!-- Bulk Add Section (collapsible) --%>
-        <%= if @show_bulk_add && @bulk_add_expanded do %>
-          <div class="product-grid__bulk-add">
-            <div class="product-grid__bulk-add-header">
-              <span class="product-grid__bulk-add-title">Batch Add by Product IDs</span>
-              <span class="product-grid__bulk-add-hint">Paste TikTok or Shopify product IDs, separated by commas or line breaks</span>
-            </div>
-            <form phx-submit={@on_bulk_add} class="product-grid__bulk-add-form">
-              <textarea
-                name="ids"
-                class="input product-grid__bulk-add-textarea"
-                placeholder="1732025444076851720, 8772010639613, 1732025453170823688..."
-                rows="3"
-              ></textarea>
-              <.button type="submit" variant="primary" size="sm">
-                Find & Select Products
-              </.button>
-            </form>
-            <%= if @bulk_add_result do %>
-              <div class={[
-                "product-grid__bulk-add-result",
-                @bulk_add_result.found > 0 && "product-grid__bulk-add-result--success",
-                @bulk_add_result.found == 0 && "product-grid__bulk-add-result--error"
-              ]}>
-                <div class="product-grid__bulk-add-result-message">
-                  <%= if @bulk_add_result.found > 0 do %>
-                    <.icon name="hero-check-circle" class="icon--sm" />
-                  <% else %>
-                    <.icon name="hero-exclamation-triangle" class="icon--sm" />
-                  <% end %>
-                  <%= @bulk_add_result.message %>
-                </div>
-                <%= if @bulk_add_result.not_found > 0 && length(@bulk_add_result.not_found_ids) > 0 do %>
-                  <details class="product-grid__bulk-add-not-found">
-                    <summary>Show <%= @bulk_add_result.not_found %> not found IDs</summary>
-                    <div class="product-grid__bulk-add-not-found-list">
-                      <%= Enum.join(@bulk_add_result.not_found_ids, ", ") %>
-                    </div>
-                  </details>
-                <% end %>
-              </div>
-            <% end %>
-          </div>
-        <% end %>
       <% end %>
 
       <%= if @is_empty do %>
