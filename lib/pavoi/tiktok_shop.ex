@@ -77,7 +77,7 @@ defmodule Pavoi.TiktokShop do
         {:error, :no_auth_record}
 
       auth ->
-        url = "#{auth_base()}/api/v2/token/get"
+        url = "#{auth_base()}/api/v2/token/refresh"
 
         params = [
           app_key: app_key(),
