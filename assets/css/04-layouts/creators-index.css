@@ -3,17 +3,58 @@
  * Page layout for the creator CRM list view
  */
 
-/* Table header with count */
-.creators-table-header {
-  display: flex;
+/* Page Header - Extend global styles for creators page */
+.creators-index .page-header {
   justify-content: space-between;
+  padding-top: var(--space-5); /* Extra space for absolutely positioned count above search */
+  /* Global styles provide: align-items: center, min-height: 52px, padding-bottom: var(--space-3) */
+}
+
+.creators-index .page-header__left {
+  display: flex;
   align-items: center;
-  margin-bottom: var(--space-3);
+  gap: var(--space-4);
+  flex: 1;
+  min-width: 0;
+}
+
+.creators-index .page-header__search-wrapper {
+  position: relative;
+  flex: 1;
+  max-width: 400px;  /* Match global page-header__search */
+  min-width: 200px;  /* Match global page-header__search */
 }
 
 .creators-count {
-  font-size: var(--text-sm);
+  position: absolute;
+  bottom: 100%;
+  left: 2px;
+  margin-bottom: var(--space-1);
+  font-size: var(--text-xs);
   color: var(--color-text-secondary);
+  font-weight: var(--font-medium);
+  white-space: nowrap;
+}
+
+.creators-index .page-header__right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-shrink: 0;
+  /* Smooth transitions for appearing/disappearing elements */
+  transition: all 0.2s ease;
+}
+
+/* Bulk Actions Bar */
+.bulk-actions-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-3);
 }
 
 .creator-table-wrapper {
@@ -28,6 +69,8 @@
   border-collapse: collapse;
   font-size: var(--text-sm);
   table-layout: fixed;
+  /* Prevent horizontal shift by maintaining consistent width */
+  min-width: 1200px;
 }
 
 .creator-table th {
@@ -41,25 +84,45 @@
 }
 
 
-/* Fixed column widths - sized to fit header text + sort icon without truncation */
+/* Fixed column widths for CRM mode (no checkbox column) */
 .creator-table th:nth-child(1),
-.creator-table td:nth-child(1) { width: 130px; }  /* Username */
+.creator-table td:nth-child(1) { width: 140px; }  /* Username */
 .creator-table th:nth-child(2),
-.creator-table td:nth-child(2) { width: 130px; }  /* Name */
+.creator-table td:nth-child(2) { width: 140px; }  /* Name */
 .creator-table th:nth-child(3),
-.creator-table td:nth-child(3) { width: 170px; }  /* Email */
+.creator-table td:nth-child(3) { width: 180px; }  /* Email */
 .creator-table th:nth-child(4),
-.creator-table td:nth-child(4) { width: 110px; }  /* Phone */
+.creator-table td:nth-child(4) { width: 120px; }  /* Phone */
 .creator-table th:nth-child(5),
-.creator-table td:nth-child(5) { width: 110px; }  /* Followers */
+.creator-table td:nth-child(5) { width: 100px; }  /* Followers */
 .creator-table th:nth-child(6),
-.creator-table td:nth-child(6) { width: 80px; }   /* GMV */
+.creator-table td:nth-child(6) { width: 90px; }   /* GMV */
 .creator-table th:nth-child(7),
-.creator-table td:nth-child(7) { width: 105px; }  /* Samples */
+.creator-table td:nth-child(7) { width: 90px; }   /* Samples */
 .creator-table th:nth-child(8),
-.creator-table td:nth-child(8) { width: 95px; }   /* Videos */
-.creator-table th:nth-child(9),
-.creator-table td:nth-child(9) { width: 90px; }   /* Badge */
+.creator-table td:nth-child(8) { width: 90px; }   /* Videos */
+
+/* Outreach mode column widths (with checkbox as first column) */
+.creator-table th.col-checkbox,
+.creator-table td.col-checkbox { width: 40px; }   /* Checkbox */
+
+/* When checkbox is present, shift all other columns by 1 */
+.creator-table.has-checkbox th:nth-child(2),
+.creator-table.has-checkbox td:nth-child(2) { width: 140px; }  /* Username */
+.creator-table.has-checkbox th:nth-child(3),
+.creator-table.has-checkbox td:nth-child(3) { width: 160px; }  /* Name */
+.creator-table.has-checkbox th:nth-child(4),
+.creator-table.has-checkbox td:nth-child(4) { width: 180px; }  /* Email */
+.creator-table.has-checkbox th:nth-child(5),
+.creator-table.has-checkbox td:nth-child(5) { width: 120px; }  /* Phone */
+.creator-table.has-checkbox th:nth-child(6),
+.creator-table.has-checkbox td:nth-child(6) { width: 100px; }  /* SMS Consent */
+.creator-table.has-checkbox th:nth-child(7),
+.creator-table.has-checkbox td:nth-child(7) { width: 100px; }  /* Status */
+.creator-table.has-checkbox th:nth-child(8),
+.creator-table.has-checkbox td:nth-child(8) { width: 130px; }  /* Added */
+.creator-table.has-checkbox th:nth-child(9),
+.creator-table.has-checkbox td:nth-child(9) { width: 130px; }  /* Sent (when visible) */
 
 /* Sortable headers */
 .sortable-header {
@@ -247,6 +310,30 @@
   padding: var(--space-6) 0;
 }
 
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+  .page-header__search-wrapper {
+    max-width: 320px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .page-header {
+    flex-wrap: wrap;
+  }
+
+  .page-header__left {
+    flex: 1 1 100%;
+    margin-bottom: var(--space-2);
+  }
+
+  .page-header__right {
+    flex: 1 1 100%;
+    justify-content: flex-start;
+    margin-top: 0;
+  }
+}
+
 /* Mobile: edge-to-edge table */
 @media (max-width: 768px) {
   .creator-table-wrapper {
@@ -256,4 +343,308 @@
     border-left: none;
     border-right: none;
   }
+
+  .filter-tabs--inline {
+    gap: var(--space-1);
+  }
+
+  .filter-tab--compact {
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--text-xs);
+  }
+
+  .outreach-today-stat--compact {
+    padding: var(--space-1) var(--space-2);
+  }
+
+  .view-toggle__btn {
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--text-xs);
+  }
+}
+
+/* ============================================
+   OUTREACH MODE STYLES
+   ============================================ */
+
+/* View Toggle */
+.view-toggle {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.view-toggle__btn {
+  padding: 0 var(--space-3);
+  height: 36px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.5;
+}
+
+.view-toggle__btn:hover {
+  background: var(--color-surface-secondary);
+  color: var(--color-text-primary);
+  border-color: var(--color-border);
+}
+
+.view-toggle__btn--active {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.view-toggle__btn--active:hover {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+/* Inline Filter Tabs (in header) */
+.filter-tabs--inline {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.filter-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  height: 36px; /* Match .input--sm height used in other pages */
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  line-height: 1.5;
+}
+
+.filter-tab--compact {
+  padding: 0 var(--space-3);
+  height: 36px;
+  font-size: var(--text-sm);
+}
+
+.filter-tab:hover {
+  background: var(--color-surface-secondary);
+  color: var(--color-text-primary);
+  border-color: var(--color-border);
+}
+
+.filter-tab--active {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.filter-tab--active:hover {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+/* Compact Today Stat (in header) */
+.outreach-today-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  height: 36px; /* Match .input--sm height used in other pages */
+  background: var(--color-surface-secondary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  line-height: 1.5;
+}
+
+.outreach-today-stat--compact {
+  padding: 0 var(--space-3);
+  height: 36px;
+}
+
+.outreach-today-stat__label {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-medium);
+}
+
+.outreach-today-stat__value {
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--color-text-primary);
+}
+
+.filter-tab__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 var(--space-1-5);
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  line-height: 1;
+}
+
+.filter-tab--active .filter-tab__badge {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.bulk-actions__count {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-medium);
+  margin-right: var(--space-1);
+}
+
+/* Outreach Table Additions */
+.creator-table .col-checkbox {
+  width: 40px;
+  padding: var(--space-2);
+  text-align: center;
+  vertical-align: middle;
+}
+
+.creator-table .col-checkbox input[type="checkbox"] {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--color-primary);
+}
+
+.creator-table .row--selected {
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.creator-table .row--selected:hover {
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.creator-table .creator-name {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5);
+}
+
+.creator-table .creator-name__username {
+  font-weight: var(--font-medium);
+  color: var(--color-text-primary);
+}
+
+.creator-table .creator-name__real {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+.creator-table .badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px var(--space-2-5);
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  min-width: 70px;
+  text-transform: capitalize;
+}
+
+.creator-table .badge--success {
+  background: rgba(34, 197, 94, 0.12);
+  color: rgb(21, 128, 61);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.creator-table .badge--muted {
+  background: var(--color-surface-secondary);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.creator-table .badge--warning {
+  background: rgba(251, 191, 36, 0.12);
+  color: rgb(180, 83, 9);
+  border: 1px solid rgba(251, 191, 36, 0.2);
+}
+
+/* Center align SMS Consent and Status columns in outreach mode */
+.creator-table.has-checkbox th:nth-child(6),
+.creator-table.has-checkbox td:nth-child(6),
+.creator-table.has-checkbox th:nth-child(7),
+.creator-table.has-checkbox td:nth-child(7) {
+  text-align: center;
+}
+
+/* Dark mode adjustments */
+.dark .view-toggle__btn {
+  background: transparent;
+  border-color: var(--color-border);
+}
+
+.dark .view-toggle__btn:hover {
+  background: var(--color-surface-secondary);
+}
+
+.dark .view-toggle__btn--active {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+.dark .view-toggle__btn--active:hover {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.dark .filter-tab {
+  border-color: var(--color-border);
+}
+
+.dark .filter-tab:hover {
+  background: var(--color-surface-secondary);
+}
+
+.dark .filter-tab--active {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+.dark .creator-table .badge--success {
+  background: rgba(34, 197, 94, 0.2);
+  color: rgb(134, 239, 172);
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.dark .creator-table .badge--warning {
+  background: rgba(251, 191, 36, 0.2);
+  color: rgb(253, 224, 71);
+  border-color: rgba(251, 191, 36, 0.3);
+}
+
+.dark .outreach-today-stat {
+  background: var(--color-surface-secondary);
+  border-color: var(--color-border);
+}
+
+.dark .bulk-actions-bar {
+  background: var(--color-surface-secondary);
+  border-color: var(--color-border);
 }

@@ -162,19 +162,25 @@ defmodule PavoiWeb.HostViewComponents do
   attr :id_prefix, :string, required: true
 
   def product_image_display(assigns) do
+    # Get up to 3 images to display as heroes, starting from current index
+    assigns =
+      assign(
+        assigns,
+        :hero_images,
+        get_hero_images(assigns.product_images, assigns.current_image_index)
+      )
+
     ~H"""
     <div class="host-images">
       <%= if @product_images && length(@product_images) > 0 do %>
-        <% current_image = Enum.at(@product_images, @current_image_index) %>
-
-        <%!-- Compact Hero Image --%>
-        <%= if current_image do %>
+        <%!-- Hero Images (show 2-3 images side by side) --%>
+        <%= for {image, index} <- @hero_images do %>
           <div class="host-hero-wrapper">
             <img
-              id={"#{@id_prefix}-hero-img"}
-              src={current_image.path}
-              alt={current_image.alt_text || @current_product.name}
-              class="host-hero-image"
+              id={"#{@id_prefix}-hero-img-#{index}"}
+              src={image.path}
+              alt={image.alt_text || @current_product.name}
+              class={["host-hero-image", index == @current_image_index && "host-hero-image--active"]}
               loading="lazy"
             />
           </div>
@@ -206,6 +212,41 @@ defmodule PavoiWeb.HostViewComponents do
     </div>
     """
   end
+
+  # Get 2-3 hero images to display, starting from current index
+  defp get_hero_images(images, current_index) when is_list(images) do
+    total = length(images)
+
+    cond do
+      total == 0 ->
+        []
+
+      total == 1 ->
+        # Only 1 image, show it
+        [{Enum.at(images, 0), 0}]
+
+      total == 2 ->
+        # 2 images, show both
+        Enum.with_index(images)
+
+      true ->
+        # 3+ images, show current + next 2 (up to 3 total)
+        images
+        |> Enum.with_index()
+        |> Enum.slice(current_index, 3)
+        |> case do
+          # If we got less than 3, wrap around to start
+          result when length(result) < 3 ->
+            remaining = 3 - length(result)
+            result ++ Enum.slice(Enum.with_index(images), 0, remaining)
+
+          result ->
+            result
+        end
+    end
+  end
+
+  defp get_hero_images(_images, _current_index), do: []
 
   @doc """
   Product header with position number block, name, pricing, and variants.
@@ -353,7 +394,7 @@ defmodule PavoiWeb.HostViewComponents do
     ~H"""
     <div class={["host-products-panel", @collapsed && "host-products-panel--collapsed"]}>
       <div class="host-products-panel__header" phx-click="toggle_products_panel">
-        <span class="host-products-panel__title">Products</span>
+        <span class="host-products-panel__title">All Products</span>
         <svg
           class="host-products-panel__chevron"
           viewBox="0 0 24 24"

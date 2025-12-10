@@ -14,10 +14,29 @@
   border-bottom: 1px solid var(--color-border-secondary);
 }
 
+.page-header:has(.page-header__search--with-count) {
+  padding-top: var(--space-5); /* Space for count above search */
+}
+
 .page-header__search {
   flex: 1;
   min-width: 200px;
   max-width: 400px;
+}
+
+.page-header__search--with-count {
+  position: relative;
+}
+
+.search-count {
+  position: absolute;
+  bottom: 100%;
+  left: 2px;
+  margin-bottom: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-medium);
+  white-space: nowrap;
 }
 
 .page-header__filters {

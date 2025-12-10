@@ -45,6 +45,8 @@ config :pavoi, Oban,
        {"0 0 * * *", Pavoi.Workers.ShopifySyncWorker},
        # Sync TikTok Shop products every 24 hours (at midnight UTC)
        {"0 0 * * *", Pavoi.Workers.TiktokSyncWorker},
+       # Sync BigQuery orders to Creator CRM every 24 hours (at midnight UTC)
+       {"0 0 * * *", Pavoi.Workers.BigQueryOrderSyncWorker},
        # Refresh TikTok access token every 30 minutes (prevents token expiration)
        {"*/30 * * * *", Pavoi.Workers.TiktokTokenRefreshWorker}
      ]}

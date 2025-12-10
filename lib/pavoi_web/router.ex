@@ -57,11 +57,8 @@ defmodule PavoiWeb.Router do
     live "/sessions/:id/host", SessionHostLive.Index
     live "/sessions/:id/controller", SessionControllerLive.Index
 
-    # Creator CRM
+    # Creator CRM (includes outreach mode via ?view=outreach)
     live "/creators", CreatorsLive.Index
-
-    # Creator Outreach
-    live "/outreach", OutreachLive.Index
   end
 
   # Other scopes may use custom stacks.

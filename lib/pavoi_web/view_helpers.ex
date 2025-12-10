@@ -19,6 +19,9 @@ defmodule PavoiWeb.ViewHelpers do
   - `format_cents_to_dollars/1` - Converts cents integer to dollars float
   - `convert_prices_to_cents/1` - Converts price params from dollars to cents
 
+  ### Number Formatting
+  - `format_number/1` - Formats numbers with thousand separators (1234 -> "1,234")
+
   ## Usage
 
   In LiveViews:
@@ -228,6 +231,30 @@ defmodule PavoiWeb.ViewHelpers do
       {dollars, _} -> Map.put(params, field, round(dollars * 100))
       :error -> params
     end
+  end
+
+  @doc """
+  Formats a number with thousand separators.
+
+  ## Examples
+
+      iex> format_number(1234)
+      "1,234"
+
+      iex> format_number(1234567)
+      "1,234,567"
+
+      iex> format_number(nil)
+      "0"
+  """
+  def format_number(nil), do: "0"
+
+  def format_number(num) when is_integer(num) do
+    num
+    |> Integer.to_string()
+    |> String.reverse()
+    |> String.replace(~r/(\d{3})(?=\d)/, "\\1,")
+    |> String.reverse()
   end
 
   @doc """

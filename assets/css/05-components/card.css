@@ -12,8 +12,8 @@
   /* Fade in + slide up animation for initial load and infinite scroll */
   animation: fadeInSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
 
-  /* Padding from top when scrolling to expanded session */
-  scroll-margin-top: var(--space-6);
+  /* Padding from top when scrolling to expanded session - accounts for sticky navbar (80px) + spacing */
+  scroll-margin-top: 96px;
 }
 
 .session-card:hover {
@@ -414,6 +414,7 @@
   /* Limit to 2 lines with ellipsis */
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;

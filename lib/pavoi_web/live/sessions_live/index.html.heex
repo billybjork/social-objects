@@ -15,12 +15,13 @@
 >
   <%!-- Search Bar --%>
   <div class="page-header">
-    <div class="page-header__search">
+    <div class="page-header__search page-header__search--with-count">
       <.search_input
         value={@session_search_query}
         on_change="search_sessions"
         placeholder="Search by name or notes..."
       />
+      <span class="search-count">{format_number(length(@sessions))} sessions</span>
     </div>
   </div>
 

@@ -5,6 +5,7 @@ defmodule PavoiWeb.CreatorComponents do
   use Phoenix.Component
 
   import PavoiWeb.CoreComponents
+  import PavoiWeb.ViewHelpers
 
   alias Pavoi.Creators.Creator
   alias Phoenix.LiveView.JS
@@ -140,23 +141,7 @@ defmodule PavoiWeb.CreatorComponents do
     "$#{format_number(dollars)}"
   end
 
-  @doc """
-  Formats a number with comma separators.
-
-  ## Examples
-
-      format_number(1234567) # => "1,234,567"
-      format_number(nil) # => "0"
-  """
-  def format_number(nil), do: "0"
-
-  def format_number(num) when is_integer(num) do
-    num
-    |> Integer.to_string()
-    |> String.reverse()
-    |> String.replace(~r/(\d{3})(?=\d)/, "\\1,")
-    |> String.reverse()
-  end
+  # format_number/1 is now imported from PavoiWeb.ViewHelpers
 
   @doc """
   Returns the creator's display name (full name or username).
@@ -170,20 +155,54 @@ defmodule PavoiWeb.CreatorComponents do
   end
 
   @doc """
-  Renders a creator table with all the standard columns and sortable headers.
+  Capitalizes the status text for display.
+  """
+  def display_status(nil), do: "Pending"
+  def display_status(""), do: "Pending"
+  def display_status(status), do: String.capitalize(status)
+
+  @doc """
+  Renders a unified creator table with all columns.
+  Adds checkbox column when in outreach mode with pending status.
   """
   attr :creators, :list, required: true
+  attr :mode, :string, default: "crm"
   attr :on_row_click, :string, default: nil
   attr :sort_by, :string, default: nil
   attr :sort_dir, :string, default: "asc"
   attr :on_sort, :string, default: nil
+  attr :selected_ids, :any, default: nil
+  attr :status, :string, default: nil
+  attr :total_count, :integer, default: 0
 
   def creator_table(assigns) do
+    # Add 'has-checkbox' class when in outreach pending mode
+    has_checkbox = assigns.mode == "outreach" && assigns.status == "pending"
+
+    all_selected =
+      has_checkbox && MapSet.size(assigns.selected_ids) == assigns.total_count &&
+        assigns.total_count > 0
+
+    assigns =
+      assigns
+      |> assign(:has_checkbox, has_checkbox)
+      |> assign(:all_selected, all_selected)
+
     ~H"""
     <div class="creator-table-wrapper">
-      <table class="creator-table">
+      <table class={["creator-table", @has_checkbox && "has-checkbox"]}>
         <thead>
           <tr>
+            <%= if @mode == "outreach" and @status == "pending" do %>
+              <th class="col-checkbox">
+                <input
+                  type="checkbox"
+                  checked={@all_selected}
+                  phx-click={if @all_selected, do: "deselect_all", else: "select_all"}
+                  title={if @all_selected, do: "Deselect All", else: "Select All"}
+                />
+              </th>
+            <% end %>
             <.sort_header
               label="Username"
               field="username"
@@ -194,38 +213,47 @@ defmodule PavoiWeb.CreatorComponents do
             <th>Name</th>
             <th>Email</th>
             <th>Phone</th>
-            <.sort_header
-              label="Followers"
-              field="followers"
-              current={@sort_by}
-              dir={@sort_dir}
-              on_sort={@on_sort}
-              class="text-right"
-            />
-            <.sort_header
-              label="GMV"
-              field="gmv"
-              current={@sort_by}
-              dir={@sort_dir}
-              on_sort={@on_sort}
-              class="text-right"
-            />
-            <.sort_header
-              label="Samples"
-              field="samples"
-              current={@sort_by}
-              dir={@sort_dir}
-              on_sort={@on_sort}
-              class="text-right"
-            />
-            <.sort_header
-              label="Videos"
-              field="videos"
-              current={@sort_by}
-              dir={@sort_dir}
-              on_sort={@on_sort}
-              class="text-right"
-            />
+            <%= if @mode == "outreach" do %>
+              <th>SMS Consent</th>
+              <th>Status</th>
+              <th>Added</th>
+              <%= if @status == "sent" do %>
+                <th>Sent</th>
+              <% end %>
+            <% else %>
+              <.sort_header
+                label="Followers"
+                field="followers"
+                current={@sort_by}
+                dir={@sort_dir}
+                on_sort={@on_sort}
+                class="text-right"
+              />
+              <.sort_header
+                label="GMV"
+                field="gmv"
+                current={@sort_by}
+                dir={@sort_dir}
+                on_sort={@on_sort}
+                class="text-right"
+              />
+              <.sort_header
+                label="Samples"
+                field="samples"
+                current={@sort_by}
+                dir={@sort_dir}
+                on_sort={@on_sort}
+                class="text-right"
+              />
+              <.sort_header
+                label="Videos"
+                field="videos"
+                current={@sort_by}
+                dir={@sort_dir}
+                on_sort={@on_sort}
+                class="text-right"
+              />
+            <% end %>
           </tr>
         </thead>
         <tbody>
@@ -233,8 +261,23 @@ defmodule PavoiWeb.CreatorComponents do
             <tr
               phx-click={@on_row_click}
               phx-value-id={creator.id}
-              class={@on_row_click && "cursor-pointer hover:bg-hover"}
+              class={[
+                @on_row_click && "cursor-pointer hover:bg-hover",
+                @mode == "outreach" && @selected_ids && MapSet.member?(@selected_ids, creator.id) &&
+                  "row--selected"
+              ]}
             >
+              <%= if @mode == "outreach" and @status == "pending" do %>
+                <td class="col-checkbox" phx-click="stop_propagation">
+                  <input
+                    type="checkbox"
+                    checked={@selected_ids && MapSet.member?(@selected_ids, creator.id)}
+                    phx-click="toggle_selection"
+                    phx-value-id={creator.id}
+                  />
+                </td>
+              <% end %>
+
               <td>
                 <%= if creator.tiktok_profile_url do %>
                   <a
@@ -253,10 +296,43 @@ defmodule PavoiWeb.CreatorComponents do
               <td>{display_name(creator)}</td>
               <td class="text-secondary">{creator.email || "-"}</td>
               <td class="text-secondary font-mono">{format_phone(creator.phone)}</td>
-              <td class="text-right">{format_number(creator.follower_count)}</td>
-              <td class="text-right">{format_gmv(creator.total_gmv_cents)}</td>
-              <td class="text-right">{creator.sample_count || 0}</td>
-              <td class="text-right">{creator.total_videos || 0}</td>
+
+              <%= if @mode == "outreach" do %>
+                <td>
+                  <%= if creator.sms_consent do %>
+                    <span class="badge badge--success">Yes</span>
+                  <% else %>
+                    <span class="badge badge--muted">No</span>
+                  <% end %>
+                </td>
+                <td>
+                  <span class={[
+                    "badge",
+                    creator.outreach_status == "pending" && "badge--warning",
+                    creator.outreach_status == "sent" && "badge--success",
+                    creator.outreach_status == "skipped" && "badge--muted"
+                  ]}>
+                    {display_status(creator.outreach_status)}
+                  </span>
+                </td>
+                <td class="text-secondary text-xs">
+                  {format_relative_time(creator.inserted_at)}
+                </td>
+                <%= if @status == "sent" do %>
+                  <td class="text-secondary text-xs">
+                    <%= if creator.outreach_sent_at do %>
+                      {format_relative_time(creator.outreach_sent_at)}
+                    <% else %>
+                      -
+                    <% end %>
+                  </td>
+                <% end %>
+              <% else %>
+                <td class="text-right">{format_number(creator.follower_count)}</td>
+                <td class="text-right">{format_gmv(creator.total_gmv_cents)}</td>
+                <td class="text-right">{creator.sample_count || 0}</td>
+                <td class="text-right">{creator.total_videos || 0}</td>
+              <% end %>
             </tr>
           <% end %>
         </tbody>

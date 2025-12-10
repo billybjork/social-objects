@@ -8,12 +8,13 @@
 
 <div id="products-container" class="container container--xl region" phx-hook="ProductContextMenu">
   <div class="page-header">
-    <div class="page-header__search">
+    <div class="page-header__search page-header__search--with-count">
       <.search_input
         value={@product_search_query}
         on_change="search_products"
         placeholder="Search products..."
       />
+      <span class="search-count">{format_number(@product_total_count)} products</span>
     </div>
 
     <div class="page-header__filters">

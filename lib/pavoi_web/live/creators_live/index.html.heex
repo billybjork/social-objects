@@ -4,31 +4,120 @@
   bigquery_last_sync_at={@bigquery_last_sync_at}
 />
 
-<div class="container container--xl region">
+<div class="container container--xl region creators-index">
+  <%!-- Unified Page Header - Single Row --%>
   <div class="page-header">
-    <div class="page-header__search">
-      <.search_input
-        value={@search_query}
-        on_change="search"
-        placeholder="Search by username, email, or name..."
-      />
+    <div class="page-header__left">
+      <div class="page-header__search-wrapper">
+        <.search_input
+          value={@search_query}
+          on_change="search"
+          placeholder="Search by username, email, or name..."
+        />
+        <span class="creators-count">{format_number(@total)} creators</span>
+      </div>
+
+      <%!-- View Toggle --%>
+      <div class="view-toggle">
+        <button
+          type="button"
+          phx-click="change_view_mode"
+          phx-value-mode="crm"
+          class={["view-toggle__btn", @view_mode == "crm" && "view-toggle__btn--active"]}
+        >
+          All Creators
+        </button>
+        <button
+          type="button"
+          phx-click="change_view_mode"
+          phx-value-mode="outreach"
+          class={["view-toggle__btn", @view_mode == "outreach" && "view-toggle__btn--active"]}
+        >
+          Outreach
+        </button>
+      </div>
+    </div>
+
+    <div class="page-header__right">
+      <%!-- Outreach Status Filters (inline, only in outreach mode) --%>
+      <%= if @view_mode == "outreach" do %>
+        <div class="filter-tabs filter-tabs--inline">
+          <button
+            type="button"
+            class={[
+              "filter-tab filter-tab--compact",
+              @outreach_status == "pending" && "filter-tab--active"
+            ]}
+            phx-click="change_outreach_status"
+            phx-value-status="pending"
+          >
+            Pending <span class="filter-tab__badge">{@outreach_stats.pending}</span>
+          </button>
+          <button
+            type="button"
+            class={[
+              "filter-tab filter-tab--compact",
+              @outreach_status == "sent" && "filter-tab--active"
+            ]}
+            phx-click="change_outreach_status"
+            phx-value-status="sent"
+          >
+            Sent <span class="filter-tab__badge">{@outreach_stats.sent}</span>
+          </button>
+          <button
+            type="button"
+            class={[
+              "filter-tab filter-tab--compact",
+              @outreach_status == "skipped" && "filter-tab--active"
+            ]}
+            phx-click="change_outreach_status"
+            phx-value-status="skipped"
+          >
+            Skipped <span class="filter-tab__badge">{@outreach_stats.skipped}</span>
+          </button>
+        </div>
+      <% end %>
     </div>
   </div>
 
+  <%!-- Bulk Actions Bar (when items selected in outreach mode) --%>
+  <%= if @view_mode == "outreach" and @outreach_status == "pending" and MapSet.size(@selected_ids) > 0 do %>
+    <div class="bulk-actions-bar">
+      <span class="bulk-actions__count">{MapSet.size(@selected_ids)} selected</span>
+      <.button variant="outline" size="sm" phx-click="skip_selected">
+        Skip
+      </.button>
+      <.button variant="primary" size="sm" phx-click="show_send_modal">
+        Send Welcome
+      </.button>
+    </div>
+  <% end %>
+
+  <%!-- Content Area --%>
   <%= if Enum.empty?(@creators) do %>
     <div class="empty-state">
-      <.icon name="hero-users" class="empty-state__icon size-8" />
-      <p class="empty-state__title">No creators found</p>
-      <%= if @search_query != "" or @badge_filter != "" do %>
-        <p class="empty-state__description">Try adjusting your search or filters</p>
+      <%= if @view_mode == "outreach" do %>
+        <.icon name="hero-envelope" class="empty-state__icon size-8" />
+        <p class="empty-state__title">
+          <%= case @outreach_status do %>
+            <% "pending" -> %>
+              No pending creators
+            <% "sent" -> %>
+              No sent outreach yet
+            <% "skipped" -> %>
+              No skipped creators
+          <% end %>
+        </p>
+      <% else %>
+        <.icon name="hero-users" class="empty-state__icon size-8" />
+        <p class="empty-state__title">No creators found</p>
+        <%= if @search_query != "" or @badge_filter != "" do %>
+          <p class="empty-state__description">Try adjusting your search or filters</p>
+        <% end %>
       <% end %>
     </div>
   <% else %>
-    <div class="creators-table-header">
-      <span class="creators-count">{format_number(@total)} creators</span>
-    </div>
-
-    <%!-- Infinite scroll: see index.ex for why the two-phase loading pattern is required --%>
+    <%!-- Infinite scroll container --%>
     <div
       id="creators-list"
       class="creators-scroll-container"
@@ -36,6 +125,10 @@
     >
       <.creator_table
         creators={@creators}
+        mode={@view_mode}
+        status={@outreach_status}
+        selected_ids={@selected_ids}
+        total_count={length(@creators)}
         on_row_click="navigate_to_creator"
         sort_by={@sort_by}
         sort_dir={@sort_dir}
@@ -52,6 +145,46 @@
   <% end %>
 </div>
 
+<%!-- Send Outreach Modal --%>
+<%= if @show_send_modal do %>
+  <.modal id="send-outreach-modal" show={true} on_cancel={JS.push("close_send_modal")}>
+    <div class="modal__header">
+      <h2 class="modal__title">Send Welcome Messages</h2>
+    </div>
+    <div class="modal__body">
+      <p class="text-secondary" style="margin-bottom: var(--space-4);">
+        You're about to send welcome emails to <strong>{MapSet.size(@selected_ids)}</strong>
+        creators.
+      </p>
+
+      <div style="margin-bottom: var(--space-3);">
+        <label class="label">Lark Community Invite URL</label>
+        <input
+          type="url"
+          class="input"
+          placeholder="https://larksuite.com/invite/..."
+          value={@lark_invite_url}
+          phx-change="update_lark_url"
+        />
+        <p class="text-xs text-secondary" style="margin-top: var(--space-1);">
+          Get this from your Lark group: Settings → Share → Link
+        </p>
+      </div>
+    </div>
+    <div class="modal__footer">
+      <.button variant="outline" phx-click="close_send_modal">Cancel</.button>
+      <.button variant="primary" phx-click="send_outreach" disabled={@sending}>
+        <%= if @sending do %>
+          Sending...
+        <% else %>
+          Send Messages
+        <% end %>
+      </.button>
+    </div>
+  </.modal>
+<% end %>
+
+<%!-- Creator Detail Modal --%>
 <.creator_detail_modal
   creator={@selected_creator}
   active_tab={@active_tab}
