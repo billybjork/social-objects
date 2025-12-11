@@ -582,22 +582,22 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
 
   defp update_creator_email_from_orders(acc, creator, order_ids, order_map) do
     order = Enum.find_value(order_ids, fn oid -> Map.get(order_map, oid) end)
+    do_update_creator_email(acc, creator, order)
+  end
 
-    case order do
-      nil ->
-        %{acc | skipped: acc.skipped + 1}
+  defp do_update_creator_email(acc, _creator, nil), do: %{acc | skipped: acc.skipped + 1}
 
-      order ->
-        email = get_usable_email(order["email"])
+  defp do_update_creator_email(acc, creator, order) do
+    case get_usable_email(order["email"]) do
+      nil -> %{acc | skipped: acc.skipped + 1}
+      email -> apply_email_update(acc, creator, email)
+    end
+  end
 
-        if email do
-          case Creators.update_creator(creator, %{email: email}) do
-            {:ok, _} -> %{acc | updated: acc.updated + 1}
-            {:error, _} -> %{acc | errors: acc.errors + 1}
-          end
-        else
-          %{acc | skipped: acc.skipped + 1}
-        end
+  defp apply_email_update(acc, creator, email) do
+    case Creators.update_creator(creator, %{email: email}) do
+      {:ok, _} -> %{acc | updated: acc.updated + 1}
+      {:error, _} -> %{acc | errors: acc.errors + 1}
     end
   end
 

@@ -94,6 +94,24 @@ defmodule Pavoi.Creators do
   defp apply_creator_sort(query, "videos", "asc"),
     do: order_by(query, [c], asc_nulls_last: c.total_videos)
 
+  defp apply_creator_sort(query, "name", "asc"),
+    do: order_by(query, [c], asc_nulls_last: c.first_name, asc_nulls_last: c.last_name)
+
+  defp apply_creator_sort(query, "name", "desc"),
+    do: order_by(query, [c], desc_nulls_last: c.first_name, desc_nulls_last: c.last_name)
+
+  defp apply_creator_sort(query, "email", "asc"),
+    do: order_by(query, [c], asc_nulls_last: c.email)
+
+  defp apply_creator_sort(query, "email", "desc"),
+    do: order_by(query, [c], desc_nulls_last: c.email)
+
+  defp apply_creator_sort(query, "phone", "asc"),
+    do: order_by(query, [c], asc_nulls_last: c.phone)
+
+  defp apply_creator_sort(query, "phone", "desc"),
+    do: order_by(query, [c], desc_nulls_last: c.phone)
+
   defp apply_creator_sort(query, "samples", dir) do
     sample_counts =
       from(cs in CreatorSample,

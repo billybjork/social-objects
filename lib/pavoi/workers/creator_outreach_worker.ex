@@ -5,7 +5,7 @@ defmodule Pavoi.Workers.CreatorOutreachWorker do
   ## Workflow
 
   1. Receives creator_id and lark_invite_url
-  2. Sends welcome email via Mailgun
+  2. Sends welcome email via Swoosh (Local in dev, Mailgun in prod)
   3. If creator has sms_consent=true and valid phone, sends SMS via Twilio
   4. Logs results to outreach_logs
   5. Updates creator.outreach_status to "sent"
@@ -31,7 +31,7 @@ defmodule Pavoi.Workers.CreatorOutreachWorker do
     unique: [period: 300, fields: [:args], keys: [:creator_id]]
 
   require Logger
-  alias Pavoi.Communications.{Mailgun, Twilio}
+  alias Pavoi.Communications.{Email, Twilio}
   alias Pavoi.Creators
   alias Pavoi.Outreach
 
@@ -71,7 +71,7 @@ defmodule Pavoi.Workers.CreatorOutreachWorker do
 
   defp send_email(creator, lark_invite_url, results) do
     if creator.email && creator.email != "" do
-      case Mailgun.send_welcome_email(creator, lark_invite_url) do
+      case Email.send_welcome_email(creator, lark_invite_url) do
         {:ok, message_id} ->
           Outreach.log_outreach(creator.id, "email", "sent", provider_id: message_id)
           Map.put(results, :email, {:ok, message_id})
@@ -115,11 +115,14 @@ defmodule Pavoi.Workers.CreatorOutreachWorker do
     case results.email do
       {:ok, _} ->
         # Email succeeded, mark as sent
-        {:ok, _updated} = Outreach.mark_creator_sent(creator)
+        {:ok, updated} = Outreach.mark_creator_sent(creator)
 
         Logger.info(
           "Outreach completed for creator #{creator.id} - email: ok, sms: #{inspect(results.sms)}"
         )
+
+        # Notify any listening LiveViews
+        Phoenix.PubSub.broadcast(Pavoi.PubSub, "outreach:updates", {:outreach_sent, updated})
 
         :ok
 

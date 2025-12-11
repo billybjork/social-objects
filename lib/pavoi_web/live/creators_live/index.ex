@@ -23,9 +23,10 @@ defmodule PavoiWeb.CreatorsLive.Index do
 
   @impl true
   def mount(_params, _session, socket) do
-    # Subscribe to BigQuery sync events
+    # Subscribe to BigQuery sync and outreach events
     if connected?(socket) do
       Phoenix.PubSub.subscribe(Pavoi.PubSub, "bigquery:sync")
+      Phoenix.PubSub.subscribe(Pavoi.PubSub, "outreach:updates")
     end
 
     bigquery_last_sync_at = Settings.get_bigquery_last_sync_at()
@@ -252,7 +253,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
   end
 
   @impl true
-  def handle_event("update_lark_url", %{"value" => url}, socket) do
+  def handle_event("update_lark_url", %{"lark_url" => url}, socket) do
     {:noreply, assign(socket, :lark_invite_url, url)}
   end
 
@@ -366,6 +367,27 @@ defmodule PavoiWeb.CreatorsLive.Index do
       |> put_flash(:error, "BigQuery sync failed: #{inspect(reason)}")
 
     {:noreply, socket}
+  end
+
+  # Outreach PubSub handler - reload data when outreach completes
+  @impl true
+  def handle_info({:outreach_sent, _creator}, socket) do
+    socket =
+      socket
+      |> assign(:page, 1)
+      |> load_creators()
+      |> load_outreach_stats()
+      |> maybe_show_dev_mailbox_flash()
+
+    {:noreply, socket}
+  end
+
+  defp maybe_show_dev_mailbox_flash(socket) do
+    if Application.get_env(:pavoi, :dev_routes) do
+      put_flash(socket, :info, "Email sent! View it at /dev/mailbox")
+    else
+      socket
+    end
   end
 
   # Infinite scroll Phase 2 - see comment block above handle_event("load_more", ...)

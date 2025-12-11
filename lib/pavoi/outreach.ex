@@ -36,11 +36,15 @@ defmodule Pavoi.Outreach do
     - page: Current page number (default: 1)
     - per_page: Items per page (default: 50)
     - search_query: Search by username, email, first/last name
+    - sort_by: Column to sort by (username, name, email, phone, sms_consent, added, sent)
+    - sort_dir: Sort direction (asc, desc)
   """
   def list_creators_by_status(status, opts \\ []) do
     page = Keyword.get(opts, :page, 1)
     per_page = Keyword.get(opts, :per_page, 50)
     search_query = Keyword.get(opts, :search_query, "")
+    sort_by = Keyword.get(opts, :sort_by)
+    sort_dir = Keyword.get(opts, :sort_dir, "desc")
 
     base_query =
       from(c in Creator, where: c.outreach_status == ^status)
@@ -50,7 +54,7 @@ defmodule Pavoi.Outreach do
 
     creators =
       base_query
-      |> order_by([c], desc: c.inserted_at)
+      |> apply_outreach_sort(sort_by, sort_dir)
       |> limit(^per_page)
       |> offset(^((page - 1) * per_page))
       |> Repo.all()
@@ -63,6 +67,52 @@ defmodule Pavoi.Outreach do
       has_more: total > page * per_page
     }
   end
+
+  defp apply_outreach_sort(query, "username", "asc"),
+    do: order_by(query, [c], asc_nulls_last: c.tiktok_username)
+
+  defp apply_outreach_sort(query, "username", "desc"),
+    do: order_by(query, [c], desc_nulls_last: c.tiktok_username)
+
+  defp apply_outreach_sort(query, "name", "asc"),
+    do: order_by(query, [c], asc_nulls_last: c.first_name, asc_nulls_last: c.last_name)
+
+  defp apply_outreach_sort(query, "name", "desc"),
+    do: order_by(query, [c], desc_nulls_last: c.first_name, desc_nulls_last: c.last_name)
+
+  defp apply_outreach_sort(query, "email", "asc"),
+    do: order_by(query, [c], asc_nulls_last: c.email)
+
+  defp apply_outreach_sort(query, "email", "desc"),
+    do: order_by(query, [c], desc_nulls_last: c.email)
+
+  defp apply_outreach_sort(query, "phone", "asc"),
+    do: order_by(query, [c], asc_nulls_last: c.phone)
+
+  defp apply_outreach_sort(query, "phone", "desc"),
+    do: order_by(query, [c], desc_nulls_last: c.phone)
+
+  defp apply_outreach_sort(query, "sms_consent", "asc"),
+    do: order_by(query, [c], asc_nulls_last: c.sms_consent)
+
+  defp apply_outreach_sort(query, "sms_consent", "desc"),
+    do: order_by(query, [c], desc_nulls_last: c.sms_consent)
+
+  defp apply_outreach_sort(query, "added", "asc"),
+    do: order_by(query, [c], asc: c.inserted_at)
+
+  defp apply_outreach_sort(query, "added", "desc"),
+    do: order_by(query, [c], desc: c.inserted_at)
+
+  defp apply_outreach_sort(query, "sent", "asc"),
+    do: order_by(query, [c], asc_nulls_last: c.outreach_sent_at)
+
+  defp apply_outreach_sort(query, "sent", "desc"),
+    do: order_by(query, [c], desc_nulls_last: c.outreach_sent_at)
+
+  # Default: sort by inserted_at descending (most recent first)
+  defp apply_outreach_sort(query, _, _),
+    do: order_by(query, [c], desc: c.inserted_at)
 
   defp apply_search_filter(query, ""), do: query
 

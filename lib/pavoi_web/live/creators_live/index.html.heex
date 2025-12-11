@@ -188,13 +188,16 @@
 
       <div style="margin-bottom: var(--space-3);">
         <label class="label">Lark Community Invite URL</label>
-        <input
-          type="url"
-          class="input"
-          placeholder="https://larksuite.com/invite/..."
-          value={@lark_invite_url}
-          phx-change="update_lark_url"
-        />
+        <form phx-change="update_lark_url" phx-submit="send_outreach">
+          <input
+            type="url"
+            name="lark_url"
+            class="input"
+            placeholder="https://larksuite.com/invite/..."
+            value={@lark_invite_url}
+            phx-debounce="100"
+          />
+        </form>
         <p class="text-xs text-secondary" style="margin-top: var(--space-1);">
           Get this from your Lark group: Settings → Share → Link
         </p>

@@ -210,15 +210,51 @@ defmodule PavoiWeb.CreatorComponents do
               dir={@sort_dir}
               on_sort={@on_sort}
             />
-            <th>Name</th>
-            <th>Email</th>
-            <th>Phone</th>
+            <.sort_header
+              label="Name"
+              field="name"
+              current={@sort_by}
+              dir={@sort_dir}
+              on_sort={@on_sort}
+            />
+            <.sort_header
+              label="Email"
+              field="email"
+              current={@sort_by}
+              dir={@sort_dir}
+              on_sort={@on_sort}
+            />
+            <.sort_header
+              label="Phone"
+              field="phone"
+              current={@sort_by}
+              dir={@sort_dir}
+              on_sort={@on_sort}
+            />
             <%= if @mode == "outreach" do %>
-              <th>SMS Consent</th>
+              <.sort_header
+                label="SMS Consent"
+                field="sms_consent"
+                current={@sort_by}
+                dir={@sort_dir}
+                on_sort={@on_sort}
+              />
               <th>Status</th>
-              <th>Added</th>
+              <.sort_header
+                label="Added"
+                field="added"
+                current={@sort_by}
+                dir={@sort_dir}
+                on_sort={@on_sort}
+              />
               <%= if @status == "sent" do %>
-                <th>Sent</th>
+                <.sort_header
+                  label="Sent"
+                  field="sent"
+                  current={@sort_by}
+                  dir={@sort_dir}
+                  on_sort={@on_sort}
+                />
               <% end %>
             <% else %>
               <.sort_header
