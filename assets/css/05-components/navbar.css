@@ -174,3 +174,39 @@
   align-self: center;
   margin-top: var(--space-3);
 }
+
+/* Mobile responsive - tighter spacing for narrower viewports */
+@media (max-width: 768px) {
+  .navbar {
+    gap: var(--space-4);
+    min-height: 64px;
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .navbar__start {
+    gap: var(--space-3);
+  }
+
+  .navbar__brand {
+    font-size: var(--text-base);
+    gap: var(--space-2);
+  }
+
+  .navbar__logo {
+    height: 28px;
+    width: 28px;
+  }
+
+  .navbar__nav {
+    gap: var(--space-2);
+  }
+
+  .navbar__link {
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--text-xs);
+  }
+
+  .navbar__end {
+    gap: var(--space-2);
+  }
+}

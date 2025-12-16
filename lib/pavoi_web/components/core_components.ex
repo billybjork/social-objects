@@ -455,7 +455,7 @@ defmodule PavoiWeb.CoreComponents do
           class="navbar__menu"
           phx-click-away={JS.hide(to: "#navbar-menu", transition: "fade-out")}
         >
-<%= if @current_page == :products do %>
+          <%= if @current_page == :products do %>
             <div class="navbar__sync-group">
               <.button
                 variant="primary"

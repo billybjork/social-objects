@@ -62,7 +62,10 @@ defmodule Pavoi.Communications.Email do
 
   defp from_address do
     from_name = non_empty_string(Application.get_env(:pavoi, :mailgun_from_name), "Pavoi")
-    from_email = non_empty_string(Application.get_env(:pavoi, :mailgun_from_email), "noreply@pavoi.com")
+
+    from_email =
+      non_empty_string(Application.get_env(:pavoi, :mailgun_from_email), "noreply@pavoi.com")
+
     {from_name, from_email}
   end
 
