@@ -14,6 +14,8 @@ defmodule Pavoi.Creators do
     Creator,
     CreatorPerformanceSnapshot,
     CreatorSample,
+    CreatorTag,
+    CreatorTagAssignment,
     CreatorVideo,
     CreatorVideoProduct
   }
@@ -51,6 +53,7 @@ defmodule Pavoi.Creators do
       |> apply_creator_search_filter(Keyword.get(opts, :search_query, ""))
       |> apply_creator_badge_filter(Keyword.get(opts, :badge_level))
       |> apply_creator_brand_filter(Keyword.get(opts, :brand_id))
+      |> apply_creator_tag_filter(Keyword.get(opts, :tag_ids))
 
     total = Repo.aggregate(query, :count)
 
@@ -162,6 +165,22 @@ defmodule Pavoi.Creators do
     )
   end
 
+  defp apply_creator_tag_filter(query, nil), do: query
+  defp apply_creator_tag_filter(query, []), do: query
+
+  defp apply_creator_tag_filter(query, tag_ids) do
+    # Use subquery to avoid DISTINCT issues with ORDER BY on joined columns
+    creator_ids_with_tags =
+      from(cta in CreatorTagAssignment,
+        where: cta.creator_tag_id in ^tag_ids,
+        select: cta.creator_id
+      )
+
+    from(c in query,
+      where: c.id in subquery(creator_ids_with_tags)
+    )
+  end
+
   @doc """
   Gets a single creator.
   Raises `Ecto.NoResultsError` if the Creator does not exist.
@@ -188,6 +207,7 @@ defmodule Pavoi.Creators do
     |> where([c], c.id == ^id)
     |> preload([
       :brands,
+      :creator_tags,
       creator_samples: [:brand, product: :product_images],
       creator_videos: ^videos_query,
       performance_snapshots: []
@@ -538,5 +558,206 @@ defmodule Pavoi.Creators do
       [first, last] -> {first, last}
       _ -> {full_name, nil}
     end
+  end
+
+  ## Creator Tags
+
+  @doc """
+  Lists all tags for a brand, ordered by position.
+  """
+  def list_tags_for_brand(brand_id) do
+    from(t in CreatorTag,
+      where: t.brand_id == ^brand_id,
+      order_by: [asc: t.position, asc: t.name]
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Gets a single tag by ID.
+  Raises `Ecto.NoResultsError` if not found.
+  """
+  def get_tag!(id), do: Repo.get!(CreatorTag, id)
+
+  @doc """
+  Gets a tag by ID, returns nil if not found.
+  """
+  def get_tag(id), do: Repo.get(CreatorTag, id)
+
+  @doc """
+  Gets a tag by name for a specific brand (case-insensitive).
+  """
+  def get_tag_by_name(brand_id, name) do
+    normalized_name = String.downcase(String.trim(name))
+
+    from(t in CreatorTag,
+      where: t.brand_id == ^brand_id and fragment("LOWER(?)", t.name) == ^normalized_name
+    )
+    |> Repo.one()
+  end
+
+  @doc """
+  Creates a new tag for a brand.
+  Auto-assigns position if not provided.
+  """
+  def create_tag(attrs \\ %{}) do
+    brand_id = attrs[:brand_id] || attrs["brand_id"]
+
+    attrs =
+      if Map.has_key?(attrs, :position) or Map.has_key?(attrs, "position") do
+        attrs
+      else
+        max_position =
+          from(t in CreatorTag,
+            where: t.brand_id == ^brand_id,
+            select: max(t.position)
+          )
+          |> Repo.one()
+
+        Map.put(attrs, :position, (max_position || 0) + 1)
+      end
+
+    %CreatorTag{}
+    |> CreatorTag.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc """
+  Updates a tag.
+  """
+  def update_tag(%CreatorTag{} = tag, attrs) do
+    tag
+    |> CreatorTag.changeset(attrs)
+    |> Repo.update()
+  end
+
+  @doc """
+  Deletes a tag. Also removes all assignments.
+  """
+  def delete_tag(%CreatorTag{} = tag) do
+    Repo.delete(tag)
+  end
+
+  @doc """
+  Counts how many creators have a specific tag assigned.
+  """
+  def count_creators_for_tag(tag_id) do
+    from(a in CreatorTagAssignment, where: a.creator_tag_id == ^tag_id, select: count(a.id))
+    |> Repo.one()
+  end
+
+  ## Tag Assignments
+
+  @doc """
+  Gets all tags assigned to a creator, optionally filtered by brand.
+  """
+  def list_tags_for_creator(creator_id, brand_id \\ nil) do
+    query =
+      from(t in CreatorTag,
+        join: a in CreatorTagAssignment,
+        on: a.creator_tag_id == t.id,
+        where: a.creator_id == ^creator_id,
+        order_by: [asc: t.position, asc: t.name]
+      )
+
+    query =
+      if brand_id do
+        where(query, [t], t.brand_id == ^brand_id)
+      else
+        query
+      end
+
+    Repo.all(query)
+  end
+
+  @doc """
+  Assigns a tag to a creator. No-op if already assigned.
+  Returns {:ok, assignment} or {:ok, :already_assigned}.
+  """
+  def assign_tag_to_creator(creator_id, tag_id) do
+    attrs = %{creator_id: creator_id, creator_tag_id: tag_id}
+
+    %CreatorTagAssignment{}
+    |> CreatorTagAssignment.changeset(attrs)
+    |> Repo.insert(on_conflict: :nothing)
+    |> case do
+      {:ok, %{id: nil}} -> {:ok, :already_assigned}
+      result -> result
+    end
+  end
+
+  @doc """
+  Removes a tag from a creator.
+  Returns {:ok, count} where count is 0 or 1.
+  """
+  def remove_tag_from_creator(creator_id, tag_id) do
+    {count, _} =
+      from(a in CreatorTagAssignment,
+        where: a.creator_id == ^creator_id and a.creator_tag_id == ^tag_id
+      )
+      |> Repo.delete_all()
+
+    {:ok, count}
+  end
+
+  @doc """
+  Sets the exact tags for a creator (replaces existing).
+  """
+  def set_creator_tags(creator_id, tag_ids) do
+    Repo.transaction(fn ->
+      # Delete existing assignments
+      from(a in CreatorTagAssignment, where: a.creator_id == ^creator_id)
+      |> Repo.delete_all()
+
+      # Insert new assignments
+      now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+      entries =
+        Enum.map(tag_ids, fn tag_id ->
+          %{
+            id: Ecto.UUID.generate(),
+            creator_id: creator_id,
+            creator_tag_id: tag_id,
+            inserted_at: now,
+            updated_at: now
+          }
+        end)
+
+      {count, _} = Repo.insert_all(CreatorTagAssignment, entries)
+      count
+    end)
+  end
+
+  @doc """
+  Batch assigns tags to multiple creators (merge, don't replace).
+  Returns {:ok, count} of assignments created.
+  """
+  def batch_assign_tags(creator_ids, tag_ids) do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    entries =
+      for creator_id <- creator_ids, tag_id <- tag_ids do
+        %{
+          id: Ecto.UUID.generate(),
+          creator_id: creator_id,
+          creator_tag_id: tag_id,
+          inserted_at: now,
+          updated_at: now
+        }
+      end
+
+    {count, _} = Repo.insert_all(CreatorTagAssignment, entries, on_conflict: :nothing)
+    {:ok, count}
+  end
+
+  @doc """
+  Gets tag IDs for a creator.
+  """
+  def get_tag_ids_for_creator(creator_id) do
+    from(a in CreatorTagAssignment,
+      where: a.creator_id == ^creator_id,
+      select: a.creator_tag_id
+    )
+    |> Repo.all()
   end
 end

@@ -14,6 +14,8 @@ import ControllerHaptic from "./hooks/controller_haptic"
 import ControllerKeyboard from "./hooks/controller_keyboard"
 import HostProductsScroll from "./hooks/host_products_scroll"
 import ViewerChart from "./hooks/viewer_chart"
+import ConfirmDelete from "./hooks/confirm_delete"
+import TagPickerPosition from "./hooks/tag_picker_position"
 
 const Hooks = {
   SessionHostKeyboard,
@@ -29,7 +31,9 @@ const Hooks = {
   ControllerHaptic,
   ControllerKeyboard,
   HostProductsScroll,
-  ViewerChart
+  ViewerChart,
+  ConfirmDelete,
+  TagPickerPosition
 }
 
 export default Hooks

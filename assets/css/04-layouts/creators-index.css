@@ -45,21 +45,25 @@
   transition: all 0.2s ease;
 }
 
-/* Bulk Actions Bar */
-.bulk-actions-bar {
+/* Bulk Actions Inline (in page header) */
+.bulk-actions-inline {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  background: var(--color-surface-secondary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  margin-bottom: var(--space-3);
+}
+
+.bulk-actions__count {
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--color-text-secondary);
+  padding-right: var(--space-2);
+  border-right: 1px solid var(--color-border);
+  margin-right: var(--space-1);
 }
 
 .creator-table-wrapper {
   overflow-x: auto;
-  border-radius: var(--rounded-lg);
+  border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
   background: var(--color-surface-primary);
 }
@@ -84,45 +88,78 @@
 }
 
 
-/* Fixed column widths for CRM mode (no checkbox column) */
-.creator-table th:nth-child(1),
-.creator-table td:nth-child(1) { width: 140px; }  /* Username */
-.creator-table th:nth-child(2),
-.creator-table td:nth-child(2) { width: 140px; }  /* Name */
-.creator-table th:nth-child(3),
-.creator-table td:nth-child(3) { width: 180px; }  /* Email */
-.creator-table th:nth-child(4),
-.creator-table td:nth-child(4) { width: 120px; }  /* Phone */
-.creator-table th:nth-child(5),
-.creator-table td:nth-child(5) { width: 100px; }  /* Followers */
-.creator-table th:nth-child(6),
-.creator-table td:nth-child(6) { width: 90px; }   /* GMV */
-.creator-table th:nth-child(7),
-.creator-table td:nth-child(7) { width: 90px; }   /* Samples */
-.creator-table th:nth-child(8),
-.creator-table td:nth-child(8) { width: 90px; }   /* Videos */
-
-/* Outreach mode column widths (with checkbox as first column) */
+/* Checkbox column width (shared) */
 .creator-table th.col-checkbox,
-.creator-table td.col-checkbox { width: 40px; }   /* Checkbox */
+.creator-table td.col-checkbox { width: 40px; min-width: 40px; }
 
-/* When checkbox is present, shift all other columns by 1 */
-.creator-table.has-checkbox th:nth-child(2),
-.creator-table.has-checkbox td:nth-child(2) { width: 140px; }  /* Username */
-.creator-table.has-checkbox th:nth-child(3),
-.creator-table.has-checkbox td:nth-child(3) { width: 160px; }  /* Name */
-.creator-table.has-checkbox th:nth-child(4),
-.creator-table.has-checkbox td:nth-child(4) { width: 180px; }  /* Email */
-.creator-table.has-checkbox th:nth-child(5),
-.creator-table.has-checkbox td:nth-child(5) { width: 120px; }  /* Phone */
-.creator-table.has-checkbox th:nth-child(6),
-.creator-table.has-checkbox td:nth-child(6) { width: 100px; }  /* SMS Consent */
-.creator-table.has-checkbox th:nth-child(7),
-.creator-table.has-checkbox td:nth-child(7) { width: 100px; }  /* Status */
-.creator-table.has-checkbox th:nth-child(8),
-.creator-table.has-checkbox td:nth-child(8) { width: 130px; }  /* Added */
-.creator-table.has-checkbox th:nth-child(9),
-.creator-table.has-checkbox td:nth-child(9) { width: 130px; }  /* Sent (when visible) */
+/* =============================================================================
+   CRM MODE - with checkbox (default now)
+   Columns: Checkbox, Username, Name, Email, Phone, Tags, Followers, GMV, Samples, Videos
+   ============================================================================= */
+.creator-table.mode-crm th:nth-child(1),
+.creator-table.mode-crm td:nth-child(1) { width: 40px; }   /* Checkbox */
+.creator-table.mode-crm th:nth-child(2),
+.creator-table.mode-crm td:nth-child(2) { width: 130px; }  /* Username */
+.creator-table.mode-crm th:nth-child(3),
+.creator-table.mode-crm td:nth-child(3) { width: 130px; }  /* Name */
+.creator-table.mode-crm th:nth-child(4),
+.creator-table.mode-crm td:nth-child(4) { width: 170px; }  /* Email */
+.creator-table.mode-crm th:nth-child(5),
+.creator-table.mode-crm td:nth-child(5) { width: 115px; }  /* Phone */
+.creator-table.mode-crm th:nth-child(6),
+.creator-table.mode-crm td:nth-child(6) { width: 100px; }  /* Tags */
+.creator-table.mode-crm th:nth-child(7),
+.creator-table.mode-crm td:nth-child(7) { width: 100px; }  /* Followers */
+.creator-table.mode-crm th:nth-child(8),
+.creator-table.mode-crm td:nth-child(8) { width: 80px; }   /* GMV */
+.creator-table.mode-crm th:nth-child(9),
+.creator-table.mode-crm td:nth-child(9) { width: 80px; }   /* Samples */
+.creator-table.mode-crm th:nth-child(10),
+.creator-table.mode-crm td:nth-child(10) { width: 80px; }  /* Videos */
+
+/* =============================================================================
+   OUTREACH MODE - with checkbox (pending status)
+   Columns: Checkbox, Username, Name, Email, Phone, SMS Consent, Status, Added, [Sent]
+   ============================================================================= */
+.creator-table.mode-outreach.has-checkbox th:nth-child(1),
+.creator-table.mode-outreach.has-checkbox td:nth-child(1) { width: 40px; }   /* Checkbox */
+.creator-table.mode-outreach.has-checkbox th:nth-child(2),
+.creator-table.mode-outreach.has-checkbox td:nth-child(2) { width: 140px; }  /* Username */
+.creator-table.mode-outreach.has-checkbox th:nth-child(3),
+.creator-table.mode-outreach.has-checkbox td:nth-child(3) { width: 160px; }  /* Name */
+.creator-table.mode-outreach.has-checkbox th:nth-child(4),
+.creator-table.mode-outreach.has-checkbox td:nth-child(4) { width: 180px; }  /* Email */
+.creator-table.mode-outreach.has-checkbox th:nth-child(5),
+.creator-table.mode-outreach.has-checkbox td:nth-child(5) { width: 120px; }  /* Phone */
+.creator-table.mode-outreach.has-checkbox th:nth-child(6),
+.creator-table.mode-outreach.has-checkbox td:nth-child(6) { width: 100px; }  /* SMS Consent */
+.creator-table.mode-outreach.has-checkbox th:nth-child(7),
+.creator-table.mode-outreach.has-checkbox td:nth-child(7) { width: 100px; }  /* Status */
+.creator-table.mode-outreach.has-checkbox th:nth-child(8),
+.creator-table.mode-outreach.has-checkbox td:nth-child(8) { width: 130px; }  /* Added */
+.creator-table.mode-outreach.has-checkbox th:nth-child(9),
+.creator-table.mode-outreach.has-checkbox td:nth-child(9) { width: 130px; }  /* Sent (when visible) */
+
+/* =============================================================================
+   OUTREACH MODE - without checkbox (sent/skipped status)
+   Columns: Username, Name, Email, Phone, SMS Consent, Status, Added, [Sent]
+   ============================================================================= */
+.creator-table.mode-outreach:not(.has-checkbox) th:nth-child(1),
+.creator-table.mode-outreach:not(.has-checkbox) td:nth-child(1) { width: 140px; }  /* Username */
+.creator-table.mode-outreach:not(.has-checkbox) th:nth-child(2),
+.creator-table.mode-outreach:not(.has-checkbox) td:nth-child(2) { width: 160px; }  /* Name */
+.creator-table.mode-outreach:not(.has-checkbox) th:nth-child(3),
+.creator-table.mode-outreach:not(.has-checkbox) td:nth-child(3) { width: 180px; }  /* Email */
+.creator-table.mode-outreach:not(.has-checkbox) th:nth-child(4),
+.creator-table.mode-outreach:not(.has-checkbox) td:nth-child(4) { width: 120px; }  /* Phone */
+.creator-table.mode-outreach:not(.has-checkbox) th:nth-child(5),
+.creator-table.mode-outreach:not(.has-checkbox) td:nth-child(5) { width: 100px; }  /* SMS Consent */
+.creator-table.mode-outreach:not(.has-checkbox) th:nth-child(6),
+.creator-table.mode-outreach:not(.has-checkbox) td:nth-child(6) { width: 100px; }  /* Status */
+.creator-table.mode-outreach:not(.has-checkbox) th:nth-child(7),
+.creator-table.mode-outreach:not(.has-checkbox) td:nth-child(7) { width: 130px; }  /* Added */
+.creator-table.mode-outreach:not(.has-checkbox) th:nth-child(8),
+.creator-table.mode-outreach:not(.has-checkbox) td:nth-child(8) { width: 130px; }  /* Sent (when visible) */
 
 /* Sortable headers */
 .sortable-header {

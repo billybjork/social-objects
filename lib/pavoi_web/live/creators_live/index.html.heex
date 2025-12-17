@@ -39,59 +39,82 @@
     </div>
 
     <div class="page-header__right">
+      <%= if @view_mode == "crm" do %>
+        <%= if MapSet.size(@selected_ids) > 0 do %>
+          <%!-- Bulk Actions (inline, replaces tag filter when items selected) --%>
+          <div class="bulk-actions-inline">
+            <span class="bulk-actions__count">{MapSet.size(@selected_ids)} selected</span>
+            <.button variant="outline" size="sm" phx-click="deselect_all">
+              Clear
+            </.button>
+            <.button variant="primary" size="sm" phx-click="show_batch_tag_picker">Add Tags</.button>
+          </div>
+        <% else %>
+          <%!-- Tag Filter (only when no items selected) --%>
+          <.tag_filter
+            available_tags={@available_tags}
+            selected_tag_ids={@filter_tag_ids}
+            open={@show_tag_filter}
+          />
+        <% end %>
+      <% end %>
+
       <%!-- Outreach Status Filters (inline, only in outreach mode) --%>
       <%= if @view_mode == "outreach" do %>
-        <div class="filter-tabs filter-tabs--inline">
-          <button
-            type="button"
-            class={[
-              "filter-tab filter-tab--compact",
-              @outreach_status == "pending" && "filter-tab--active"
-            ]}
-            phx-click="change_outreach_status"
-            phx-value-status="pending"
-          >
-            Pending <span class="filter-tab__badge">{@outreach_stats.pending}</span>
-          </button>
-          <button
-            type="button"
-            class={[
-              "filter-tab filter-tab--compact",
-              @outreach_status == "sent" && "filter-tab--active"
-            ]}
-            phx-click="change_outreach_status"
-            phx-value-status="sent"
-          >
-            Sent <span class="filter-tab__badge">{@outreach_stats.sent}</span>
-          </button>
-          <button
-            type="button"
-            class={[
-              "filter-tab filter-tab--compact",
-              @outreach_status == "skipped" && "filter-tab--active"
-            ]}
-            phx-click="change_outreach_status"
-            phx-value-status="skipped"
-          >
-            Skipped <span class="filter-tab__badge">{@outreach_stats.skipped}</span>
-          </button>
-        </div>
+        <%= if @outreach_status == "pending" and MapSet.size(@selected_ids) > 0 do %>
+          <%!-- Bulk Actions for Outreach --%>
+          <div class="bulk-actions-inline">
+            <span class="bulk-actions__count">{MapSet.size(@selected_ids)} selected</span>
+            <.button variant="outline" size="sm" phx-click="deselect_all">
+              Clear
+            </.button>
+            <.button variant="outline" size="sm" phx-click="skip_selected">
+              Skip
+            </.button>
+            <.button variant="primary" size="sm" phx-click="show_send_modal">
+              Send Welcome
+            </.button>
+          </div>
+        <% else %>
+          <div class="filter-tabs filter-tabs--inline">
+            <button
+              type="button"
+              class={[
+                "filter-tab filter-tab--compact",
+                @outreach_status == "pending" && "filter-tab--active"
+              ]}
+              phx-click="change_outreach_status"
+              phx-value-status="pending"
+            >
+              Pending <span class="filter-tab__badge">{@outreach_stats.pending}</span>
+            </button>
+            <button
+              type="button"
+              class={[
+                "filter-tab filter-tab--compact",
+                @outreach_status == "sent" && "filter-tab--active"
+              ]}
+              phx-click="change_outreach_status"
+              phx-value-status="sent"
+            >
+              Sent <span class="filter-tab__badge">{@outreach_stats.sent}</span>
+            </button>
+            <button
+              type="button"
+              class={[
+                "filter-tab filter-tab--compact",
+                @outreach_status == "skipped" && "filter-tab--active"
+              ]}
+              phx-click="change_outreach_status"
+              phx-value-status="skipped"
+            >
+              Skipped <span class="filter-tab__badge">{@outreach_stats.skipped}</span>
+            </button>
+          </div>
+        <% end %>
       <% end %>
     </div>
   </div>
-
-  <%!-- Bulk Actions Bar (when items selected in outreach mode) --%>
-  <%= if @view_mode == "outreach" and @outreach_status == "pending" and MapSet.size(@selected_ids) > 0 do %>
-    <div class="bulk-actions-bar">
-      <span class="bulk-actions__count">{MapSet.size(@selected_ids)} selected</span>
-      <.button variant="outline" size="sm" phx-click="skip_selected">
-        Skip
-      </.button>
-      <.button variant="primary" size="sm" phx-click="show_send_modal">
-        Send Welcome
-      </.button>
-    </div>
-  <% end %>
 
   <%!-- Content Area --%>
   <%= if Enum.empty?(@creators) do %>
@@ -215,3 +238,27 @@
   editing_contact={@editing_contact}
   contact_form={@contact_form}
 />
+
+<%!-- Tag Picker (rendered at page level to avoid table overflow clipping) --%>
+<%= if @tag_picker_open_for do %>
+  <div id="tag-picker-container" class="tag-picker-container" phx-hook="TagPickerPosition">
+    <.tag_picker
+      creator_id={@tag_picker_open_for}
+      available_tags={@available_tags}
+      selected_tag_ids={@picker_selected_tag_ids}
+      search_query={@tag_search_query}
+      new_tag_color={@new_tag_color}
+    />
+  </div>
+<% end %>
+
+<%!-- Batch Tag Picker Modal --%>
+<%= if @show_batch_tag_picker do %>
+  <.modal id="batch-tag-modal" show={true} on_cancel={JS.push("close_batch_tag_picker")}>
+    <.batch_tag_picker
+      available_tags={@available_tags}
+      selected_tag_ids={@batch_selected_tag_ids}
+      creator_count={MapSet.size(@selected_ids)}
+    />
+  </.modal>
+<% end %>

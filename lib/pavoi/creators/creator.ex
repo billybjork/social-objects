@@ -46,7 +46,6 @@ defmodule Pavoi.Creators.Creator do
 
     # Internal classification
     field :is_whitelisted, :boolean, default: false
-    field :tags, {:array, :string}, default: []
     field :notes, :string
 
     # Current metrics
@@ -67,6 +66,8 @@ defmodule Pavoi.Creators.Creator do
     has_many :creator_videos, Pavoi.Creators.CreatorVideo
     has_many :performance_snapshots, Pavoi.Creators.CreatorPerformanceSnapshot
     has_many :outreach_logs, Pavoi.Outreach.OutreachLog
+    has_many :tag_assignments, Pavoi.Creators.CreatorTagAssignment
+    many_to_many :creator_tags, Pavoi.Creators.CreatorTag, join_through: "creator_tag_assignments"
 
     timestamps()
   end
@@ -91,7 +92,6 @@ defmodule Pavoi.Creators.Creator do
       :country,
       :tiktok_badge_level,
       :is_whitelisted,
-      :tags,
       :notes,
       :follower_count,
       :total_gmv_cents,

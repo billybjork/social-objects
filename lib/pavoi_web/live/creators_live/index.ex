@@ -11,6 +11,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
 
   on_mount {PavoiWeb.NavHooks, :set_current_page}
 
+  alias Pavoi.Catalog
   alias Pavoi.Creators
   alias Pavoi.Creators.Creator
   alias Pavoi.Outreach
@@ -32,6 +33,11 @@ defmodule PavoiWeb.CreatorsLive.Index do
     bigquery_last_sync_at = Settings.get_bigquery_last_sync_at()
     bigquery_syncing = sync_job_active?(BigQueryOrderSyncWorker)
     features = Application.get_env(:pavoi, :features, [])
+
+    # Get the PAVOI brand for tag operations
+    pavoi_brand = Catalog.get_brand_by_slug("pavoi")
+    brand_id = if pavoi_brand, do: pavoi_brand.id, else: nil
+    available_tags = if brand_id, do: Creators.list_tags_for_brand(brand_id), else: []
 
     socket =
       socket
@@ -63,6 +69,17 @@ defmodule PavoiWeb.CreatorsLive.Index do
       # Sync state
       |> assign(:bigquery_syncing, bigquery_syncing)
       |> assign(:bigquery_last_sync_at, bigquery_last_sync_at)
+      # Tag state
+      |> assign(:brand_id, brand_id)
+      |> assign(:available_tags, available_tags)
+      |> assign(:filter_tag_ids, [])
+      |> assign(:tag_picker_open_for, nil)
+      |> assign(:tag_search_query, "")
+      |> assign(:new_tag_color, "gray")
+      |> assign(:show_tag_filter, false)
+      |> assign(:show_batch_tag_picker, false)
+      |> assign(:picker_selected_tag_ids, [])
+      |> assign(:batch_selected_tag_ids, [])
 
     {:ok, socket}
   end
@@ -301,6 +318,289 @@ defmodule PavoiWeb.CreatorsLive.Index do
   end
 
   # =============================================================================
+  # TAG MANAGEMENT EVENT HANDLERS
+  # =============================================================================
+
+  @impl true
+  @tag_colors ~w(amber blue green red purple gray)
+
+  def handle_event("open_tag_picker", %{"creator-id" => creator_id}, socket) do
+    creator_id = String.to_integer(creator_id)
+    selected_tag_ids = Creators.get_tag_ids_for_creator(creator_id)
+    random_color = Enum.random(@tag_colors)
+
+    socket =
+      socket
+      |> assign(:tag_picker_open_for, creator_id)
+      |> assign(:tag_search_query, "")
+      |> assign(:creating_tag, false)
+      |> assign(:new_tag_color, random_color)
+      |> assign(:picker_selected_tag_ids, selected_tag_ids)
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("close_tag_picker", _params, socket) do
+    socket =
+      socket
+      |> assign(:tag_picker_open_for, nil)
+      |> assign(:tag_search_query, "")
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("noop", _params, socket), do: {:noreply, socket}
+
+  @impl true
+  def handle_event("search_tags", %{"value" => query}, socket) do
+    {:noreply, assign(socket, :tag_search_query, query)}
+  end
+
+  @impl true
+  def handle_event("tag_picker_enter", _params, socket) do
+    query = String.trim(socket.assigns.tag_search_query || "")
+    creator_id = socket.assigns.tag_picker_open_for
+
+    # Only create if there's text and no exact match exists
+    if query != "" && creator_id do
+      available_tags = socket.assigns.available_tags
+      exact_match = Enum.find(available_tags, fn tag ->
+        String.downcase(tag.name) == String.downcase(query)
+      end)
+
+      if exact_match do
+        # If exact match exists, assign that tag
+        Creators.assign_tag_to_creator(creator_id, exact_match.id)
+        selected_tag_ids = [exact_match.id | (socket.assigns[:picker_selected_tag_ids] || [])]
+
+        socket =
+          socket
+          |> assign(:tag_search_query, "")
+          |> assign(:picker_selected_tag_ids, Enum.uniq(selected_tag_ids))
+          |> assign(:tag_picker_open_for, nil)
+          |> reload_creator_tags(creator_id)
+
+        {:noreply, socket}
+      else
+        # Create new tag - reuse quick_create_tag logic
+        params = %{
+          "name" => query,
+          "creator-id" => to_string(creator_id),
+          "color" => socket.assigns.new_tag_color
+        }
+        handle_event("quick_create_tag", params, socket)
+      end
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("toggle_tag", %{"creator-id" => creator_id, "tag-id" => tag_id}, socket) do
+    creator_id = String.to_integer(creator_id)
+    selected_tag_ids = socket.assigns[:picker_selected_tag_ids] || []
+
+    if tag_id in selected_tag_ids do
+      Creators.remove_tag_from_creator(creator_id, tag_id)
+    else
+      Creators.assign_tag_to_creator(creator_id, tag_id)
+    end
+
+    socket =
+      socket
+      |> assign(:tag_picker_open_for, nil)
+      |> assign(:tag_search_query, "")
+      |> reload_creator_tags(creator_id)
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("select_new_tag_color", %{"color" => color}, socket) do
+    {:noreply, assign(socket, :new_tag_color, color)}
+  end
+
+  @impl true
+  def handle_event("quick_create_tag", %{"name" => name, "creator-id" => creator_id} = params, socket) do
+    creator_id = String.to_integer(creator_id)
+    brand_id = socket.assigns.brand_id
+    color = Map.get(params, "color", socket.assigns.new_tag_color)
+
+    attrs = %{
+      name: String.trim(name),
+      color: color,
+      brand_id: brand_id
+    }
+
+    case Creators.create_tag(attrs) do
+      {:ok, tag} ->
+        # Assign the new tag to the creator
+        Creators.assign_tag_to_creator(creator_id, tag.id)
+
+        # Refresh available tags
+        available_tags = Creators.list_tags_for_brand(brand_id)
+        selected_tag_ids = [tag.id | (socket.assigns[:picker_selected_tag_ids] || [])]
+
+        socket =
+          socket
+          |> assign(:available_tags, available_tags)
+          |> assign(:tag_search_query, "")
+          |> assign(:picker_selected_tag_ids, selected_tag_ids)
+          |> assign(:tag_picker_open_for, nil)
+          |> reload_creator_tags(creator_id)
+
+        {:noreply, socket}
+
+      {:error, changeset} ->
+        error_msg =
+          Ecto.Changeset.traverse_errors(changeset, fn {msg, _opts} -> msg end)
+          |> Enum.map_join(", ", fn {field, msgs} -> "#{field}: #{Enum.join(msgs, ", ")}" end)
+
+        {:noreply, put_flash(socket, :error, "Failed to create tag: #{error_msg}")}
+    end
+  end
+
+  @impl true
+  def handle_event("delete_tag", %{"tag-id" => tag_id}, socket) do
+    count = Creators.count_creators_for_tag(tag_id)
+
+    message =
+      case count do
+        0 -> "Are you sure you want to delete this tag?"
+        1 -> "This tag is currently applied to 1 creator. Are you sure you want to delete it?"
+        n -> "This tag is currently applied to #{n} creators. Are you sure you want to delete it?"
+      end
+
+    {:noreply, push_event(socket, "confirm_delete_tag", %{tag_id: tag_id, message: message})}
+  end
+
+  @impl true
+  def handle_event("confirm_delete_tag", %{"tag_id" => tag_id}, socket) do
+    brand_id = socket.assigns.brand_id
+
+    case Creators.get_tag(tag_id) do
+      nil ->
+        {:noreply, put_flash(socket, :error, "Tag not found")}
+
+      tag ->
+        case Creators.delete_tag(tag) do
+          {:ok, _} ->
+            available_tags = Creators.list_tags_for_brand(brand_id)
+
+            # Remove from filter if it was selected
+            new_filter_ids = Enum.reject(socket.assigns.filter_tag_ids, &(&1 == tag_id))
+            new_picker_ids = Enum.reject(socket.assigns.picker_selected_tag_ids || [], &(&1 == tag_id))
+
+            socket =
+              socket
+              |> assign(:available_tags, available_tags)
+              |> assign(:filter_tag_ids, new_filter_ids)
+              |> assign(:picker_selected_tag_ids, new_picker_ids)
+              |> put_flash(:info, "Tag deleted")
+              |> load_creators()
+
+            {:noreply, socket}
+
+          {:error, _} ->
+            {:noreply, put_flash(socket, :error, "Failed to delete tag")}
+        end
+    end
+  end
+
+  # Tag filter handlers
+  @impl true
+  def handle_event("toggle_tag_filter", _params, socket) do
+    {:noreply, assign(socket, :show_tag_filter, !socket.assigns.show_tag_filter)}
+  end
+
+  @impl true
+  def handle_event("close_tag_filter", _params, socket) do
+    {:noreply, assign(socket, :show_tag_filter, false)}
+  end
+
+  @impl true
+  def handle_event("toggle_filter_tag", %{"tag-id" => tag_id}, socket) do
+    current = socket.assigns.filter_tag_ids
+
+    new_filter_ids =
+      if tag_id in current do
+        Enum.reject(current, &(&1 == tag_id))
+      else
+        [tag_id | current]
+      end
+
+    params = build_query_params(socket, filter_tag_ids: new_filter_ids, page: 1)
+    {:noreply, push_patch(socket, to: ~p"/creators?#{params}")}
+  end
+
+  @impl true
+  def handle_event("clear_tag_filter", _params, socket) do
+    params = build_query_params(socket, filter_tag_ids: [], page: 1)
+    socket = assign(socket, :show_tag_filter, false)
+    {:noreply, push_patch(socket, to: ~p"/creators?#{params}")}
+  end
+
+  # Batch tag handlers
+  @impl true
+  def handle_event("show_batch_tag_picker", _params, socket) do
+    if MapSet.size(socket.assigns.selected_ids) > 0 do
+      socket =
+        socket
+        |> assign(:show_batch_tag_picker, true)
+        |> assign(:batch_selected_tag_ids, [])
+
+      {:noreply, socket}
+    else
+      {:noreply, put_flash(socket, :error, "Please select at least one creator")}
+    end
+  end
+
+  @impl true
+  def handle_event("close_batch_tag_picker", _params, socket) do
+    socket =
+      socket
+      |> assign(:show_batch_tag_picker, false)
+      |> assign(:batch_selected_tag_ids, [])
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("toggle_batch_tag", %{"tag-id" => tag_id}, socket) do
+    # tag_id is a UUID string, keep as-is
+    current_ids = socket.assigns.batch_selected_tag_ids
+
+    new_ids =
+      if tag_id in current_ids do
+        List.delete(current_ids, tag_id)
+      else
+        [tag_id | current_ids]
+      end
+
+    {:noreply, assign(socket, :batch_selected_tag_ids, new_ids)}
+  end
+
+  @impl true
+  def handle_event("apply_batch_tags", _params, socket) do
+    creator_ids = MapSet.to_list(socket.assigns.selected_ids)
+    tag_ids = socket.assigns.batch_selected_tag_ids
+    {:ok, count} = Creators.batch_assign_tags(creator_ids, tag_ids)
+
+    socket =
+      socket
+      |> assign(:show_batch_tag_picker, false)
+      |> assign(:batch_selected_tag_ids, [])
+      |> assign(:selected_ids, MapSet.new())
+      |> assign(:page, 1)
+      |> load_creators()
+      |> put_flash(:info, "Added #{count} tag assignments to #{length(creator_ids)} creators")
+
+    {:noreply, socket}
+  end
+
+  # =============================================================================
   # INFINITE SCROLL IMPLEMENTATION
   # =============================================================================
   #
@@ -335,6 +635,21 @@ defmodule PavoiWeb.CreatorsLive.Index do
     # The actual data loading happens in handle_info (Phase 2)
     send(self(), :load_more_creators)
     {:noreply, assign(socket, :loading_creators, true)}
+  end
+
+  defp reload_creator_tags(socket, creator_id) do
+    # Update the creator in the list with refreshed tags
+    creators =
+      Enum.map(socket.assigns.creators, fn creator ->
+        if creator.id == creator_id do
+          tags = Creators.list_tags_for_creator(creator_id, socket.assigns.brand_id)
+          Map.put(creator, :creator_tags, tags)
+        else
+          creator
+        end
+      end)
+
+    assign(socket, :creators, creators)
   end
 
   # BigQuery sync PubSub handlers
@@ -421,6 +736,17 @@ defmodule PavoiWeb.CreatorsLive.Index do
     |> assign(:view_mode, view_mode)
     |> assign(:outreach_status, params["status"] || "pending")
     |> assign(:selected_ids, MapSet.new())
+    |> assign(:filter_tag_ids, parse_tag_ids(params["tags"]))
+  end
+
+  defp parse_tag_ids(nil), do: []
+  defp parse_tag_ids(""), do: []
+
+  defp parse_tag_ids(tags_string) do
+    tags_string
+    |> String.split(",")
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
   end
 
   defp default_sort("outreach"), do: nil
@@ -445,7 +771,9 @@ defmodule PavoiWeb.CreatorsLive.Index do
       sort_by: sort_by,
       sort_dir: sort_dir,
       page: page,
-      per_page: per_page
+      per_page: per_page,
+      filter_tag_ids: filter_tag_ids,
+      brand_id: brand_id
     } = socket.assigns
 
     opts =
@@ -454,22 +782,27 @@ defmodule PavoiWeb.CreatorsLive.Index do
       |> maybe_add_opt(:badge_level, badge_filter)
       |> maybe_add_opt(:sort_by, sort_by)
       |> maybe_add_opt(:sort_dir, sort_dir)
+      |> maybe_add_tag_filter(filter_tag_ids)
 
     result = Creators.search_creators_paginated(opts)
 
-    # Add sample counts to each creator
-    creators_with_counts =
+    # Add sample counts and tags to each creator
+    creators_with_data =
       Enum.map(result.creators, fn creator ->
         sample_count = Creators.count_samples_for_creator(creator.id)
-        Map.put(creator, :sample_count, sample_count)
+        creator_tags = Creators.list_tags_for_creator(creator.id, brand_id)
+
+        creator
+        |> Map.put(:sample_count, sample_count)
+        |> Map.put(:creator_tags, creator_tags)
       end)
 
     # If loading more (page > 1), append to existing
     creators =
       if page > 1 do
-        socket.assigns.creators ++ creators_with_counts
+        socket.assigns.creators ++ creators_with_data
       else
-        creators_with_counts
+        creators_with_data
       end
 
     socket
@@ -478,6 +811,9 @@ defmodule PavoiWeb.CreatorsLive.Index do
     |> assign(:total, result.total)
     |> assign(:has_more, result.has_more)
   end
+
+  defp maybe_add_tag_filter(opts, []), do: opts
+  defp maybe_add_tag_filter(opts, tag_ids), do: Keyword.put(opts, :tag_ids, tag_ids)
 
   defp load_outreach_creators(socket) do
     %{
@@ -539,7 +875,8 @@ defmodule PavoiWeb.CreatorsLive.Index do
     creator_id: :c,
     tab: :tab,
     view_mode: :view,
-    outreach_status: :status
+    outreach_status: :status,
+    filter_tag_ids: :tags
   }
 
   defp build_query_params(socket, overrides) do
@@ -552,15 +889,26 @@ defmodule PavoiWeb.CreatorsLive.Index do
       c: get_creator_id(socket.assigns.selected_creator),
       tab: socket.assigns.active_tab,
       view: socket.assigns.view_mode,
-      status: socket.assigns.outreach_status
+      status: socket.assigns.outreach_status,
+      tags: format_tag_ids(socket.assigns.filter_tag_ids)
     }
 
     overrides
     |> Enum.reduce(base, fn {key, value}, acc ->
+      value =
+        if key == :filter_tag_ids do
+          format_tag_ids(value)
+        else
+          value
+        end
+
       Map.put(acc, Map.fetch!(@override_key_mapping, key), value)
     end)
     |> reject_default_values()
   end
+
+  defp format_tag_ids([]), do: nil
+  defp format_tag_ids(tag_ids), do: Enum.join(tag_ids, ",")
 
   defp get_creator_id(nil), do: nil
   defp get_creator_id(creator), do: creator.id
