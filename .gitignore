@@ -37,15 +37,16 @@ Temporary Items
 /_build/
 /deps/
 /*.ez
-/priv/static/
+# Ignore generated static files but keep source assets
+/priv/static/*
 !/priv/static/favicon.ico
+!/priv/static/robots.txt
 !/priv/static/images/
 /priv/static/images/*
 !/priv/static/images/logo-light.svg
 !/priv/static/images/logo-dark.svg
 !/priv/static/images/favicon-16x16.png
 !/priv/static/images/favicon-32x32.png
-/priv/static/assets/
 /priv/plts/
 erl_crash.dump
 *.beam

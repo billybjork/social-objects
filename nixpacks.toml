@@ -14,7 +14,7 @@ cmds = [
   "mix assets.deploy",
   "mix compile",
   "mix release",
-  "find _build/prod/rel/pavoi/lib -name 'priv' -type d -path '*/pavoi-*/priv' -exec cp -rf priv/static/. {}/static/ \\;"
+  "for d in _build/prod/rel/pavoi/lib/pavoi-*/priv; do mkdir -p \"$d/static\" && cp -rf priv/static/. \"$d/static/\"; done"
 ]
 
 [start]
