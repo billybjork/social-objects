@@ -19,6 +19,8 @@ defmodule Pavoi.Application do
       {Registry, keys: :unique, name: Pavoi.TiktokLive.Registry},
       # TikTok Bridge WebSocket client (singleton, receives all stream events)
       Pavoi.TiktokLive.BridgeClient,
+      # TikTok Bridge health monitor (checks bridge service health periodically)
+      Pavoi.TiktokLive.BridgeHealthMonitor,
       # Start Oban for background job processing
       {Oban, Application.fetch_env!(:pavoi, Oban)},
       # Start to serve requests, typically the last entry
@@ -28,7 +30,17 @@ defmodule Pavoi.Application do
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: Pavoi.Supervisor]
-    Supervisor.start_link(children, opts)
+    result = Supervisor.start_link(children, opts)
+
+    # Run stream reconciliation after startup
+    # This marks any orphaned "capturing" streams as ended
+    spawn(fn ->
+      # Give the app a moment to fully start
+      Process.sleep(5_000)
+      Pavoi.TiktokLive.StreamReconciler.run()
+    end)
+
+    result
   end
 
   # Tell Phoenix to update the endpoint configuration

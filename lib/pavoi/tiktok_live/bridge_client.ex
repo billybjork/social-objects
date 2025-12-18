@@ -34,6 +34,8 @@ defmodule Pavoi.TiktokLive.BridgeClient do
   @reconnect_delay_ms 3_000
   @max_reconnect_attempts 10
   @heartbeat_interval_ms 15_000
+  # If no events received for this long, consider connection stale
+  @stale_connection_threshold_ms 120_000
 
   defmodule State do
     @moduledoc false
@@ -215,9 +217,27 @@ defmodule Pavoi.TiktokLive.BridgeClient do
 
   @impl WebSockex
   def handle_info(:heartbeat, state) do
-    # Send a ping frame to keep connection alive and detect dead connections
-    heartbeat_ref = Process.send_after(self(), :heartbeat, @heartbeat_interval_ms)
-    {:reply, {:ping, ""}, %{state | heartbeat_ref: heartbeat_ref}}
+    # Check for stale connection (no events received recently)
+    if state.last_event_at do
+      ms_since_last_event = DateTime.diff(DateTime.utc_now(), state.last_event_at, :millisecond)
+
+      if ms_since_last_event > @stale_connection_threshold_ms do
+        Logger.warning(
+          "No events received for #{div(ms_since_last_event, 1000)}s, forcing reconnect"
+        )
+
+        # Close connection to trigger reconnect
+        {:close, {1000, "Stale connection"}, state}
+      else
+        # Send a ping frame to keep connection alive
+        heartbeat_ref = Process.send_after(self(), :heartbeat, @heartbeat_interval_ms)
+        {:reply, {:ping, ""}, %{state | heartbeat_ref: heartbeat_ref}}
+      end
+    else
+      # No events yet, just send ping
+      heartbeat_ref = Process.send_after(self(), :heartbeat, @heartbeat_interval_ms)
+      {:reply, {:ping, ""}, %{state | heartbeat_ref: heartbeat_ref}}
+    end
   end
 
   @impl WebSockex
@@ -242,8 +262,9 @@ defmodule Pavoi.TiktokLive.BridgeClient do
       {:reconnect, state.bridge_url,
        %{state | reconnect_attempts: state.reconnect_attempts + 1, heartbeat_ref: nil}}
     else
-      Logger.error("Max reconnection attempts reached for TikTok Bridge")
-      {:ok, state}
+      # Crash to trigger supervisor restart with fresh state
+      Logger.error("Max reconnection attempts reached, crashing to trigger supervisor restart")
+      {:close, {1000, "Max reconnection attempts reached"}, state}
     end
   end
 

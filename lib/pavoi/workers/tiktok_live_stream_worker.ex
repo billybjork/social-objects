@@ -23,8 +23,8 @@ defmodule Pavoi.Workers.TiktokLiveStreamWorker do
   alias Pavoi.Repo
   alias Pavoi.TiktokLive.{BridgeClient, EventHandler, Stream}
 
-  # Check stream status every 5 minutes
-  @status_check_interval_seconds 300
+  # Check stream status every 1 minute
+  @status_check_interval_seconds 60
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"stream_id" => stream_id, "unique_id" => unique_id}}) do
