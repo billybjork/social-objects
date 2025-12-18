@@ -69,7 +69,13 @@ defmodule Pavoi.Workers.TiktokLiveMonitorWorker do
         start_capture(unique_id, room_id, room_info)
 
       stream ->
-        Logger.debug("Already capturing stream #{stream.id} for room #{room_id}")
+        # Check if the capture is actually healthy (receiving events)
+        if capture_healthy?(stream) do
+          Logger.debug("Already capturing stream #{stream.id} for room #{room_id}")
+        else
+          Logger.warning("Stream #{stream.id} capture appears stale, restarting worker")
+          restart_stale_capture(stream, unique_id)
+        end
     end
   end
 
@@ -136,6 +142,42 @@ defmodule Pavoi.Workers.TiktokLiveMonitorWorker do
       limit: 1
     )
     |> Repo.one()
+  end
+
+  # Check if a capture is receiving events (stats updated within last 5 minutes)
+  defp capture_healthy?(stream) do
+    import Ecto.Query
+    alias Pavoi.TiktokLive.StreamStat
+
+    cutoff = DateTime.utc_now() |> DateTime.add(-5, :minute)
+
+    recent_stat =
+      from(s in StreamStat,
+        where: s.stream_id == ^stream.id and s.recorded_at > ^cutoff,
+        limit: 1
+      )
+      |> Repo.one()
+
+    recent_stat != nil
+  end
+
+  # Restart a stale capture by re-enqueuing the worker
+  defp restart_stale_capture(stream, unique_id) do
+    # Cancel any existing scheduled/available jobs for this stream
+    import Ecto.Query
+
+    Oban.Job
+    |> where([j], j.worker == "Pavoi.Workers.TiktokLiveStreamWorker")
+    |> where([j], j.state in ["available", "scheduled"])
+    |> where([j], fragment("?->>'stream_id' = ?", j.args, ^to_string(stream.id)))
+    |> Repo.update_all(set: [state: "cancelled", cancelled_at: DateTime.utc_now()])
+
+    # Enqueue a fresh worker
+    %{stream_id: stream.id, unique_id: unique_id}
+    |> TiktokLiveStreamWorker.new()
+    |> Oban.insert()
+
+    Logger.info("Restarted capture worker for stream #{stream.id}")
   end
 
   defp monitored_accounts do
