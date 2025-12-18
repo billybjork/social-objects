@@ -42,6 +42,8 @@ config :pavoi, Oban,
   repo: Pavoi.Repo,
   plugins: [
     {Oban.Plugins.Pruner, max_age: 60 * 60 * 24 * 7},
+    # Rescue jobs stuck in "executing" state after deploy/crash (check every 30s, rescue after 60s)
+    {Oban.Plugins.Lifeline, rescue_after: :timer.seconds(60)},
     {Oban.Plugins.Cron,
      crontab: [
        # Sync products every 24 hours (at midnight UTC)

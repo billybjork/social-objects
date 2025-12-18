@@ -20,11 +20,20 @@ defmodule Pavoi.TiktokLive.StreamReconciler do
   Returns the number of streams that were reconciled.
   """
   def run do
+    # First, cancel any stale scheduled/executing jobs for TikTok streams
+    # These would have been left over from a previous deploy
+    cancelled = cancel_stale_stream_jobs()
+
+    if cancelled > 0 do
+      Logger.info("Stream reconciliation: cancelled #{cancelled} stale Oban jobs")
+    end
+
+    # Now find orphaned streams (those with no active jobs)
     orphaned_streams = find_orphaned_capturing_streams()
 
     if Enum.empty?(orphaned_streams) do
       Logger.debug("Stream reconciliation: no orphaned streams found")
-      0
+      cancelled
     else
       Logger.info("Stream reconciliation: found #{length(orphaned_streams)} orphaned streams")
 
@@ -32,7 +41,26 @@ defmodule Pavoi.TiktokLive.StreamReconciler do
         mark_stream_ended(stream)
       end)
 
-      length(orphaned_streams)
+      cancelled + length(orphaned_streams)
+    end
+  end
+
+  @doc """
+  Cancels stale Oban jobs for stream capture that were left over from a deploy.
+  Jobs in 'scheduled' or 'executing' state are considered stale on startup.
+  """
+  def cancel_stale_stream_jobs do
+    query = """
+    UPDATE oban_jobs
+    SET state = 'cancelled', cancelled_at = NOW()
+    WHERE worker = 'Pavoi.Workers.TiktokLiveStreamWorker'
+      AND state IN ('scheduled', 'executing')
+    RETURNING id
+    """
+
+    case Repo.query(query) do
+      {:ok, %{num_rows: count}} -> count
+      {:error, _} -> 0
     end
   end
 
