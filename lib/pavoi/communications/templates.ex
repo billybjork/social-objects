@@ -12,14 +12,22 @@ defmodule Pavoi.Communications.Templates do
   Returns the welcome email subject line.
   """
   def welcome_email_subject do
-    "Welcome to the Pavoi Creator Community!"
+    "Free Jewelry, Real Commissions - You're In"
   end
 
   @doc """
   Returns the welcome email HTML body.
   """
+  @brand_dark_green "#2E4042"
+  @brand_sage "#A9BDB6"
+  @brand_font "'Mier A', Georgia, 'Times New Roman', serif"
+
   def welcome_email_html(creator, lark_invite_url) do
     name = get_display_name(creator)
+    base_url = base_url()
+    logo_url = "#{base_url}/images/pavoi-logo-email.png"
+    font_url = "#{base_url}/fonts/MierA-Regular.woff"
+    font_bold_url = "#{base_url}/fonts/MierA-DemiBold.woff"
 
     """
     <!DOCTYPE html>
@@ -28,52 +36,74 @@ defmodule Pavoi.Communications.Templates do
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>Welcome to Pavoi</title>
+      <style>
+        @font-face {
+          font-family: 'Mier A';
+          font-style: normal;
+          font-weight: 400;
+          src: url('#{font_url}') format('woff');
+        }
+        @font-face {
+          font-family: 'Mier A';
+          font-style: normal;
+          font-weight: 600;
+          src: url('#{font_bold_url}') format('woff');
+        }
+      </style>
     </head>
-    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-      <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0;">
-        <h1 style="color: white; margin: 0; font-size: 28px;">Welcome, #{html_escape(name)}!</h1>
-      </div>
-
-      <div style="background: #fff; padding: 30px; border: 1px solid #e1e1e1; border-top: none; border-radius: 0 0 10px 10px;">
-        <p>Thank you for partnering with us on TikTok Shop! We're excited to have you as part of the Pavoi creator community.</p>
-
-        <p>We've created an exclusive community on Lark where you can:</p>
-
-        <ul style="padding-left: 20px;">
-          <li>Get early access to new products and exclusive samples</li>
-          <li>Connect with other creators and share tips</li>
-          <li>Receive direct support from our team</li>
-          <li>Stay updated on promotions and opportunities</li>
-        </ul>
-
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="#{html_escape(lark_invite_url)}"
-             style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
-            Join Our Lark Community
-          </a>
+    <body style="font-family: #{@brand_font}; line-height: 1.7; color: #{@brand_dark_green}; max-width: 600px; margin: 0 auto; padding: 0; background-color: #f8f8f8;">
+      <div style="background: #ffffff; margin: 20px;">
+        <!-- Header with Logo -->
+        <div style="text-align: center; padding: 40px 30px 30px;">
+          <img src="#{logo_url}" alt="PAVOI" width="160" style="display: inline-block; max-width: 160px; height: auto;">
         </div>
 
-        <p style="color: #666; font-size: 14px;">
-          <strong>New to Lark?</strong> Lark is a free collaboration app by ByteDance (TikTok's parent company).
-          Clicking the button above will guide you through creating an account if you don't have one.
-        </p>
+        <!-- Main Content -->
+        <div style="padding: 0 40px 40px;">
+          <h1 style="font-family: #{@brand_font}; color: #{@brand_dark_green}; margin: 0 0 30px; font-size: 26px; font-weight: normal; text-align: center; letter-spacing: 1px;">
+            Free Jewelry. Real Earnings.<br>You're In.
+          </h1>
 
-        <hr style="border: none; border-top: 1px solid #e1e1e1; margin: 30px 0;">
+          <p style="margin: 0 0 20px;">#{html_escape(greeting(name))}!</p>
 
-        <p style="color: #666; font-size: 14px;">
-          Questions? Reply to this email or reach out to us anytime.
-        </p>
+          <p style="margin: 0 0 20px;">You've been selected for the Pavoi Creator Program - and yes, that means <strong>free jewelry</strong> is coming your way.</p>
 
-        <p style="margin-bottom: 0;">
-          Best,<br>
-          The Pavoi Team
-        </p>
-      </div>
+          <p style="margin: 0 0 15px;"><strong>Here's what you get:</strong></p>
 
-      <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
-        <p style="margin: 0;">
-          You're receiving this email because you received a product sample from us on TikTok Shop.
-        </p>
+          <ul style="padding-left: 20px; margin: 0 0 25px;">
+            <li style="margin-bottom: 8px;"><strong>Free product samples</strong> shipped directly to you</li>
+            <li style="margin-bottom: 8px;"><strong>Earn commissions</strong> on every sale from your content</li>
+            <li style="margin-bottom: 8px;"><strong>First access</strong> to new drops before anyone else</li>
+            <li style="margin-bottom: 8px;"><strong>Direct line</strong> to our team for collabs and support</li>
+          </ul>
+
+          <p style="margin: 0 0 20px;"><strong>Ready to get started?</strong></p>
+
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="#{html_escape(lark_invite_url)}"
+               style="display: inline-block; background: #{@brand_dark_green}; color: #ffffff; padding: 16px 40px; text-decoration: none; font-size: 15px; letter-spacing: 1px; font-family: #{@brand_font};">
+              GET MY FREE SAMPLES
+            </a>
+          </div>
+
+          <p style="color: #666; font-size: 14px; margin: 30px 0 0; padding: 20px; background: #f9f9f9; border-left: 3px solid #{@brand_sage};">
+            This invite links to Lark - a free messaging app by ByteDance (TikTok's parent company). It takes 30 seconds to set up, and it's where we coordinate samples, share promo codes, and announce exclusive opportunities.
+          </p>
+
+          <div style="border-top: 1px solid #{@brand_sage}; margin-top: 35px; padding-top: 25px;">
+            <p style="margin: 0;">
+              Talk soon,<br>
+              <strong>The Pavoi Team</strong>
+            </p>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="text-align: center; padding: 20px 30px; background: #f9f9f9; border-top: 1px solid #eee;">
+          <p style="margin: 0; color: #888; font-size: 12px;">
+            You're receiving this email because you received a product sample from us on TikTok Shop.
+          </p>
+        </div>
       </div>
     </body>
     </html>
@@ -87,24 +117,24 @@ defmodule Pavoi.Communications.Templates do
     name = get_display_name(creator)
 
     """
-    Welcome, #{name}!
+    Free Jewelry. Real Earnings. You're In.
 
-    Thank you for partnering with us on TikTok Shop! We're excited to have you as part of the Pavoi creator community.
+    #{greeting(name)}!
 
-    We've created an exclusive community on Lark where you can:
-    - Get early access to new products and exclusive samples
-    - Connect with other creators and share tips
-    - Receive direct support from our team
-    - Stay updated on promotions and opportunities
+    You've been selected for the Pavoi Creator Program - and yes, that means free jewelry is coming your way.
 
-    Join our Lark community here:
+    Here's what you get:
+    - Free product samples shipped directly to you
+    - Earn commissions on every sale from your content
+    - First access to new drops before anyone else
+    - Direct line to our team for collabs and support
+
+    Ready to get started? Click here to get your free samples:
     #{lark_invite_url}
 
-    New to Lark? Lark is a free collaboration app by ByteDance (TikTok's parent company). Clicking the link above will guide you through creating an account if you don't have one.
+    This invite links to Lark - a free messaging app by ByteDance (the company behind TikTok). It takes 30 seconds to set up, and it's where we coordinate samples, share promo codes, and announce exclusive opportunities.
 
-    Questions? Reply to this email or reach out to us anytime.
-
-    Best,
+    Talk soon,
     The Pavoi Team
 
     ---
@@ -120,16 +150,30 @@ defmodule Pavoi.Communications.Templates do
   """
   def welcome_sms_body(creator, lark_invite_url) do
     name = get_display_name(creator)
+    hi = if name, do: "Hi #{name}!", else: "Hi!"
 
     # Keep it concise for SMS (under 160 chars if possible)
-    "Hi #{name}! Thanks for joining Pavoi as a creator. Join our exclusive Lark community for tips, early access & support: #{lark_invite_url}"
+    "#{hi} Thanks for joining Pavoi as a creator. Join our exclusive Lark community for tips, early access & support: #{lark_invite_url}"
   end
 
   # Private helpers
 
   defp get_display_name(creator) do
-    Creator.full_name(creator) || creator.first_name || creator.tiktok_username || "Creator"
+    # Check each name source, filtering out any that contain asterisks (obscured data)
+    clean_name(Creator.full_name(creator)) ||
+      clean_name(creator.first_name) ||
+      clean_name(creator.tiktok_username)
   end
+
+  # Returns nil if name is nil or contains asterisks (obscured/redacted data)
+  defp clean_name(nil), do: nil
+
+  defp clean_name(name) when is_binary(name) do
+    if String.contains?(name, "*"), do: nil, else: name
+  end
+
+  defp greeting(nil), do: "Hey there"
+  defp greeting(name), do: "Hey #{name}"
 
   defp html_escape(nil), do: ""
 
@@ -140,5 +184,9 @@ defmodule Pavoi.Communications.Templates do
     |> String.replace(">", "&gt;")
     |> String.replace("\"", "&quot;")
     |> String.replace("'", "&#39;")
+  end
+
+  defp base_url do
+    PavoiWeb.Endpoint.url()
   end
 end
