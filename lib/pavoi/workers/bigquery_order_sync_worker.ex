@@ -85,7 +85,9 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
   defp fetch_free_sample_orders do
     # Join Orders with LineItems to get product details
     # Filter for free samples (total_amount = 0)
-    # Capture ALL available address and contact fields
+    # Exclude sku_type = 'NORMAL' which are gift-with-purchase promotions (free items bundled
+    # with paid orders) - these are regular customers, not creators receiving samples
+    # Include: UNKNOWN (creator samples), ZERO_LOTTERY (TikTok giveaway winners)
     # buyer_email is a TikTok forwarding address (e.g., xxx@scs.tiktokw.us) that forwards to the buyer
     sql = """
     SELECT
@@ -110,6 +112,7 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
     JOIN `data-459112.pavoi_4980_prod_staging.TikTokShopOrderLineItems` li
       ON CAST(o.order_id AS STRING) = li.order_id
     WHERE o.total_amount = 0
+      AND li.sku_type != 'NORMAL'
     ORDER BY o.created_at DESC
     """
 
@@ -175,11 +178,51 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
       with {:ok, creator, status} <- find_or_create_creator(order),
            :ok <- ensure_brand_association(creator.id, brand_id),
            {:ok, _sample} <- create_sample(creator.id, brand_id, order) do
+        # Enrich creator with TikTok user_id if missing (async, don't block)
+        maybe_enrich_with_tiktok_user_id(creator, order["order_id"])
         status
       else
         {:error, reason} -> Repo.rollback(reason)
       end
     end)
+  end
+
+  # Fetch user_id from TikTok Order API and update creator if missing
+  defp maybe_enrich_with_tiktok_user_id(%{tiktok_user_id: nil} = creator, order_id) when is_binary(order_id) do
+    Task.start(fn ->
+      case fetch_tiktok_user_id(order_id) do
+        {:ok, user_id} when is_binary(user_id) ->
+          Creators.update_creator(creator, %{tiktok_user_id: user_id})
+          Logger.debug("Enriched creator #{creator.id} with TikTok user_id: #{user_id}")
+
+        _ ->
+          :ok
+      end
+    end)
+  end
+
+  defp maybe_enrich_with_tiktok_user_id(_creator, _order_id), do: :ok
+
+  defp fetch_tiktok_user_id(order_id) do
+    # Use Order Search API with order_id filter to get user_id
+    # The individual Order Detail endpoint requires a different path format
+    path = "/order/202309/orders/search"
+    body = %{order_id_list: [order_id]}
+
+    case Pavoi.TiktokShop.make_api_request(:post, path, %{page_size: 1}, body) do
+      {:ok, %{"data" => %{"orders" => [%{"user_id" => user_id} | _]}}} when is_binary(user_id) ->
+        {:ok, user_id}
+
+      {:ok, %{"data" => %{"orders" => []}}} ->
+        {:error, :order_not_found}
+
+      {:ok, _} ->
+        {:error, :user_id_not_found}
+
+      {:error, reason} ->
+        Logger.debug("Failed to fetch user_id for order #{order_id}: #{inspect(reason)}")
+        {:error, reason}
+    end
   end
 
   defp find_or_create_creator(order) do
@@ -680,5 +723,90 @@ defmodule Pavoi.Workers.BigQueryOrderSyncWorker do
   # Used by backfill - reuse the comprehensive update function
   defp update_creator_from_order(creator, order) do
     update_creator_from_order_data(creator, order)
+  end
+
+  @doc """
+  Backfills tiktok_user_id for creators who have sample orders but no user_id.
+
+  This calls the TikTok Order API for each order to fetch the user_id field,
+  which is not available in the BigQuery data.
+
+  Call from IEx:
+      Pavoi.Workers.BigQueryOrderSyncWorker.backfill_tiktok_user_ids()
+  """
+  def backfill_tiktok_user_ids(opts \\ []) do
+    import Ecto.Query
+
+    limit = Keyword.get(opts, :limit, 1000)
+    delay_ms = Keyword.get(opts, :delay_ms, 100)
+
+    Logger.info("Starting TikTok user_id backfill (limit: #{limit}, delay: #{delay_ms}ms)...")
+
+    # Find creators with samples but no tiktok_user_id
+    creators_with_orders =
+      Repo.all(
+        from c in Pavoi.Creators.Creator,
+          join: s in Pavoi.Creators.CreatorSample,
+          on: s.creator_id == c.id,
+          where: is_nil(c.tiktok_user_id) and not is_nil(s.tiktok_order_id),
+          group_by: [c.id],
+          select: {c, fragment("array_agg(DISTINCT ?)", s.tiktok_order_id)},
+          limit: ^limit
+      )
+
+    total = length(creators_with_orders)
+    Logger.info("Found #{total} creators to backfill with TikTok user_id")
+
+    stats =
+      creators_with_orders
+      |> Enum.with_index(1)
+      |> Enum.reduce(%{updated: 0, skipped: 0, errors: 0}, fn {{creator, order_ids}, idx}, acc ->
+        if rem(idx, 50) == 0 do
+          Logger.info("Progress: #{idx}/#{total} (#{acc.updated} updated, #{acc.errors} errors)")
+        end
+
+        result = fetch_and_update_user_id(creator, order_ids)
+        Process.sleep(delay_ms)
+        merge_stats(acc, result)
+      end)
+
+    Logger.info("""
+    TikTok user_id backfill completed:
+      - Updated: #{stats.updated}
+      - Skipped (no user_id found): #{stats.skipped}
+      - Errors: #{stats.errors}
+    """)
+
+    {:ok, stats}
+  end
+
+  defp fetch_and_update_user_id(creator, order_ids) do
+    # Try each order until we find a user_id
+    result =
+      Enum.find_value(order_ids, fn order_id ->
+        case fetch_tiktok_user_id(order_id) do
+          {:ok, user_id} -> {:ok, user_id}
+          _ -> nil
+        end
+      end)
+
+    case result do
+      {:ok, user_id} ->
+        case Creators.update_creator(creator, %{tiktok_user_id: user_id}) do
+          {:ok, _} -> %{updated: 1, skipped: 0, errors: 0}
+          {:error, _} -> %{updated: 0, skipped: 0, errors: 1}
+        end
+
+      nil ->
+        %{updated: 0, skipped: 1, errors: 0}
+    end
+  end
+
+  defp merge_stats(acc, result) do
+    %{
+      updated: acc.updated + result.updated,
+      skipped: acc.skipped + result.skipped,
+      errors: acc.errors + result.errors
+    }
   end
 end
