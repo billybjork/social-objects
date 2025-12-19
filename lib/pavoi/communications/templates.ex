@@ -24,8 +24,6 @@ defmodule Pavoi.Communications.Templates do
 
   def welcome_email_html(creator, lark_invite_url) do
     name = get_display_name(creator)
-    base_url = base_url()
-    logo_url = "#{base_url}/images/pavoi-logo-email.png"
     unsubscribe_url = unsubscribe_url(creator)
 
     """
@@ -38,9 +36,9 @@ defmodule Pavoi.Communications.Templates do
     </head>
     <body style="font-family: #{@brand_font}; line-height: 1.7; color: #{@brand_dark_green}; max-width: 600px; margin: 0 auto; padding: 0; background-color: #f8f8f8;">
       <div style="background: #ffffff; margin: 20px;">
-        <!-- Header with Logo -->
-        <div style="text-align: center; padding: 40px 30px 30px;">
-          <img src="#{logo_url}" alt="PAVOI" width="160" style="display: inline-block; max-width: 160px; height: auto;">
+        <!-- Header -->
+        <div style="text-align: center; padding: 40px 30px 20px;">
+          <span style="font-family: #{@brand_font}; font-size: 28px; letter-spacing: 4px; color: #{@brand_dark_green};">PAVOI</span>
         </div>
 
         <!-- Main Content -->
