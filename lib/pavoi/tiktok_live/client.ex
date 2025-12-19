@@ -125,10 +125,11 @@ defmodule Pavoi.TiktokLive.Client do
   defp extract_live_status(html) do
     # Require positive evidence of live status to avoid false positives.
     # TikTok can return a 200 page with room_id even when not live (from previous streams).
+    # IMPORTANT: Only use strong signals that indicate CURRENTLY live.
+    # - "liveRoomMode" is NOT reliable - it appears in cached page data even when offline
+    # - "status":4 is ambiguous - need to verify what this means
     cond do
       String.contains?(html, "\"isLive\":true") -> {:ok, true}
-      String.contains?(html, "\"liveRoomMode\":") -> {:ok, true}
-      String.contains?(html, "\"status\":4") -> {:ok, true}
       # No positive live indicators found - user is not live
       true -> {:ok, false}
     end
