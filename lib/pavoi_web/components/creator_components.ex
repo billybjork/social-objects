@@ -8,6 +8,7 @@ defmodule PavoiWeb.CreatorComponents do
   import PavoiWeb.ViewHelpers
 
   alias Pavoi.Creators.Creator
+  alias Pavoi.Outreach.OutreachLog
   alias Phoenix.LiveView.JS
 
   use Phoenix.VerifiedRoutes,
@@ -543,6 +544,63 @@ defmodule PavoiWeb.CreatorComponents do
   def display_status(status), do: String.capitalize(status)
 
   @doc """
+  Renders the engagement status badge for a creator.
+  Shows detailed email engagement status when available.
+  """
+  attr :creator, :map, required: true
+
+  def engagement_status_badge(assigns) do
+    # Determine status based on email_outreach_log if present
+    {label, status_type} = get_engagement_status(assigns.creator)
+
+    assigns =
+      assigns
+      |> assign(:label, label)
+      |> assign(:status_type, status_type)
+
+    ~H"""
+    <span class={["badge", badge_class_for_status(@status_type)]}>
+      {@label}
+    </span>
+    """
+  end
+
+  defp get_engagement_status(creator) do
+    cond do
+      # If they have an email outreach log, use its engagement status
+      Map.get(creator, :email_outreach_log) ->
+        OutreachLog.engagement_status(creator.email_outreach_log)
+
+      # Skipped creators
+      creator.outreach_status == "skipped" ->
+        {"Skipped", :skipped}
+
+      # Unsubscribed creators
+      creator.outreach_status == "unsubscribed" ->
+        {"Unsubscribed", :unsubscribed}
+
+      # Pending or nil (not yet sent)
+      creator.outreach_status in [nil, "", "pending", "approved"] ->
+        {"Pending", :pending}
+
+      # Fallback for any other status
+      true ->
+        {display_status(creator.outreach_status), :sent}
+    end
+  end
+
+  defp badge_class_for_status(:pending), do: "badge--warning"
+  defp badge_class_for_status(:sent), do: "badge--info"
+  defp badge_class_for_status(:delivered), do: "badge--teal"
+  defp badge_class_for_status(:opened), do: "badge--success"
+  defp badge_class_for_status(:clicked), do: "badge--success-bright"
+  defp badge_class_for_status(:bounced), do: "badge--danger"
+  defp badge_class_for_status(:spam), do: "badge--danger"
+  defp badge_class_for_status(:unsubscribed), do: "badge--muted"
+  defp badge_class_for_status(:skipped), do: "badge--muted"
+  defp badge_class_for_status(_), do: "badge--muted"
+
+  @doc """
   Renders a unified creator table with all columns.
   Adds checkbox column when in outreach mode with pending status.
   """
@@ -745,7 +803,8 @@ defmodule PavoiWeb.CreatorComponents do
                     "badge",
                     creator.outreach_status == "pending" && "badge--warning",
                     creator.outreach_status == "sent" && "badge--success",
-                    creator.outreach_status == "skipped" && "badge--muted"
+                    creator.outreach_status == "skipped" && "badge--muted",
+                    creator.outreach_status == "unsubscribed" && "badge--muted"
                   ]}>
                     {display_status(creator.outreach_status)}
                   </span>
@@ -976,15 +1035,7 @@ defmodule PavoiWeb.CreatorComponents do
               </td>
               <%!-- 12. Status --%>
               <td class="text-center">
-                <span class={[
-                  "badge",
-                  creator.outreach_status == "pending" && "badge--warning",
-                  creator.outreach_status == "sent" && "badge--success",
-                  creator.outreach_status == "skipped" && "badge--muted",
-                  !creator.outreach_status && "badge--muted"
-                ]}>
-                  {display_status(creator.outreach_status)}
-                </span>
+                <.engagement_status_badge creator={creator} />
               </td>
               <%!-- 13. Added --%>
               <td class="text-secondary text-xs">

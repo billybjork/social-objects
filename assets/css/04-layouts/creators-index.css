@@ -729,6 +729,30 @@
   border: 1px solid rgba(251, 191, 36, 0.2);
 }
 
+.creator-table .badge--info {
+  background: rgba(59, 130, 246, 0.12);
+  color: rgb(29, 78, 216);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.creator-table .badge--teal {
+  background: rgba(20, 184, 166, 0.12);
+  color: rgb(13, 148, 136);
+  border: 1px solid rgba(20, 184, 166, 0.2);
+}
+
+.creator-table .badge--success-bright {
+  background: rgba(34, 197, 94, 0.2);
+  color: rgb(21, 128, 61);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.creator-table .badge--danger {
+  background: rgba(239, 68, 68, 0.12);
+  color: rgb(185, 28, 28);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
 /* Center align SMS Consent and Status columns in outreach mode only */
 .creator-table.mode-outreach.has-checkbox th:nth-child(6),
 .creator-table.mode-outreach.has-checkbox td:nth-child(6),

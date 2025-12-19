@@ -961,15 +961,21 @@ defmodule PavoiWeb.CreatorsLive.Index do
 
     result = Creators.search_creators_unified(opts)
 
-    # Add sample counts and tags to each creator
+    # Batch load outreach logs for all creators
+    creator_ids = Enum.map(result.creators, & &1.id)
+    outreach_logs_map = Outreach.get_latest_email_outreach_logs(creator_ids)
+
+    # Add sample counts, tags, and outreach logs to each creator
     creators_with_data =
       Enum.map(result.creators, fn creator ->
         sample_count = Creators.count_samples_for_creator(creator.id)
         creator_tags = Creators.list_tags_for_creator(creator.id, brand_id)
+        email_outreach_log = Map.get(outreach_logs_map, creator.id)
 
         creator
         |> Map.put(:sample_count, sample_count)
         |> Map.put(:creator_tags, creator_tags)
+        |> Map.put(:email_outreach_log, email_outreach_log)
       end)
 
     # If loading more (page > 1), append to existing

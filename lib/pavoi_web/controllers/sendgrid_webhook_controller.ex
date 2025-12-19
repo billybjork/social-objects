@@ -64,8 +64,8 @@ defmodule PavoiWeb.SendgridWebhookController do
 
     case Outreach.create_email_event(attrs) do
       {:ok, _event} ->
-        # Update outreach log status for delivery events
-        maybe_update_outreach_status(outreach_log, event_type)
+        # Update outreach log engagement timestamps and status
+        update_outreach_log_engagement(outreach_log, event_type, timestamp)
 
       {:error, changeset} ->
         Logger.warning(
@@ -109,19 +109,53 @@ defmodule PavoiWeb.SendgridWebhookController do
     end
   end
 
-  defp maybe_update_outreach_status(nil, _event_type), do: :ok
+  # Update engagement timestamps on the outreach log
+  # Only sets the timestamp if not already set (first occurrence wins)
+  defp update_outreach_log_engagement(nil, _event_type, _timestamp), do: :ok
 
-  defp maybe_update_outreach_status(outreach_log, "delivered") do
-    Outreach.update_outreach_log_status(outreach_log, "delivered")
+  defp update_outreach_log_engagement(outreach_log, event_type, timestamp) do
+    updates = engagement_updates(event_type, timestamp, outreach_log)
+
+    if map_size(updates) > 0 do
+      Outreach.update_outreach_log_engagement(outreach_log, updates)
+    else
+      :ok
+    end
   end
 
-  defp maybe_update_outreach_status(outreach_log, "bounce") do
-    Outreach.update_outreach_log_status(outreach_log, "bounced")
+  defp engagement_updates("delivered", timestamp, log) do
+    base = if is_nil(log.delivered_at), do: %{delivered_at: timestamp}, else: %{}
+    Map.merge(base, %{status: "delivered"})
   end
 
-  defp maybe_update_outreach_status(outreach_log, "dropped") do
-    Outreach.update_outreach_log_status(outreach_log, "failed")
+  defp engagement_updates("open", timestamp, log) do
+    if is_nil(log.opened_at), do: %{opened_at: timestamp}, else: %{}
   end
 
-  defp maybe_update_outreach_status(_outreach_log, _event_type), do: :ok
+  defp engagement_updates("click", timestamp, log) do
+    if is_nil(log.clicked_at), do: %{clicked_at: timestamp}, else: %{}
+  end
+
+  defp engagement_updates("bounce", timestamp, log) do
+    base = if is_nil(log.bounced_at), do: %{bounced_at: timestamp}, else: %{}
+    Map.merge(base, %{status: "bounced"})
+  end
+
+  defp engagement_updates("dropped", _timestamp, _log) do
+    %{status: "failed"}
+  end
+
+  defp engagement_updates("spamreport", timestamp, log) do
+    if is_nil(log.spam_reported_at), do: %{spam_reported_at: timestamp}, else: %{}
+  end
+
+  defp engagement_updates("unsubscribe", timestamp, log) do
+    if is_nil(log.unsubscribed_at), do: %{unsubscribed_at: timestamp}, else: %{}
+  end
+
+  defp engagement_updates("group_unsubscribe", timestamp, log) do
+    if is_nil(log.unsubscribed_at), do: %{unsubscribed_at: timestamp}, else: %{}
+  end
+
+  defp engagement_updates(_event_type, _timestamp, _log), do: %{}
 end

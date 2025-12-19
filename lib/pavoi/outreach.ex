@@ -171,6 +171,33 @@ defmodule Pavoi.Outreach do
   end
 
   @doc """
+  Marks a creator as unsubscribed from outreach emails.
+  """
+  def mark_creator_unsubscribed(%Creator{} = creator) do
+    creator
+    |> Creator.changeset(%{outreach_status: "unsubscribed"})
+    |> Repo.update()
+  end
+
+  @doc """
+  Generates a signed token for unsubscribe links.
+  Token is valid for 90 days.
+  """
+  def generate_unsubscribe_token(creator_id) do
+    Phoenix.Token.sign(PavoiWeb.Endpoint, "unsubscribe", creator_id)
+  end
+
+  @doc """
+  Verifies an unsubscribe token and returns the creator_id.
+  Token must be less than 90 days old.
+  """
+  def verify_unsubscribe_token(token) do
+    # 90 days in seconds
+    max_age = 90 * 24 * 60 * 60
+    Phoenix.Token.verify(PavoiWeb.Endpoint, "unsubscribe", token, max_age: max_age)
+  end
+
+  @doc """
   Updates SMS consent for a creator.
   """
   def update_sms_consent(%Creator{} = creator, consent) when is_boolean(consent) do
@@ -216,6 +243,36 @@ defmodule Pavoi.Outreach do
       order_by: [desc: ol.sent_at]
     )
     |> Repo.all()
+  end
+
+  @doc """
+  Gets the most recent email outreach log for a creator.
+  Returns nil if no email has been sent.
+  """
+  def get_latest_email_outreach_log(creator_id) do
+    from(ol in OutreachLog,
+      where: ol.creator_id == ^creator_id,
+      where: ol.channel == "email",
+      order_by: [desc: ol.sent_at],
+      limit: 1
+    )
+    |> Repo.one()
+  end
+
+  @doc """
+  Gets the latest email outreach logs for multiple creators in a single query.
+  Returns a map of creator_id => OutreachLog.
+  """
+  def get_latest_email_outreach_logs(creator_ids) when is_list(creator_ids) do
+    # Use a window function to get the latest email log per creator
+    from(ol in OutreachLog,
+      where: ol.creator_id in ^creator_ids,
+      where: ol.channel == "email",
+      distinct: ol.creator_id,
+      order_by: [ol.creator_id, desc: ol.sent_at]
+    )
+    |> Repo.all()
+    |> Map.new(fn log -> {log.creator_id, log} end)
   end
 
   ## Statistics
@@ -334,6 +391,16 @@ defmodule Pavoi.Outreach do
   def update_outreach_log_status(%OutreachLog{} = log, status) do
     log
     |> OutreachLog.changeset(%{status: status})
+    |> Repo.update()
+  end
+
+  @doc """
+  Updates an outreach log's engagement timestamps and/or status.
+  Used by the SendGrid webhook to record delivery and engagement events.
+  """
+  def update_outreach_log_engagement(%OutreachLog{} = log, updates) when is_map(updates) do
+    log
+    |> OutreachLog.changeset(updates)
     |> Repo.update()
   end
 
