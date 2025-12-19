@@ -99,6 +99,15 @@ a.button--primary:visited {
   color: var(--color-text-inverse);
 }
 
+.button--ghost-error {
+  background-color: transparent;
+  color: var(--color-accent-red);
+}
+
+.button--ghost-error:hover:not(:disabled) {
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
 /* Sizes */
 .button--xs {
   padding: var(--space-1) var(--space-3);

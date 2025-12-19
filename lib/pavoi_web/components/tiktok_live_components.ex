@@ -130,10 +130,21 @@ defmodule PavoiWeb.TiktokLiveComponents do
               <span class="text-secondary">@{@stream.unique_id}</span>
             </div>
             <div class="stream-modal-header__status">
-              <.stream_status_badge status={@stream.status} />
-              <span class="text-secondary text-sm">
-                Started {format_relative_time(@stream.started_at)}
-              </span>
+              <div class="stream-modal-header__status-left">
+                <.stream_status_badge status={@stream.status} />
+                <span class="text-secondary text-sm">
+                  Started {format_relative_time(@stream.started_at)}
+                </span>
+              </div>
+              <button
+                type="button"
+                class="button button--sm button--ghost-error"
+                phx-click="delete_stream"
+                phx-value-id={@stream.id}
+                data-confirm="Are you sure you want to delete this stream and all its data? This cannot be undone."
+              >
+                Delete
+              </button>
             </div>
           </div>
         </div>
