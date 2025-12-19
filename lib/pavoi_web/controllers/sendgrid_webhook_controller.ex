@@ -22,7 +22,13 @@ defmodule PavoiWeb.SendgridWebhookController do
   We process each event and always return 200 to acknowledge receipt.
   """
   def handle(conn, _params) do
-    events = conn.body_params
+    # Phoenix wraps JSON arrays in "_json" key
+    events =
+      case conn.body_params do
+        %{"_json" => list} when is_list(list) -> list
+        list when is_list(list) -> list
+        other -> other
+      end
 
     case events do
       events when is_list(events) ->
