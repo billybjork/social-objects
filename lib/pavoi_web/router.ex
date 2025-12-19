@@ -42,6 +42,13 @@ defmodule PavoiWeb.Router do
     get "/test", TiktokShopController, :test
   end
 
+  # SendGrid webhook endpoint (unauthenticated - SendGrid POSTs here)
+  scope "/webhooks", PavoiWeb do
+    pipe_through :api
+
+    post "/sendgrid", SendgridWebhookController, :handle
+  end
+
   # Main application routes (protected in production)
   scope "/", PavoiWeb do
     pipe_through [:browser, :protected]

@@ -1,0 +1,121 @@
+defmodule PavoiWeb.SendgridWebhookController do
+  @moduledoc """
+  Handles SendGrid Event Webhook callbacks.
+
+  SendGrid sends batched event notifications as POST requests containing
+  an array of event objects. Each event includes information about email
+  delivery status and engagement (opens, clicks, etc.).
+
+  Configure the webhook URL in SendGrid: Settings > Mail Settings > Event Notification
+  URL: https://your-domain.com/webhooks/sendgrid
+  """
+  use PavoiWeb, :controller
+
+  alias Pavoi.Outreach
+
+  require Logger
+
+  @doc """
+  Handles incoming webhook events from SendGrid.
+
+  SendGrid sends an array of events in the request body.
+  We process each event and always return 200 to acknowledge receipt.
+  """
+  def handle(conn, _params) do
+    events = conn.body_params
+
+    case events do
+      events when is_list(events) ->
+        Enum.each(events, &process_event/1)
+
+      _ ->
+        Logger.warning("[SendGrid Webhook] Unexpected payload format: #{inspect(events)}")
+    end
+
+    # Always return 200 to SendGrid to acknowledge receipt
+    send_resp(conn, 200, "ok")
+  end
+
+  defp process_event(event) when is_map(event) do
+    event_type = Map.get(event, "event")
+    sg_message_id = extract_message_id(event)
+    timestamp = parse_timestamp(Map.get(event, "timestamp"))
+
+    # Find the matching outreach log by SendGrid message ID
+    outreach_log = Outreach.find_outreach_log_by_provider_id(sg_message_id)
+
+    # Create the email event record
+    attrs = %{
+      outreach_log_id: if(outreach_log, do: outreach_log.id),
+      event_type: event_type,
+      email: Map.get(event, "email"),
+      timestamp: timestamp,
+      url: Map.get(event, "url"),
+      reason: extract_reason(event),
+      sg_message_id: sg_message_id,
+      raw_payload: event
+    }
+
+    case Outreach.create_email_event(attrs) do
+      {:ok, _event} ->
+        # Update outreach log status for delivery events
+        maybe_update_outreach_status(outreach_log, event_type)
+
+      {:error, changeset} ->
+        Logger.warning(
+          "[SendGrid Webhook] Failed to create event: #{inspect(changeset.errors)}"
+        )
+    end
+  end
+
+  defp process_event(event) do
+    Logger.warning("[SendGrid Webhook] Invalid event format: #{inspect(event)}")
+  end
+
+  # SendGrid message ID appears in sg_message_id field
+  # Format is typically: "abc123.xyz789" or with domain "abc123.xyz789@sendgrid.net"
+  defp extract_message_id(event) do
+    case Map.get(event, "sg_message_id") do
+      nil -> nil
+      id -> String.replace(id, ~r/\.filter.*$/, "")
+    end
+  end
+
+  defp parse_timestamp(nil), do: DateTime.utc_now() |> DateTime.truncate(:second)
+
+  defp parse_timestamp(unix_timestamp) when is_integer(unix_timestamp) do
+    DateTime.from_unix!(unix_timestamp) |> DateTime.truncate(:second)
+  end
+
+  defp parse_timestamp(unix_timestamp) when is_binary(unix_timestamp) do
+    case Integer.parse(unix_timestamp) do
+      {ts, _} -> DateTime.from_unix!(ts) |> DateTime.truncate(:second)
+      :error -> DateTime.utc_now() |> DateTime.truncate(:second)
+    end
+  end
+
+  defp extract_reason(event) do
+    # Bounce and drop events include reason information
+    cond do
+      Map.has_key?(event, "reason") -> Map.get(event, "reason")
+      Map.has_key?(event, "bounce_classification") -> Map.get(event, "bounce_classification")
+      true -> nil
+    end
+  end
+
+  defp maybe_update_outreach_status(nil, _event_type), do: :ok
+
+  defp maybe_update_outreach_status(outreach_log, "delivered") do
+    Outreach.update_outreach_log_status(outreach_log, "delivered")
+  end
+
+  defp maybe_update_outreach_status(outreach_log, "bounce") do
+    Outreach.update_outreach_log_status(outreach_log, "bounced")
+  end
+
+  defp maybe_update_outreach_status(outreach_log, "dropped") do
+    Outreach.update_outreach_log_status(outreach_log, "failed")
+  end
+
+  defp maybe_update_outreach_status(_outreach_log, _event_type), do: :ok
+end

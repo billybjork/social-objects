@@ -10,6 +10,7 @@ defmodule Pavoi.Outreach do
   alias Pavoi.Repo
 
   alias Pavoi.Creators.Creator
+  alias Pavoi.Outreach.EmailEvent
   alias Pavoi.Outreach.OutreachLog
 
   ## Pending Creators
@@ -304,5 +305,86 @@ defmodule Pavoi.Outreach do
       preload: [outreach_logs: ^from(ol in OutreachLog, order_by: [desc: ol.sent_at])]
     )
     |> Repo.one!()
+  end
+
+  ## Email Events (SendGrid Webhooks)
+
+  @doc """
+  Creates an email event from a SendGrid webhook payload.
+  """
+  def create_email_event(attrs) do
+    %EmailEvent{}
+    |> EmailEvent.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc """
+  Finds an outreach log by its SendGrid message ID (provider_id).
+  Returns nil if not found.
+  """
+  def find_outreach_log_by_provider_id(nil), do: nil
+
+  def find_outreach_log_by_provider_id(provider_id) do
+    Repo.get_by(OutreachLog, provider_id: provider_id)
+  end
+
+  @doc """
+  Updates an outreach log's status.
+  """
+  def update_outreach_log_status(%OutreachLog{} = log, status) do
+    log
+    |> OutreachLog.changeset(%{status: status})
+    |> Repo.update()
+  end
+
+  @doc """
+  Lists email events for an outreach log, most recent first.
+  """
+  def list_email_events_for_log(outreach_log_id) do
+    from(e in EmailEvent,
+      where: e.outreach_log_id == ^outreach_log_id,
+      order_by: [desc: e.timestamp]
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Gets engagement statistics for outreach emails.
+
+  Returns a map with counts for each event type and calculated rates.
+  """
+  def get_engagement_stats do
+    # Count events by type
+    event_counts =
+      from(e in EmailEvent,
+        group_by: e.event_type,
+        select: {e.event_type, count(e.id)}
+      )
+      |> Repo.all()
+      |> Map.new()
+
+    # Count total emails sent (for rate calculation)
+    total_sent =
+      from(ol in OutreachLog,
+        where: ol.channel == "email" and ol.status in ["sent", "delivered"],
+        select: count(ol.id)
+      )
+      |> Repo.one()
+
+    delivered = Map.get(event_counts, "delivered", 0)
+    opened = Map.get(event_counts, "open", 0)
+    clicked = Map.get(event_counts, "click", 0)
+
+    %{
+      total_sent: total_sent,
+      delivered: delivered,
+      opened: opened,
+      clicked: clicked,
+      bounced: Map.get(event_counts, "bounce", 0),
+      spam_reports: Map.get(event_counts, "spamreport", 0),
+      unsubscribes: Map.get(event_counts, "unsubscribe", 0),
+      open_rate: if(delivered > 0, do: Float.round(opened / delivered * 100, 1), else: 0.0),
+      click_rate: if(delivered > 0, do: Float.round(clicked / delivered * 100, 1), else: 0.0)
+    }
   end
 end

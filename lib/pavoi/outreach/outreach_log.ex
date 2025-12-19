@@ -11,8 +11,11 @@ defmodule Pavoi.Outreach.OutreachLog do
   @channels ~w(email sms)
   @statuses ~w(sent failed bounced delivered)
 
+  alias Pavoi.Outreach.EmailEvent
+
   schema "outreach_logs" do
     belongs_to :creator, Pavoi.Creators.Creator
+    has_many :email_events, EmailEvent
 
     # Channel: "email" or "sms"
     field :channel, :string
