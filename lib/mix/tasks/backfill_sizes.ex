@@ -98,25 +98,28 @@ defmodule Mix.Tasks.BackfillSizes do
       stats = Map.update!(stats, :processed, &(&1 + 1))
 
       if size do
-        unless dry_run do
-          changeset =
-            ProductVariant.changeset(variant, %{
-              size: size,
-              size_type: size_type && to_string(size_type),
-              size_source: size_source && to_string(size_source)
-            })
-
-          case Repo.update(changeset) do
-            {:ok, _} -> :ok
-            {:error, err} -> Logger.warning("Failed to update variant #{variant.id}: #{inspect(err)}")
-          end
-        end
-
+        maybe_update_variant(variant, size, size_type, size_source, dry_run)
         Map.update!(stats, :updated, &(&1 + 1))
       else
         Map.update!(stats, :skipped, &(&1 + 1))
       end
     end)
+  end
+
+  defp maybe_update_variant(_variant, _size, _size_type, _size_source, true = _dry_run), do: :ok
+
+  defp maybe_update_variant(variant, size, size_type, size_source, false = _dry_run) do
+    changeset =
+      ProductVariant.changeset(variant, %{
+        size: size,
+        size_type: size_type && to_string(size_type),
+        size_source: size_source && to_string(size_source)
+      })
+
+    case Repo.update(changeset) do
+      {:ok, _} -> :ok
+      {:error, err} -> Logger.warning("Failed to update variant #{variant.id}: #{inspect(err)}")
+    end
   end
 
   defp update_product_size_ranges(dry_run) do
@@ -135,24 +138,27 @@ defmodule Mix.Tasks.BackfillSizes do
       has_size_variants = length(sizes_with_values) > 1
 
       if size_range do
-        unless dry_run do
-          changeset =
-            Product.changeset(product, %{
-              size_range: size_range,
-              has_size_variants: has_size_variants
-            })
-
-          case Repo.update(changeset) do
-            {:ok, _} -> :ok
-            {:error, err} -> Logger.warning("Failed to update product #{product.id}: #{inspect(err)}")
-          end
-        end
-
+        maybe_update_product(product, size_range, has_size_variants, dry_run)
         Map.update!(stats, :updated, &(&1 + 1))
       else
         Map.update!(stats, :skipped, &(&1 + 1))
       end
     end)
+  end
+
+  defp maybe_update_product(_product, _size_range, _has_size_variants, true = _dry_run), do: :ok
+
+  defp maybe_update_product(product, size_range, has_size_variants, false = _dry_run) do
+    changeset =
+      Product.changeset(product, %{
+        size_range: size_range,
+        has_size_variants: has_size_variants
+      })
+
+    case Repo.update(changeset) do
+      {:ok, _} -> :ok
+      {:error, err} -> Logger.warning("Failed to update product #{product.id}: #{inspect(err)}")
+    end
   end
 
   defp print_summary(variant_stats, product_stats) do

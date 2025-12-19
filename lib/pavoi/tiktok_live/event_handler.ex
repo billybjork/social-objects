@@ -184,17 +184,7 @@ defmodule Pavoi.TiktokLive.EventHandler do
       new_stats = %{state.stats | comment_count: state.stats.comment_count + 1}
 
       # Track seen msg_id (only if present), reset if too large
-      new_seen =
-        if msg_id do
-          seen = state.seen_msg_ids
-
-          # Reset if we've accumulated too many (duplicates come in quick succession anyway)
-          seen = if MapSet.size(seen) >= @max_seen_msg_ids, do: MapSet.new(), else: seen
-
-          MapSet.put(seen, msg_id)
-        else
-          state.seen_msg_ids
-        end
+      new_seen = update_seen_msg_ids(state.seen_msg_ids, msg_id)
 
       # Broadcast to UI
       broadcast_to_stream(state.stream_id, {:comment, event})
@@ -305,6 +295,14 @@ defmodule Pavoi.TiktokLive.EventHandler do
     update_stream_field(state.stream, :status, :failed)
 
     state
+  end
+
+  defp update_seen_msg_ids(seen_msg_ids, nil), do: seen_msg_ids
+
+  defp update_seen_msg_ids(seen_msg_ids, msg_id) do
+    # Reset if we've accumulated too many (duplicates come in quick succession anyway)
+    seen = if MapSet.size(seen_msg_ids) >= @max_seen_msg_ids, do: MapSet.new(), else: seen_msg_ids
+    MapSet.put(seen, msg_id)
   end
 
   defp process_event(%{type: type} = event, state) do

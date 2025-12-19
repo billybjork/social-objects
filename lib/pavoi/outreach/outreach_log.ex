@@ -95,21 +95,34 @@ defmodule Pavoi.Outreach.OutreachLog do
   def engagement_status(nil), do: {"Pending", :pending}
 
   def engagement_status(%__MODULE__{} = log) do
+    negative_outcome(log) || positive_outcome(log) || status_outcome(log)
+  end
+
+  defp negative_outcome(log) do
     cond do
-      # Negative outcomes take precedence
       log.bounced_at -> {"Bounced", :bounced}
       log.spam_reported_at -> {"Spam", :spam}
       log.unsubscribed_at -> {"Unsubscribed", :unsubscribed}
-      # Positive outcomes - show highest engagement
+      true -> nil
+    end
+  end
+
+  defp positive_outcome(log) do
+    cond do
       log.clicked_at -> {"Clicked", :clicked}
       log.opened_at -> {"Opened", :opened}
       log.delivered_at -> {"Delivered", :delivered}
-      # Sent but no events yet
-      log.status == "sent" -> {"Sent", :sent}
-      log.status == "delivered" -> {"Delivered", :delivered}
-      log.status == "bounced" -> {"Bounced", :bounced}
-      log.status == "failed" -> {"Failed", :bounced}
-      true -> {"Sent", :sent}
+      true -> nil
+    end
+  end
+
+  defp status_outcome(log) do
+    case log.status do
+      "sent" -> {"Sent", :sent}
+      "delivered" -> {"Delivered", :delivered}
+      "bounced" -> {"Bounced", :bounced}
+      "failed" -> {"Failed", :bounced}
+      _ -> {"Sent", :sent}
     end
   end
 end

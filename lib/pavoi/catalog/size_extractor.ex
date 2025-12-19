@@ -121,17 +121,16 @@ defmodule Pavoi.Catalog.SizeExtractor do
   defp extract_from_tiktok_attributes(attributes) when is_list(attributes) and length(attributes) > 0 do
     # TikTok sales_attributes structure: [%{"attribute_name" => "Size", "value_name" => "7"}, ...]
     # Also handles alternative keys: [%{"name" => "Size", "value" => "7"}, ...]
-    Enum.find_value(attributes, fn attr ->
-      attr_name = attr["attribute_name"] || attr["name"] || ""
+    Enum.find_value(attributes, &extract_size_from_tiktok_attr/1)
+  end
 
-      if size_attribute?(attr_name) do
-        value = attr["value_name"] || attr["value"] || ""
+  defp extract_size_from_tiktok_attr(attr) do
+    attr_name = attr["attribute_name"] || attr["name"] || ""
+    value = attr["value_name"] || attr["value"] || ""
 
-        if value != "" do
-          {value, detect_size_type(attr_name, value), :tiktok_attributes}
-        end
-      end
-    end)
+    if size_attribute?(attr_name) and value != "" do
+      {value, detect_size_type(attr_name, value), :tiktok_attributes}
+    end
   end
 
   defp extract_from_tiktok_attributes(_), do: nil
@@ -176,16 +175,27 @@ defmodule Pavoi.Catalog.SizeExtractor do
   defp detect_size_type(key, value) do
     key_lower = String.downcase(to_string(key))
     value_str = to_string(value)
-    value_lower = String.downcase(value_str)
+
+    detect_type_from_key(key_lower) || detect_type_from_value(value_str)
+  end
+
+  defp detect_type_from_key(key) do
+    cond do
+      String.contains?(key, "ring") -> :ring
+      String.contains?(key, "length") -> :length
+      String.contains?(key, "diameter") -> :diameter
+      true -> nil
+    end
+  end
+
+  defp detect_type_from_value(value) do
+    value_lower = String.downcase(value)
 
     cond do
-      String.contains?(key_lower, "ring") -> :ring
-      String.contains?(key_lower, "length") -> :length
-      String.contains?(key_lower, "diameter") -> :diameter
       String.contains?(value_lower, "mm") -> :diameter
       String.contains?(value_lower, "\"") or String.contains?(value_lower, "inch") -> :length
       Map.has_key?(@apparel_sizes, value_lower) -> :apparel
-      numeric_size?(value_str) -> :ring
+      numeric_size?(value) -> :ring
       true -> nil
     end
   end
@@ -244,8 +254,7 @@ defmodule Pavoi.Catalog.SizeExtractor do
     sizes =
       variants
       |> Enum.map(&get_size/1)
-      |> Enum.reject(&is_nil/1)
-      |> Enum.reject(&(&1 == ""))
+      |> Enum.reject(&(is_nil(&1) or &1 == ""))
       |> Enum.uniq()
 
     case sizes do

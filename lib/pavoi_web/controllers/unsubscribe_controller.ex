@@ -9,27 +9,15 @@ defmodule PavoiWeb.UnsubscribeController do
   Shows a confirmation page after unsubscribing.
   """
   def unsubscribe(conn, %{"token" => token}) do
-    case Outreach.verify_unsubscribe_token(token) do
-      {:ok, creator_id} ->
-        case Repo.get(Pavoi.Creators.Creator, creator_id) do
-          nil ->
-            render_error(conn, "This unsubscribe link is no longer valid.")
-
-          creator ->
-            case Outreach.mark_creator_unsubscribed(creator) do
-              {:ok, _} ->
-                render_success(conn, creator.email)
-
-              {:error, _} ->
-                render_error(conn, "Something went wrong. Please try again later.")
-            end
-        end
-
-      {:error, :expired} ->
-        render_error(conn, "This unsubscribe link has expired.")
-
-      {:error, _} ->
-        render_error(conn, "This unsubscribe link is invalid.")
+    with {:ok, creator_id} <- Outreach.verify_unsubscribe_token(token),
+         %{} = creator <- Repo.get(Pavoi.Creators.Creator, creator_id),
+         {:ok, _} <- Outreach.mark_creator_unsubscribed(creator) do
+      render_success(conn, creator.email)
+    else
+      {:error, :expired} -> render_error(conn, "This unsubscribe link has expired.")
+      {:error, :invalid} -> render_error(conn, "This unsubscribe link is invalid.")
+      {:error, _} -> render_error(conn, "Something went wrong. Please try again later.")
+      nil -> render_error(conn, "This unsubscribe link is no longer valid.")
     end
   end
 

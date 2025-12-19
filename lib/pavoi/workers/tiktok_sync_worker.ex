@@ -621,42 +621,7 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
 
   defp apply_tiktok_sku_update(variant, tiktok_sku_id, tiktok_sku, count) do
     sales_attributes = tiktok_sku["sales_attributes"] || []
-
-    # Only update size if variant doesn't already have one (from Shopify)
-    size_attrs =
-      if is_nil(variant.size) do
-        selected_options = parse_tiktok_sales_attributes(sales_attributes)
-
-        # Fetch product name for fallback extraction
-        product_name =
-          from(p in Pavoi.Catalog.Product, where: p.id == ^variant.product_id, select: p.name)
-          |> Repo.one()
-
-        {size, size_type, size_source} =
-          SizeExtractor.extract_size(
-            tiktok_attributes: sales_attributes,
-            selected_options: selected_options,
-            sku: variant.sku,
-            name: variant.title,
-            product_name: product_name
-          )
-
-        # Also update selected_options if they were empty
-        options_update =
-          if map_size(variant.selected_options || %{}) == 0 and map_size(selected_options) > 0 do
-            %{selected_options: selected_options}
-          else
-            %{}
-          end
-
-        Map.merge(options_update, %{
-          size: size,
-          size_type: size_type && to_string(size_type),
-          size_source: size_source && to_string(size_source)
-        })
-      else
-        %{}
-      end
+    size_attrs = extract_size_attrs_for_variant(variant, sales_attributes)
 
     tiktok_attrs =
       Map.merge(
@@ -669,15 +634,50 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
       )
 
     case Catalog.update_product_variant(variant, tiktok_attrs) do
-      {:ok, _} ->
-        count + 1
-
+      {:ok, _} -> count + 1
       {:error, changeset} ->
-        Logger.warning(
-          "Skipping variant #{variant.id} TikTok SKU update: #{inspect(changeset.errors)}"
-        )
-
+        Logger.warning("Skipping variant #{variant.id} TikTok SKU update: #{inspect(changeset.errors)}")
         count
+    end
+  end
+
+  defp extract_size_attrs_for_variant(%{size: size}, _sales_attributes) when not is_nil(size) do
+    %{}
+  end
+
+  defp extract_size_attrs_for_variant(variant, sales_attributes) do
+    selected_options = parse_tiktok_sales_attributes(sales_attributes)
+
+    product_name =
+      from(p in Pavoi.Catalog.Product, where: p.id == ^variant.product_id, select: p.name)
+      |> Repo.one()
+
+    {size, size_type, size_source} =
+      SizeExtractor.extract_size(
+        tiktok_attributes: sales_attributes,
+        selected_options: selected_options,
+        sku: variant.sku,
+        name: variant.title,
+        product_name: product_name
+      )
+
+    options_update = maybe_update_selected_options(variant.selected_options, selected_options)
+
+    Map.merge(options_update, %{
+      size: size,
+      size_type: size_type && to_string(size_type),
+      size_source: size_source && to_string(size_source)
+    })
+  end
+
+  defp maybe_update_selected_options(current_options, new_options) do
+    current_empty = map_size(current_options || %{}) == 0
+    new_has_values = map_size(new_options) > 0
+
+    if current_empty and new_has_values do
+      %{selected_options: new_options}
+    else
+      %{}
     end
   end
 
