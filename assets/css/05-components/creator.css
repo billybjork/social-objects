@@ -943,3 +943,63 @@
   color: var(--color-text-primary);
   text-transform: uppercase;
 }
+
+/* =============================================================================
+   LARK PRESET SELECTION
+   ============================================================================= */
+
+/* Selection Mode */
+.lark-presets-select {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.lark-preset-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.lark-preset-option:hover {
+  background-color: var(--color-bg-hover);
+}
+
+.lark-preset-option--selected {
+  border-color: var(--color-primary);
+  background-color: rgba(59, 130, 246, 0.08);
+}
+
+.lark-preset-option input[type="radio"] {
+  margin: 0;
+  accent-color: var(--color-primary);
+}
+
+.lark-preset-option__label {
+  font-weight: var(--font-medium);
+  color: var(--color-text-primary);
+}
+
+/* Edit Mode */
+.lark-presets-edit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.lark-preset-edit-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.lark-preset-label {
+  font-weight: var(--font-medium);
+  font-size: var(--text-sm);
+  color: var(--color-text-primary);
+}

@@ -206,25 +206,65 @@
       <% end %>
 
       <div style="margin-bottom: var(--space-3);">
-        <label class="label">Lark Community Invite URL</label>
-        <form phx-change="update_lark_url" phx-submit="send_outreach">
-          <input
-            type="url"
-            name="lark_url"
-            class="input"
-            placeholder="https://larksuite.com/invite/..."
-            value={@lark_invite_url}
-            phx-debounce="100"
-          />
-        </form>
-        <p class="text-xs text-secondary" style="margin-top: var(--space-1);">
-          Get this from your Lark group: Settings → Share → Link
-        </p>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-2);">
+          <label class="label" style="margin: 0;">Select Lark Community Group</label>
+          <%= unless @lark_edit_mode do %>
+            <button
+              type="button"
+              class="btn btn--ghost btn--sm"
+              phx-click="toggle_lark_edit_mode"
+              style="font-size: 0.75rem; padding: 4px 8px;"
+            >
+              Edit Links
+            </button>
+          <% end %>
+        </div>
+
+        <%= if @lark_edit_mode do %>
+          <%!-- Edit Mode: Show input fields for each preset --%>
+          <div class="lark-presets-edit">
+            <%= for {preset_id, preset} <- @lark_presets do %>
+              <div class="lark-preset-edit-row">
+                <label class="lark-preset-label">{preset.label}</label>
+                <input
+                  type="url"
+                  class="input"
+                  value={Map.get(@lark_edit_form, preset_id, preset.url)}
+                  placeholder="https://larksuite.com/..."
+                  phx-change="update_lark_preset_url"
+                  phx-value-preset={preset_id}
+                  name="url"
+                  phx-debounce="100"
+                />
+              </div>
+            <% end %>
+          </div>
+          <div style="margin-top: var(--space-3); display: flex; gap: var(--space-2); justify-content: flex-end;">
+            <.button variant="outline" size="sm" phx-click="cancel_lark_edit">Cancel</.button>
+            <.button variant="primary" size="sm" phx-click="save_lark_presets">Save Links</.button>
+          </div>
+        <% else %>
+          <%!-- Selection Mode: Radio buttons --%>
+          <div class="lark-presets-select">
+            <%= for {preset_id, preset} <- @lark_presets do %>
+              <label class={"lark-preset-option #{if @selected_lark_preset == preset_id, do: "lark-preset-option--selected", else: ""}"}>
+                <input
+                  type="radio"
+                  name="lark_preset"
+                  checked={@selected_lark_preset == preset_id}
+                  phx-click="select_lark_preset"
+                  phx-value-preset={preset_id}
+                />
+                <span class="lark-preset-option__label">{preset.label}</span>
+              </label>
+            <% end %>
+          </div>
+        <% end %>
       </div>
     </div>
     <div class="modal__footer">
       <.button variant="outline" phx-click="close_send_modal">Cancel</.button>
-      <.button variant="primary" phx-click="send_outreach">
+      <.button variant="primary" phx-click="send_outreach" disabled={@lark_edit_mode}>
         Send Messages
       </.button>
     </div>

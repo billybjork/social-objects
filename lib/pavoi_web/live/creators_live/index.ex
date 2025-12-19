@@ -22,6 +22,28 @@ defmodule PavoiWeb.CreatorsLive.Index do
   import PavoiWeb.CreatorComponents
   import PavoiWeb.ViewHelpers
 
+  # Lark community invite link presets
+  @lark_presets %{
+    jewelry: %{
+      key: "lark_preset_jewelry",
+      label: "Jewelry",
+      default_url:
+        "https://applink.larksuite.com/client/chat/chatter/add_by_link?link_token=381ve559-aa4d-4a1d-9412-6bee35821e1i"
+    },
+    active: %{
+      key: "lark_preset_active",
+      label: "Active",
+      default_url:
+        "https://applink.larksuite.com/client/chat/chatter/add_by_link?link_token=308u55cf-7f36-4516-a0b7-a102361a1c2n"
+    },
+    top_creators: %{
+      key: "lark_preset_top_creators",
+      label: "Top Creators",
+      default_url:
+        "https://applink.larksuite.com/client/chat/chatter/add_by_link?link_token=3c9q707a-24bf-449a-9ee9-aef46e73e7es"
+    }
+  }
+
   @impl true
   def mount(_params, _session, socket) do
     # Subscribe to BigQuery sync and outreach events
@@ -62,7 +84,10 @@ defmodule PavoiWeb.CreatorsLive.Index do
       |> assign(:selected_ids, MapSet.new())
       |> assign(:outreach_stats, %{pending: 0, sent: 0, skipped: 0})
       |> assign(:sent_today, 0)
-      |> assign(:lark_invite_url, "")
+      |> assign(:lark_presets, %{})
+      |> assign(:selected_lark_preset, :jewelry)
+      |> assign(:lark_edit_mode, false)
+      |> assign(:lark_edit_form, %{})
       |> assign(:outreach_email_override, Keyword.get(features, :outreach_email_override))
       |> assign(:outreach_email_enabled, Keyword.get(features, :outreach_email_enabled, true))
       |> assign(:show_send_modal, false)
@@ -270,18 +295,73 @@ defmodule PavoiWeb.CreatorsLive.Index do
   end
 
   @impl true
-  def handle_event("update_lark_url", %{"lark_url" => url}, socket) do
-    {:noreply, assign(socket, :lark_invite_url, url)}
+  def handle_event("select_lark_preset", %{"preset" => preset_id}, socket) do
+    preset_atom = String.to_existing_atom(preset_id)
+    {:noreply, assign(socket, :selected_lark_preset, preset_atom)}
+  end
+
+  @impl true
+  def handle_event("toggle_lark_edit_mode", _params, socket) do
+    if socket.assigns.lark_edit_mode do
+      # Exiting edit mode - discard changes
+      {:noreply,
+       socket
+       |> assign(:lark_edit_mode, false)
+       |> assign(:lark_edit_form, %{})}
+    else
+      # Entering edit mode - initialize form with current values
+      edit_form =
+        socket.assigns.lark_presets
+        |> Enum.map(fn {id, preset} -> {id, preset.url} end)
+        |> Map.new()
+
+      {:noreply,
+       socket
+       |> assign(:lark_edit_mode, true)
+       |> assign(:lark_edit_form, edit_form)}
+    end
+  end
+
+  @impl true
+  def handle_event("update_lark_preset_url", %{"preset" => preset_id, "url" => url}, socket) do
+    preset_atom = String.to_existing_atom(preset_id)
+    edit_form = Map.put(socket.assigns.lark_edit_form, preset_atom, url)
+    {:noreply, assign(socket, :lark_edit_form, edit_form)}
+  end
+
+  @impl true
+  def handle_event("save_lark_presets", _params, socket) do
+    # Persist each edited URL to settings
+    Enum.each(socket.assigns.lark_edit_form, fn {preset_id, url} ->
+      key = @lark_presets[preset_id].key
+      Settings.set_setting(key, String.trim(url))
+    end)
+
+    # Reload presets and exit edit mode
+    {:noreply,
+     socket
+     |> assign(:lark_presets, load_lark_presets())
+     |> assign(:lark_edit_mode, false)
+     |> assign(:lark_edit_form, %{})
+     |> put_flash(:info, "Lark presets updated")}
+  end
+
+  @impl true
+  def handle_event("cancel_lark_edit", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:lark_edit_mode, false)
+     |> assign(:lark_edit_form, %{})}
   end
 
   @impl true
   def handle_event("send_outreach", _params, socket) do
-    lark_url = String.trim(socket.assigns.lark_invite_url)
+    selected = socket.assigns.selected_lark_preset
+    lark_url = socket.assigns.lark_presets[selected].url
 
-    if lark_url == "" do
-      {:noreply, put_flash(socket, :error, "Please enter a Lark invite URL")}
+    if String.trim(lark_url) == "" do
+      {:noreply, put_flash(socket, :error, "Selected Lark group has no URL configured")}
     else
-      Settings.set_setting("lark_invite_url", lark_url)
       creator_ids = MapSet.to_list(socket.assigns.selected_ids)
       {:ok, count} = CreatorOutreachWorker.enqueue_batch(creator_ids, lark_url)
 
@@ -851,15 +931,23 @@ defmodule PavoiWeb.CreatorsLive.Index do
     if socket.assigns.view_mode == "outreach" do
       stats = Outreach.get_outreach_stats()
       sent_today = Outreach.count_sent_today()
-      lark_url = Settings.get_setting("lark_invite_url") || ""
+      lark_presets = load_lark_presets()
 
       socket
       |> assign(:outreach_stats, stats)
       |> assign(:sent_today, sent_today)
-      |> assign(:lark_invite_url, lark_url)
+      |> assign(:lark_presets, lark_presets)
     else
       socket
     end
+  end
+
+  defp load_lark_presets do
+    Enum.map(@lark_presets, fn {id, preset} ->
+      url = Settings.get_setting(preset.key) || preset.default_url
+      {id, %{label: preset.label, url: url, key: preset.key}}
+    end)
+    |> Map.new()
   end
 
   defp maybe_add_opt(opts, _key, nil), do: opts
