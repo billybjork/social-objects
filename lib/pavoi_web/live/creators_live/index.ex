@@ -78,6 +78,10 @@ defmodule PavoiWeb.CreatorsLive.Index do
       |> assign(:active_tab, "contact")
       |> assign(:editing_contact, false)
       |> assign(:contact_form, nil)
+      # Lazy-loaded modal tab data
+      |> assign(:modal_samples, nil)
+      |> assign(:modal_videos, nil)
+      |> assign(:modal_performance, nil)
       # Unified creators state (merged CRM + Outreach)
       |> assign(:outreach_status, nil)
       |> assign(:selected_ids, MapSet.new())
@@ -171,6 +175,14 @@ defmodule PavoiWeb.CreatorsLive.Index do
 
   @impl true
   def handle_event("change_tab", %{"tab" => tab}, socket) do
+    # Load tab data if switching to a tab that needs it
+    socket =
+      if socket.assigns.selected_creator do
+        load_modal_tab_data(socket, tab, socket.assigns.selected_creator.id)
+      else
+        socket
+      end
+
     params = build_query_params(socket, tab: tab)
     {:noreply, push_patch(socket, to: ~p"/creators?#{params}")}
   end
@@ -214,8 +226,8 @@ defmodule PavoiWeb.CreatorsLive.Index do
   def handle_event("save_contact", %{"creator" => params}, socket) do
     case Creators.update_creator(socket.assigns.selected_creator, params) do
       {:ok, creator} ->
-        # Reload with associations
-        creator = Creators.get_creator_with_details!(creator.id)
+        # Reload with minimal associations (not all tab data)
+        creator = Creators.get_creator_for_modal!(creator.id)
 
         socket =
           socket
@@ -974,21 +986,19 @@ defmodule PavoiWeb.CreatorsLive.Index do
 
     result = Creators.search_creators_unified(opts)
 
-    # Batch load outreach logs for all creators
+    # Batch load all related data in 3 queries instead of N+1
     creator_ids = Enum.map(result.creators, & &1.id)
     outreach_logs_map = Outreach.get_latest_email_outreach_logs(creator_ids)
+    sample_counts_map = Creators.batch_count_samples(creator_ids)
+    tags_map = Creators.batch_list_tags_for_creators(creator_ids, brand_id)
 
     # Add sample counts, tags, and outreach logs to each creator
     creators_with_data =
       Enum.map(result.creators, fn creator ->
-        sample_count = Creators.count_samples_for_creator(creator.id)
-        creator_tags = Creators.list_tags_for_creator(creator.id, brand_id)
-        email_outreach_log = Map.get(outreach_logs_map, creator.id)
-
         creator
-        |> Map.put(:sample_count, sample_count)
-        |> Map.put(:creator_tags, creator_tags)
-        |> Map.put(:email_outreach_log, email_outreach_log)
+        |> Map.put(:sample_count, Map.get(sample_counts_map, creator.id, 0))
+        |> Map.put(:creator_tags, Map.get(tags_map, creator.id, []))
+        |> Map.put(:email_outreach_log, Map.get(outreach_logs_map, creator.id))
       end)
 
     # If loading more (page > 1), append to existing
@@ -1119,14 +1129,53 @@ defmodule PavoiWeb.CreatorsLive.Index do
         |> assign(:active_tab, "contact")
         |> assign(:editing_contact, false)
         |> assign(:contact_form, nil)
+        |> assign(:modal_samples, nil)
+        |> assign(:modal_videos, nil)
+        |> assign(:modal_performance, nil)
 
       creator_id ->
-        creator = Creators.get_creator_with_details!(creator_id)
+        # Load only basic creator info + tags (not samples/videos/performance)
+        creator = Creators.get_creator_for_modal!(creator_id)
         tab = params["tab"] || "contact"
 
         socket
         |> assign(:selected_creator, creator)
         |> assign(:active_tab, tab)
+        # Reset lazy-loaded data
+        |> assign(:modal_samples, nil)
+        |> assign(:modal_videos, nil)
+        |> assign(:modal_performance, nil)
+        # Load the data for the active tab
+        |> load_modal_tab_data(tab, creator.id)
     end
   end
+
+  # Load tab-specific data on demand
+  defp load_modal_tab_data(socket, "contact", _creator_id), do: socket
+
+  defp load_modal_tab_data(socket, "samples", creator_id) do
+    if socket.assigns.modal_samples do
+      socket
+    else
+      assign(socket, :modal_samples, Creators.get_samples_for_modal(creator_id))
+    end
+  end
+
+  defp load_modal_tab_data(socket, "videos", creator_id) do
+    if socket.assigns.modal_videos do
+      socket
+    else
+      assign(socket, :modal_videos, Creators.get_videos_for_modal(creator_id))
+    end
+  end
+
+  defp load_modal_tab_data(socket, "performance", creator_id) do
+    if socket.assigns.modal_performance do
+      socket
+    else
+      assign(socket, :modal_performance, Creators.get_performance_for_modal(creator_id))
+    end
+  end
+
+  defp load_modal_tab_data(socket, _tab, _creator_id), do: socket
 end

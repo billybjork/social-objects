@@ -63,7 +63,12 @@ defmodule PavoiWeb.JoinLive do
       {:noreply, redirect(socket, external: lark_url)}
     else
       {:error, :no_lark_url} ->
-        {:noreply, assign(socket, :phone_error, "Lark community link not configured. Please contact support.")}
+        {:noreply,
+         assign(
+           socket,
+           :phone_error,
+           "Lark community link not configured. Please contact support."
+         )}
 
       {:error, :save_failed} ->
         {:noreply, assign(socket, :phone_error, "Something went wrong. Please try again.")}

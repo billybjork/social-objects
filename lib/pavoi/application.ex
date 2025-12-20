@@ -6,6 +6,8 @@ defmodule Pavoi.Application do
   use Application
   require Logger
 
+  alias Pavoi.TiktokLive.StreamReconciler
+
   @impl true
   def start(_type, _args) do
     children = [
@@ -39,7 +41,7 @@ defmodule Pavoi.Application do
       Process.sleep(5_000)
 
       try do
-        count = Pavoi.TiktokLive.StreamReconciler.run()
+        count = StreamReconciler.run()
         Logger.info("Stream reconciliation completed, processed #{count} jobs/streams")
       rescue
         e ->

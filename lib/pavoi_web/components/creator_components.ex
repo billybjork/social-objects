@@ -1305,12 +1305,18 @@ defmodule PavoiWeb.CreatorComponents do
   - `editing_contact` - Whether contact form is in edit mode
   - `contact_form` - The form for editing contact info
   - `tag_picker_open` - Whether tag picker is open from this modal (disables click-away)
+  - `samples` - Lazy-loaded samples data (nil if not loaded)
+  - `videos` - Lazy-loaded videos data (nil if not loaded)
+  - `performance` - Lazy-loaded performance snapshots (nil if not loaded)
   """
   attr :creator, :any, default: nil
   attr :active_tab, :string, default: "contact"
   attr :editing_contact, :boolean, default: false
   attr :contact_form, :any, default: nil
   attr :tag_picker_open, :boolean, default: false
+  attr :samples, :list, default: nil
+  attr :videos, :list, default: nil
+  attr :performance, :list, default: nil
 
   def creator_detail_modal(assigns) do
     ~H"""
@@ -1371,7 +1377,7 @@ defmodule PavoiWeb.CreatorComponents do
             </div>
             <div class="creator-modal-stat">
               <span class="creator-modal-stat__label">Videos</span>
-              <span class="creator-modal-stat__value">{length(@creator.creator_videos)}</span>
+              <span class="creator-modal-stat__value">{@creator.total_videos || 0}</span>
             </div>
           </div>
 
@@ -1390,7 +1396,7 @@ defmodule PavoiWeb.CreatorComponents do
               phx-click="change_tab"
               phx-value-tab="samples"
             >
-              Samples ({length(@creator.creator_samples)})
+              Samples
             </button>
             <button
               type="button"
@@ -1398,7 +1404,7 @@ defmodule PavoiWeb.CreatorComponents do
               phx-click="change_tab"
               phx-value-tab="videos"
             >
-              Videos ({length(@creator.creator_videos)})
+              Videos
             </button>
             <button
               type="button"
@@ -1406,7 +1412,7 @@ defmodule PavoiWeb.CreatorComponents do
               phx-click="change_tab"
               phx-value-tab="performance"
             >
-              Performance ({length(@creator.performance_snapshots)})
+              Performance
             </button>
           </div>
 
@@ -1419,11 +1425,11 @@ defmodule PavoiWeb.CreatorComponents do
                   form={@contact_form}
                 />
               <% "samples" -> %>
-                <.samples_table samples={@creator.creator_samples} />
+                <.samples_table samples={@samples || []} />
               <% "videos" -> %>
-                <.videos_table videos={@creator.creator_videos} username={@creator.tiktok_username} />
+                <.videos_table videos={@videos || []} username={@creator.tiktok_username} />
               <% "performance" -> %>
-                <.performance_table snapshots={@creator.performance_snapshots} />
+                <.performance_table snapshots={@performance || []} />
             <% end %>
           </div>
         </div>

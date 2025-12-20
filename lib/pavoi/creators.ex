@@ -302,6 +302,52 @@ defmodule Pavoi.Creators do
   end
 
   @doc """
+  Gets a creator with minimal associations for modal header display.
+  Only loads creator_tags, not samples/videos/performance data.
+  """
+  def get_creator_for_modal!(id) do
+    Creator
+    |> where([c], c.id == ^id)
+    |> preload([:brands, :creator_tags])
+    |> Repo.one!()
+  end
+
+  @doc """
+  Gets samples for a creator with full associations for display.
+  """
+  def get_samples_for_modal(creator_id) do
+    from(cs in CreatorSample,
+      where: cs.creator_id == ^creator_id,
+      order_by: [desc: cs.ordered_at],
+      preload: [:brand, product: :product_images]
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Gets videos for a creator with associations for display.
+  """
+  def get_videos_for_modal(creator_id) do
+    from(cv in CreatorVideo,
+      where: cv.creator_id == ^creator_id,
+      order_by: [desc: cv.gmv_cents],
+      preload: [:video_products]
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Gets performance snapshots for a creator.
+  """
+  def get_performance_for_modal(creator_id) do
+    from(ps in CreatorPerformanceSnapshot,
+      where: ps.creator_id == ^creator_id,
+      order_by: [desc: ps.snapshot_date]
+    )
+    |> Repo.all()
+  end
+
+  @doc """
   Creates a creator.
   """
   def create_creator(attrs \\ %{}) do
@@ -477,6 +523,24 @@ defmodule Pavoi.Creators do
   def count_samples_for_creator(creator_id) do
     from(cs in CreatorSample, where: cs.creator_id == ^creator_id)
     |> Repo.aggregate(:count)
+  end
+
+  @doc """
+  Batch gets sample counts for multiple creators.
+  Returns a map of creator_id => count.
+  """
+  def batch_count_samples(creator_ids) when is_list(creator_ids) do
+    if creator_ids == [] do
+      %{}
+    else
+      from(cs in CreatorSample,
+        where: cs.creator_id in ^creator_ids,
+        group_by: cs.creator_id,
+        select: {cs.creator_id, count(cs.id)}
+      )
+      |> Repo.all()
+      |> Map.new()
+    end
   end
 
   ## Creator Videos
@@ -754,6 +818,36 @@ defmodule Pavoi.Creators do
       end
 
     Repo.all(query)
+  end
+
+  @doc """
+  Batch gets tags for multiple creators.
+  Returns a map of creator_id => [tags].
+  """
+  def batch_list_tags_for_creators(creator_ids, brand_id) when is_list(creator_ids) do
+    if creator_ids == [] do
+      %{}
+    else
+      query =
+        from(t in CreatorTag,
+          join: a in CreatorTagAssignment,
+          on: a.creator_tag_id == t.id,
+          where: a.creator_id in ^creator_ids,
+          order_by: [asc: t.position, asc: t.name],
+          select: {a.creator_id, t}
+        )
+
+      query =
+        if brand_id do
+          where(query, [t], t.brand_id == ^brand_id)
+        else
+          query
+        end
+
+      query
+      |> Repo.all()
+      |> Enum.group_by(fn {creator_id, _tag} -> creator_id end, fn {_creator_id, tag} -> tag end)
+    end
   end
 
   @doc """

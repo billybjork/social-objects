@@ -16,178 +16,160 @@ defmodule Pavoi.TiktokLive.Proto.Parser do
   Returns a list of parsed events, each with a `:type` and event-specific data.
   """
   def parse_response(binary_data) when is_binary(binary_data) do
-    try do
-      case Webcast.WebcastResponse.decode(binary_data) do
-        %Webcast.WebcastResponse{messages: messages} when is_list(messages) ->
-          events =
-            messages
-            |> Enum.map(&parse_message/1)
-            |> Enum.reject(&is_nil/1)
+    case Webcast.WebcastResponse.decode(binary_data) do
+      %Webcast.WebcastResponse{messages: messages} when is_list(messages) ->
+        events =
+          messages
+          |> Enum.map(&parse_message/1)
+          |> Enum.reject(&is_nil/1)
 
-          {:ok, events}
+        {:ok, events}
 
-        _ ->
-          {:error, :invalid_response}
-      end
-    rescue
-      e ->
-        Logger.warning("Failed to decode WebCast response: #{inspect(e)}")
-        {:error, {:decode_error, e}}
+      _ ->
+        {:error, :invalid_response}
     end
+  rescue
+    e ->
+      Logger.warning("Failed to decode WebCast response: #{inspect(e)}")
+      {:error, {:decode_error, e}}
   end
 
   @doc """
   Parses a WebcastPushFrame (the outer wrapper for WebSocket messages).
   """
   def parse_push_frame(binary_data) when is_binary(binary_data) do
-    try do
-      frame = Webcast.WebcastPushFrame.decode(binary_data)
-      parse_response(frame.payload)
-    rescue
-      _e ->
-        # Try parsing as direct response if frame parsing fails
-        parse_response(binary_data)
-    end
+    frame = Webcast.WebcastPushFrame.decode(binary_data)
+    parse_response(frame.payload)
+  rescue
+    _e ->
+      # Try parsing as direct response if frame parsing fails
+      parse_response(binary_data)
   end
 
   # Message type handlers
 
   defp parse_message(%Webcast.Message{type: "WebcastChatMessage", payload: payload}) do
-    try do
-      chat = Webcast.WebcastChatMessage.decode(payload)
+    chat = Webcast.WebcastChatMessage.decode(payload)
 
-      %{
-        type: :comment,
-        user_id: user_id(chat.user),
-        username: username(chat.user),
-        nickname: nickname(chat.user),
-        content: chat.content,
-        timestamp: timestamp(chat.common),
-        raw: chat
-      }
-    rescue
-      _ -> nil
-    end
+    %{
+      type: :comment,
+      user_id: user_id(chat.user),
+      username: username(chat.user),
+      nickname: nickname(chat.user),
+      content: chat.content,
+      timestamp: timestamp(chat.common),
+      raw: chat
+    }
+  rescue
+    _ -> nil
   end
 
   defp parse_message(%Webcast.Message{type: "WebcastGiftMessage", payload: payload}) do
-    try do
-      gift_msg = Webcast.WebcastGiftMessage.decode(payload)
+    gift_msg = Webcast.WebcastGiftMessage.decode(payload)
 
-      %{
-        type: :gift,
-        user_id: user_id(gift_msg.user),
-        username: username(gift_msg.user),
-        nickname: nickname(gift_msg.user),
-        gift_id: gift_msg.gift_id,
-        gift_name: gift_name(gift_msg.gift),
-        diamond_count: gift_msg.diamond_count,
-        repeat_count: gift_msg.repeat_count,
-        combo_count: gift_msg.combo_count,
-        timestamp: timestamp(gift_msg.common),
-        raw: gift_msg
-      }
-    rescue
-      _ -> nil
-    end
+    %{
+      type: :gift,
+      user_id: user_id(gift_msg.user),
+      username: username(gift_msg.user),
+      nickname: nickname(gift_msg.user),
+      gift_id: gift_msg.gift_id,
+      gift_name: gift_name(gift_msg.gift),
+      diamond_count: gift_msg.diamond_count,
+      repeat_count: gift_msg.repeat_count,
+      combo_count: gift_msg.combo_count,
+      timestamp: timestamp(gift_msg.common),
+      raw: gift_msg
+    }
+  rescue
+    _ -> nil
   end
 
   defp parse_message(%Webcast.Message{type: "WebcastLikeMessage", payload: payload}) do
-    try do
-      like = Webcast.WebcastLikeMessage.decode(payload)
+    like = Webcast.WebcastLikeMessage.decode(payload)
 
-      %{
-        type: :like,
-        user_id: user_id(like.user),
-        username: username(like.user),
-        nickname: nickname(like.user),
-        count: like.count,
-        total_count: like.total_count,
-        timestamp: timestamp(like.common),
-        raw: like
-      }
-    rescue
-      _ -> nil
-    end
+    %{
+      type: :like,
+      user_id: user_id(like.user),
+      username: username(like.user),
+      nickname: nickname(like.user),
+      count: like.count,
+      total_count: like.total_count,
+      timestamp: timestamp(like.common),
+      raw: like
+    }
+  rescue
+    _ -> nil
   end
 
   defp parse_message(%Webcast.Message{type: "WebcastMemberMessage", payload: payload}) do
-    try do
-      member = Webcast.WebcastMemberMessage.decode(payload)
+    member = Webcast.WebcastMemberMessage.decode(payload)
 
-      %{
-        type: :join,
-        user_id: user_id(member.user),
-        username: username(member.user),
-        nickname: nickname(member.user),
-        member_count: member.member_count,
-        action: member.action,
-        timestamp: timestamp(member.common),
-        raw: member
-      }
-    rescue
-      _ -> nil
-    end
+    %{
+      type: :join,
+      user_id: user_id(member.user),
+      username: username(member.user),
+      nickname: nickname(member.user),
+      member_count: member.member_count,
+      action: member.action,
+      timestamp: timestamp(member.common),
+      raw: member
+    }
+  rescue
+    _ -> nil
   end
 
   defp parse_message(%Webcast.Message{type: "WebcastRoomUserSeqMessage", payload: payload}) do
-    try do
-      seq = Webcast.WebcastRoomUserSeqMessage.decode(payload)
+    seq = Webcast.WebcastRoomUserSeqMessage.decode(payload)
 
-      %{
-        type: :viewer_count,
-        viewer_count: seq.viewer_count || seq.total_user,
-        timestamp: timestamp(seq.common),
-        raw: seq
-      }
-    rescue
-      _ -> nil
-    end
+    %{
+      type: :viewer_count,
+      viewer_count: seq.viewer_count || seq.total_user,
+      timestamp: timestamp(seq.common),
+      raw: seq
+    }
+  rescue
+    _ -> nil
   end
 
   defp parse_message(%Webcast.Message{type: "WebcastSocialMessage", payload: payload}) do
-    try do
-      social = Webcast.WebcastSocialMessage.decode(payload)
+    social = Webcast.WebcastSocialMessage.decode(payload)
 
-      action_type =
-        case social.action do
-          1 -> :follow
-          _ -> :share
-        end
+    action_type =
+      case social.action do
+        1 -> :follow
+        _ -> :share
+      end
 
-      %{
-        type: action_type,
-        user_id: user_id(social.user),
-        username: username(social.user),
-        nickname: nickname(social.user),
-        follow_count: social.follow_count,
-        timestamp: timestamp(social.common),
-        raw: social
-      }
-    rescue
-      _ -> nil
-    end
+    %{
+      type: action_type,
+      user_id: user_id(social.user),
+      username: username(social.user),
+      nickname: nickname(social.user),
+      follow_count: social.follow_count,
+      timestamp: timestamp(social.common),
+      raw: social
+    }
+  rescue
+    _ -> nil
   end
 
   defp parse_message(%Webcast.Message{type: "WebcastControlMessage", payload: payload}) do
-    try do
-      control = Webcast.WebcastControlMessage.decode(payload)
+    control = Webcast.WebcastControlMessage.decode(payload)
 
-      action_type =
-        case control.action do
-          3 -> :stream_ended
-          _ -> :control
-        end
+    action_type =
+      case control.action do
+        3 -> :stream_ended
+        _ -> :control
+      end
 
-      %{
-        type: action_type,
-        action: control.action,
-        timestamp: timestamp(control.common),
-        raw: control
-      }
-    rescue
-      _ -> nil
-    end
+    %{
+      type: action_type,
+      action: control.action,
+      timestamp: timestamp(control.common),
+      raw: control
+    }
+  rescue
+    _ -> nil
   end
 
   defp parse_message(%Webcast.Message{type: type, payload: _payload}) do

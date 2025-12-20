@@ -12,7 +12,7 @@ defmodule Pavoi.TiktokLive.StreamReconciler do
   require Logger
 
   alias Pavoi.Repo
-  alias Pavoi.TiktokLive.{Client, Stream}
+  alias Pavoi.TiktokLive.{BridgeClient, Client, Stream}
   alias Pavoi.Workers.TiktokLiveStreamWorker
 
   import Ecto.Query
@@ -116,7 +116,7 @@ defmodule Pavoi.TiktokLive.StreamReconciler do
   defp restart_capture(stream) do
     # First, disconnect from the bridge to clear any stale connection state
     # The bridge may still think it's connected from before the restart
-    case Pavoi.TiktokLive.BridgeClient.disconnect_stream(stream.unique_id) do
+    case BridgeClient.disconnect_stream(stream.unique_id) do
       {:ok, _} ->
         Logger.debug("Disconnected stale bridge connection for @#{stream.unique_id}")
 
@@ -244,7 +244,7 @@ defmodule Pavoi.TiktokLive.StreamReconciler do
 
   defp recover_stream(stream) do
     # First disconnect any stale bridge connection
-    case Pavoi.TiktokLive.BridgeClient.disconnect_stream(stream.unique_id) do
+    case BridgeClient.disconnect_stream(stream.unique_id) do
       {:ok, _} ->
         Logger.debug("Disconnected stale bridge connection for @#{stream.unique_id}")
 
