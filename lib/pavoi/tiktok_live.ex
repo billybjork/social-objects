@@ -373,77 +373,82 @@ defmodule Pavoi.TiktokLive do
     target = get_stream!(target_id)
     source = get_stream!(source_id)
 
-    # Verify they're for the same room
     if target.room_id != source.room_id do
       {:error, :different_rooms}
     else
-      # Find comments in source that would conflict with target (same user + timestamp)
-      # These are duplicates captured by both streams
-      duplicate_comment_ids =
-        from(sc in Comment,
-          join: tc in Comment,
-          on:
-            tc.stream_id == ^target_id and
-              sc.tiktok_user_id == tc.tiktok_user_id and
-              sc.commented_at == tc.commented_at,
-          where: sc.stream_id == ^source_id,
-          select: sc.id
-        )
-        |> Repo.all()
-
-      # Find stats in source that would conflict with target (same timestamp)
-      duplicate_stat_ids =
-        from(ss in StreamStat,
-          join: ts in StreamStat,
-          on: ts.stream_id == ^target_id and ss.recorded_at == ts.recorded_at,
-          where: ss.stream_id == ^source_id,
-          select: ss.id
-        )
-        |> Repo.all()
-
-      Ecto.Multi.new()
-      # Delete duplicate comments from source (already exist in target)
-      |> Ecto.Multi.delete_all(
-        :delete_dup_comments,
-        from(c in Comment, where: c.id in ^duplicate_comment_ids)
-      )
-      # Delete duplicate stats from source (already exist in target)
-      |> Ecto.Multi.delete_all(
-        :delete_dup_stats,
-        from(s in StreamStat, where: s.id in ^duplicate_stat_ids)
-      )
-      # Move remaining unique comments from source to target
-      |> Ecto.Multi.update_all(
-        :move_comments,
-        from(c in Comment, where: c.stream_id == ^source_id),
-        set: [stream_id: target_id]
-      )
-      # Move remaining unique stats from source to target
-      |> Ecto.Multi.update_all(
-        :move_stats,
-        from(s in StreamStat, where: s.stream_id == ^source_id),
-        set: [stream_id: target_id]
-      )
-      # Update target with best values from both streams
-      |> Ecto.Multi.update(:update_target, fn _changes ->
-        Stream.changeset(target, %{
-          started_at: earlier_datetime(target.started_at, source.started_at),
-          ended_at: later_datetime(target.ended_at, source.ended_at),
-          viewer_count_peak: max(target.viewer_count_peak || 0, source.viewer_count_peak || 0),
-          total_likes: max(target.total_likes || 0, source.total_likes || 0),
-          total_comments: (target.total_comments || 0) + (source.total_comments || 0),
-          total_gifts_value: (target.total_gifts_value || 0) + (source.total_gifts_value || 0)
-        })
-      end)
-      # Delete the source stream
-      |> Ecto.Multi.delete(:delete_source, source)
-      |> Repo.transaction()
-      |> case do
-        {:ok, %{update_target: updated_target}} -> {:ok, updated_target}
-        {:error, step, reason, _changes} -> {:error, {step, reason}}
-      end
+      do_merge_streams(target, source)
     end
   end
+
+  defp do_merge_streams(target, source) do
+    dup_comment_ids = find_duplicate_comment_ids(target.id, source.id)
+    dup_stat_ids = find_duplicate_stat_ids(target.id, source.id)
+
+    build_merge_multi(target, source, dup_comment_ids, dup_stat_ids)
+    |> Repo.transaction()
+    |> handle_merge_result()
+  end
+
+  defp find_duplicate_comment_ids(target_id, source_id) do
+    from(sc in Comment,
+      join: tc in Comment,
+      on:
+        tc.stream_id == ^target_id and
+          sc.tiktok_user_id == tc.tiktok_user_id and
+          sc.commented_at == tc.commented_at,
+      where: sc.stream_id == ^source_id,
+      select: sc.id
+    )
+    |> Repo.all()
+  end
+
+  defp find_duplicate_stat_ids(target_id, source_id) do
+    from(ss in StreamStat,
+      join: ts in StreamStat,
+      on: ts.stream_id == ^target_id and ss.recorded_at == ts.recorded_at,
+      where: ss.stream_id == ^source_id,
+      select: ss.id
+    )
+    |> Repo.all()
+  end
+
+  defp build_merge_multi(target, source, dup_comment_ids, dup_stat_ids) do
+    Ecto.Multi.new()
+    |> Ecto.Multi.delete_all(
+      :delete_dup_comments,
+      from(c in Comment, where: c.id in ^dup_comment_ids)
+    )
+    |> Ecto.Multi.delete_all(
+      :delete_dup_stats,
+      from(s in StreamStat, where: s.id in ^dup_stat_ids)
+    )
+    |> Ecto.Multi.update_all(
+      :move_comments,
+      from(c in Comment, where: c.stream_id == ^source.id),
+      set: [stream_id: target.id]
+    )
+    |> Ecto.Multi.update_all(
+      :move_stats,
+      from(s in StreamStat, where: s.stream_id == ^source.id),
+      set: [stream_id: target.id]
+    )
+    |> Ecto.Multi.update(:update_target, merge_stream_changeset(target, source))
+    |> Ecto.Multi.delete(:delete_source, source)
+  end
+
+  defp merge_stream_changeset(target, source) do
+    Stream.changeset(target, %{
+      started_at: earlier_datetime(target.started_at, source.started_at),
+      ended_at: later_datetime(target.ended_at, source.ended_at),
+      viewer_count_peak: max(target.viewer_count_peak || 0, source.viewer_count_peak || 0),
+      total_likes: max(target.total_likes || 0, source.total_likes || 0),
+      total_comments: (target.total_comments || 0) + (source.total_comments || 0),
+      total_gifts_value: (target.total_gifts_value || 0) + (source.total_gifts_value || 0)
+    })
+  end
+
+  defp handle_merge_result({:ok, %{update_target: updated_target}}), do: {:ok, updated_target}
+  defp handle_merge_result({:error, step, reason, _changes}), do: {:error, {step, reason}}
 
   defp earlier_datetime(nil, dt), do: dt
   defp earlier_datetime(dt, nil), do: dt
@@ -689,25 +694,19 @@ defmodule Pavoi.TiktokLive do
       ~r/(?:^|[^0-9])(\d{1,3})(?:[^0-9]|$)/
     ]
 
-    result =
-      Enum.find_value(patterns, fn pattern ->
-        case Regex.run(pattern, text) do
-          [_, number_str] ->
-            number = String.to_integer(number_str)
+    Enum.find_value(patterns, fn pattern ->
+      try_extract_product_number(pattern, text, max_position)
+    end) || :no_match
+  end
 
-            # Validate: must be positive and within session range
-            if number > 0 and number <= max_position do
-              {:ok, number}
-            else
-              nil
-            end
-
-          _ ->
-            nil
-        end
-      end)
-
-    result || :no_match
+  defp try_extract_product_number(pattern, text, max_position) do
+    with [_, number_str] <- Regex.run(pattern, text),
+         number = String.to_integer(number_str),
+         true <- number > 0 and number <= max_position do
+      {:ok, number}
+    else
+      _ -> nil
+    end
   end
 
   def parse_product_number(_text, _max_position), do: :no_match
