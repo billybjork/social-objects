@@ -114,16 +114,22 @@ defmodule Pavoi.Storage do
   @spec upload_from_url(String.t(), String.t()) :: {:ok, String.t()} | {:error, term()}
   def upload_from_url(url, key) do
     if configured?() do
-      with {:ok, %{status: 200, body: body, headers: headers}} <- Req.get(url),
-           content_type <- get_content_type(headers, url),
-           {:ok, _} <- upload_binary(key, body, content_type) do
-        {:ok, key}
-      else
-        {:ok, %{status: status}} ->
-          {:error, {:http_error, status}}
+      try do
+        with {:ok, %{status: 200, body: body, headers: headers}} <- Req.get(url),
+             content_type <- get_content_type(headers, url),
+             {:ok, _} <- upload_binary(key, body, content_type) do
+          {:ok, key}
+        else
+          {:ok, %{status: status}} ->
+            {:error, {:http_error, status}}
 
-        {:error, reason} ->
-          {:error, reason}
+          {:error, reason} ->
+            {:error, reason}
+        end
+      rescue
+        e ->
+          Logger.error("Exception in upload_from_url: #{inspect(e)}")
+          {:error, {:exception, e}}
       end
     else
       {:error, :storage_not_configured}
@@ -192,7 +198,7 @@ defmodule Pavoi.Storage do
       access_key_id: access_key(),
       secret_access_key: secret_key(),
       host: "storage.railway.app",
-      scheme: "https://",
+      scheme: "https",
       region: "auto"
     )
   end

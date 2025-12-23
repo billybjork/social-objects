@@ -4,49 +4,57 @@
 alias Pavoi.TiktokShop
 
 paths = [
-  # Creator marketplace patterns - various structures
-  {"/affiliate/202509/seller/marketplace/creators/search", :post},
-  {"/affiliate/seller/202509/creators/search", :post},
-  {"/seller/202509/affiliate/creators/search", :post},
-  {"/creator_marketplace/202509/creators/search", :post},
-  {"/seller/202509/creator_marketplace/search", :post},
+  # Paths derived from doc URL names like "seller-search-creator-on-marketplace-202509"
+  {"/affiliate/202509/seller/search_creator_marketplace", :post},
+  {"/affiliate/202509/sellers/creators/marketplace/search", :post},
 
-  # Without nested seller prefix
-  {"/affiliate/202509/marketplace/search", :post},
-  {"/affiliate/202509/creators", :get},
-  {"/affiliate/202509/creators", :post},
+  # From: get-marketplace-creator-performance-202509
+  {"/affiliate/202509/marketplace/creator/performance", :get},
+  {"/affiliate/202509/marketplace/creator/performance", :post},
+  {"/affiliate/202509/creators/marketplace/performance", :get},
 
-  # Maybe "affiliate" without version in first segment
-  {"/affiliate/creators/search", :post},
-  {"/affiliate/marketplace/creators/search", :post},
+  # From: create-open-collaboration-202509
+  {"/affiliate/202509/open_collaboration/create", :post},
+  {"/affiliate/202509/open_collaborations/create", :post},
 
-  # Different version patterns
-  {"/affiliate/202412/creators/search", :post},
-  {"/affiliate/202406/creators/search", :post},
-  {"/affiliate/202403/creators/search", :post},
+  # From: generate-target-collaboration-link-202509
+  {"/affiliate/202509/target_collaboration/link/generate", :post},
+  {"/affiliate/202509/target_collaborations/link/generate", :post},
+  {"/affiliate/202509/target_collaboration_link/generate", :post},
 
-  # Open collaboration patterns
-  {"/affiliate/202509/seller/open_collaboration", :get},
-  {"/affiliate/202509/seller/open_collaboration", :post},
-  {"/affiliate/202509/seller/open_collaborations", :get},
-  {"/seller/202509/open_collaboration/search", :post},
-  {"/affiliate/202509/collaborations/open", :get},
-  {"/affiliate/202509/collaboration/open/search", :post},
+  # From: generate-affiliate-product-promotion-link-202509
+  {"/affiliate/202509/product/promotion_link/generate", :post},
+  {"/affiliate/202509/products/promotion_link/generate", :post},
+  {"/affiliate/202509/affiliate_product_promotion_link/generate", :post},
 
-  # Target collaboration
-  {"/affiliate/202509/seller/target_collaboration", :get},
-  {"/affiliate/202509/seller/target_collaborations", :get},
-  {"/affiliate/202509/target_collaboration/search", :post},
+  # From: search-creator-affiliate-orders-202509
+  {"/affiliate/202509/creator/orders/search", :post},
+  {"/affiliate/202509/creators/affiliate_orders/search", :post},
 
-  # Promotion links
-  {"/affiliate/202509/promotion/link", :post},
-  {"/affiliate/202509/products/promotion/link", :post},
-  {"/affiliate/202509/seller/promotion/link", :post},
+  # From: create-target-collaboration-202509
+  {"/affiliate/202509/target_collaboration/create", :post},
+  {"/affiliate/202509/target_collaborations/create", :post},
 
-  # Sample applications
-  {"/affiliate/202509/seller/sample_applications", :get},
-  {"/affiliate/202509/samples/applications", :get},
-  {"/affiliate/202509/sample_application/search", :post},
+  # From: edit-open-collaboration-settings-202509
+  {"/affiliate/202509/open_collaboration/settings/edit", :post},
+  {"/affiliate/202509/open_collaborations/settings", :post},
+  {"/affiliate/202509/open_collaborations/settings", :get},
+
+  # From: seller-review-sample-applications-202509
+  {"/affiliate/202509/seller/sample_applications/review", :post},
+  {"/affiliate/202509/sample_applications/review", :post},
+
+  # From: search-open-collaboration-202509 (for products)
+  {"/affiliate/202509/open_collaboration/search", :post},
+  {"/affiliate/202509/open_collaborations/search", :post},
+
+  # From: remove-open-collaboration-202509
+  {"/affiliate/202509/open_collaboration/remove", :post},
+  {"/affiliate/202509/open_collaborations/remove", :post},
+
+  # Alternative: maybe the version is in the middle like products
+  {"/seller/affiliate/202509/creators/search", :post},
+  {"/seller/affiliate/202509/open_collaborations", :get},
 ]
 
 IO.puts("Testing #{length(paths)} path variations...\n")
