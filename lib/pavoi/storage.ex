@@ -81,19 +81,12 @@ defmodule Pavoi.Storage do
         key_or_url
       end
 
-    if configured?() && key do
-      bucket = bucket_name()
-
-      case config()
-           |> ExAws.S3.presigned_url(:get, bucket, key, expires_in: 604_800) do
-        {:ok, url} -> url
-        {:error, _} -> nil
-      end
-    else
-      # Return a direct URL format for display even if not configured
-      # (will show broken image, but won't crash)
+    if key do
+      # Use direct public URL format for Railway buckets
       bucket = bucket_name() || "unconfigured"
       "https://#{bucket}.storage.railway.app/#{key}"
+    else
+      nil
     end
   end
 
