@@ -28,8 +28,11 @@ defmodule Mix.Tasks.AuditAffiliateApi do
 
   @shortdoc "Audit TikTok Shop Affiliate API endpoints"
 
-  # API version for new affiliate endpoints
-  @api_version "202509"
+  # API versions vary by endpoint - discovered from docs:
+  # - /affiliate_creator/202508/... for creator profiles
+  # - /affiliate_creator/202405/... for open collaborations
+  # - /affiliate_seller/... for seller endpoints (TBD)
+  # - /order/202309/... for orders
 
   def run(args) do
     Mix.Task.run("app.start")
@@ -76,30 +79,18 @@ defmodule Mix.Tasks.AuditAffiliateApi do
     └──────────────────────────────────────────────────────────────────┘
     """)
 
+    # Verified paths from TikTok docs:
+    # - /affiliate_seller/202406/marketplace_creators/search (POST, page_size must be 12 or 20)
+    # - /affiliate_seller/202406/marketplace_creators/{creator_user_id} (GET)
+
     endpoints = [
-      # Try different path patterns for Search Creator
-      {:post, "/affiliate/#{@api_version}/creators/search", %{}, %{},
-       "Search Creator on Marketplace (v1)"},
-      {:post, "/affiliate/#{@api_version}/seller/creators/search", %{}, %{},
-       "Search Creator on Marketplace (v2)"},
-      {:post, "/affiliate/#{@api_version}/marketplace/creators/search", %{}, %{},
-       "Search Creator on Marketplace (v3)"},
-      {:post, "/affiliate/#{@api_version}/creator_marketplace/creators/search", %{}, %{},
-       "Search Creator on Marketplace (v4)"},
+      # Seller Search Creator on Marketplace (VERIFIED PATH)
+      {:post, "/affiliate_seller/202406/marketplace_creators/search", %{page_size: 12}, %{},
+       "Search Creators on Marketplace"},
 
-      # Try with minimal body
-      {:post, "/affiliate/#{@api_version}/creators/search", %{},
-       %{page_size: 10}, "Search Creator with page_size"},
-
-      # Try GET variant
-      {:get, "/affiliate/#{@api_version}/creators", %{page_size: 10}, %{},
-       "List Creators (GET variant)"},
-
-      # Creator performance - need a creator_id, try with placeholder
-      {:get, "/affiliate/#{@api_version}/creators/performance", %{}, %{},
-       "Get Creator Performance (no ID)"},
-      {:post, "/affiliate/#{@api_version}/creators/performance", %{}, %{},
-       "Get Creator Performance (POST)"}
+      # Get Creator Performance (VERIFIED PATH) - needs a creator_user_id
+      {:get, "/affiliate_seller/202406/marketplace_creators/test_user_id", %{}, %{},
+       "Get Creator Performance (test)"}
     ]
 
     Enum.map(endpoints, fn {method, path, params, body, name} ->
@@ -118,70 +109,76 @@ defmodule Mix.Tasks.AuditAffiliateApi do
     └──────────────────────────────────────────────────────────────────┘
     """)
 
-    # First, try to discover existing collaborations (read operations are safer)
+    # Based on discovered paths:
+    # /affiliate_creator/202405/open_collaborations/products/search
+    # /order/202309/orders/search
+
     read_endpoints = [
-      # Search/List open collaborations
-      {:get, "/affiliate/#{@api_version}/open_collaborations", %{}, %{},
-       "List Open Collaborations (GET)"},
-      {:post, "/affiliate/#{@api_version}/open_collaborations/search", %{}, %{},
-       "Search Open Collaborations"},
-      {:get, "/affiliate/#{@api_version}/seller/open_collaborations", %{}, %{},
-       "List Seller Open Collaborations"},
+      # Open collaborations - creator side (discovered: 202405)
+      {:post, "/affiliate_creator/202405/open_collaborations/products/search", %{}, %{},
+       "Search Open Collab Products (Creator)"},
+      {:get, "/affiliate_creator/202405/open_collaborations", %{}, %{},
+       "List Open Collaborations (Creator)"},
+      {:post, "/affiliate_creator/202405/open_collaborations/search", %{}, %{},
+       "Search Open Collaborations (Creator)"},
 
-      # Search/List target collaborations
-      {:get, "/affiliate/#{@api_version}/target_collaborations", %{}, %{},
-       "List Target Collaborations (GET)"},
-      {:post, "/affiliate/#{@api_version}/target_collaborations/search", %{}, %{},
-       "Search Target Collaborations"},
-      {:get, "/affiliate/#{@api_version}/seller/target_collaborations", %{}, %{},
-       "List Seller Target Collaborations"},
+      # Open collaborations - seller side
+      {:get, "/affiliate_seller/202405/open_collaborations", %{}, %{},
+       "List Open Collaborations (Seller)"},
+      {:post, "/affiliate_seller/202405/open_collaborations/search", %{}, %{},
+       "Search Open Collaborations (Seller)"},
+      {:get, "/affiliate_seller/202509/open_collaborations", %{}, %{},
+       "List Open Collaborations (Seller 202509)"},
 
-      # Open collaboration settings (read current settings)
-      {:get, "/affiliate/#{@api_version}/open_collaborations/settings", %{}, %{},
-       "Get Open Collaboration Settings"},
-      {:get, "/affiliate/#{@api_version}/seller/open_collaboration_settings", %{}, %{},
-       "Get Seller Open Collab Settings"},
+      # Target collaborations
+      {:get, "/affiliate_seller/202405/target_collaborations", %{}, %{},
+       "List Target Collaborations (Seller)"},
+      {:post, "/affiliate_seller/202405/target_collaborations/search", %{}, %{},
+       "Search Target Collaborations (Seller)"},
+      {:get, "/affiliate_creator/202405/target_collaborations", %{}, %{},
+       "List Target Collaborations (Creator)"},
 
-      # Sample applications (as seller, view pending applications)
-      {:get, "/affiliate/#{@api_version}/sample_applications", %{}, %{},
-       "List Sample Applications (GET)"},
-      {:post, "/affiliate/#{@api_version}/sample_applications/search", %{}, %{},
-       "Search Sample Applications"},
-      {:get, "/affiliate/#{@api_version}/seller/sample_applications", %{}, %{},
-       "List Seller Sample Applications"},
+      # Sample applications
+      {:get, "/affiliate_seller/202405/sample_applications", %{}, %{},
+       "List Sample Applications (Seller)"},
+      {:post, "/affiliate_seller/202405/sample_applications/search", %{}, %{},
+       "Search Sample Applications (Seller)"},
+      {:get, "/affiliate_creator/202405/sample_applications", %{}, %{},
+       "List Sample Applications (Creator)"},
 
-      # Affiliate orders (seller view)
-      {:get, "/affiliate/#{@api_version}/orders", %{}, %{}, "List Affiliate Orders (GET)"},
-      {:post, "/affiliate/#{@api_version}/orders/search", %{}, %{}, "Search Affiliate Orders"},
-      {:get, "/affiliate/#{@api_version}/seller/affiliate_orders", %{}, %{},
-       "List Seller Affiliate Orders"},
+      # Orders - discovered: /order/202309/orders/search
+      {:post, "/order/202309/orders/search", %{}, %{},
+       "Search Orders (202309)"},
+      {:get, "/order/202309/orders", %{}, %{},
+       "List Orders (202309)"},
 
-      # Try older API version patterns
-      {:get, "/affiliate/202309/open_collaborations", %{}, %{},
-       "List Open Collaborations (202309)"},
-      {:get, "/affiliate/202312/open_collaborations", %{}, %{},
-       "List Open Collaborations (202312)"},
-      {:get, "/affiliate/202403/open_collaborations", %{}, %{},
-       "List Open Collaborations (202403)"}
+      # Affiliate orders specifically
+      {:post, "/affiliate_seller/202405/orders/search", %{}, %{},
+       "Search Affiliate Orders (Seller)"},
+      {:post, "/affiliate_creator/202405/orders/search", %{}, %{},
+       "Search Affiliate Orders (Creator)"}
     ]
 
-    # These are write operations - test with minimal/empty payloads to get schema info
     write_endpoints = [
-      # Generate promotion link (relatively safe - just generates a link)
-      {:post, "/affiliate/#{@api_version}/products/promotion_link", %{},
-       %{product_id: "test"}, "Generate Affiliate Product Link"},
-      {:post, "/affiliate/#{@api_version}/promotion_links/generate", %{},
-       %{product_id: "test"}, "Generate Promotion Link (alt path)"},
+      # Open collaboration management
+      {:post, "/affiliate_seller/202405/open_collaborations", %{}, %{},
+       "Create Open Collaboration (Seller)"},
+      {:post, "/affiliate_seller/202509/open_collaborations", %{}, %{},
+       "Create Open Collaboration (Seller 202509)"},
 
-      # Target collaboration link (needs collaboration_id)
-      {:post, "/affiliate/#{@api_version}/target_collaborations/link", %{},
-       %{}, "Generate Target Collab Link (no ID)"},
+      # Target collaboration management
+      {:post, "/affiliate_seller/202405/target_collaborations", %{}, %{},
+       "Create Target Collaboration (Seller)"},
 
-      # Get collaboration creation schema by sending empty/minimal body
-      {:post, "/affiliate/#{@api_version}/open_collaborations", %{},
-       %{}, "Create Open Collaboration (empty - get schema)"},
-      {:post, "/affiliate/#{@api_version}/target_collaborations", %{},
-       %{}, "Create Target Collaboration (empty - get schema)"}
+      # Promotion links
+      {:post, "/affiliate_seller/202405/products/promotion_link", %{}, %{},
+       "Generate Promotion Link (Seller)"},
+      {:post, "/affiliate_seller/202509/promotion_links", %{}, %{},
+       "Generate Promotion Link (202509)"},
+
+      # Product activation - discovered: /product/202309/products/activate
+      {:post, "/product/202309/products/activate", %{}, %{},
+       "Activate Products"}
     ]
 
     read_results = Enum.map(read_endpoints, fn {method, path, params, body, name} ->
