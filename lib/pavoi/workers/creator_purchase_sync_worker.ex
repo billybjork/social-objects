@@ -63,18 +63,18 @@ defmodule Pavoi.Workers.CreatorPurchaseSyncWorker do
   end
 
   defp sync_orders(creator_lookup, existing_ids) do
-    # Paginate through orders from last 90 days
-    ninety_days_ago = DateTime.utc_now() |> DateTime.add(-90, :day) |> DateTime.to_unix()
+    # Paginate through all orders (no time filter, limited pages)
     initial_stats = %{synced: 0, skipped: 0, errors: 0, pages: 0}
 
-    sync_orders_page(nil, creator_lookup, existing_ids, ninety_days_ago, initial_stats)
+    sync_orders_page(nil, creator_lookup, existing_ids, initial_stats)
   end
 
-  defp sync_orders_page(page_token, creator_lookup, existing_ids, start_time, stats) do
+  defp sync_orders_page(page_token, creator_lookup, existing_ids, stats) do
     params = %{page_size: @batch_size}
     params = if page_token, do: Map.put(params, :page_token, page_token), else: params
 
-    body = %{create_time_ge: start_time}
+    # No time filter - paginate through all orders
+    body = %{}
 
     case TiktokShop.make_api_request(:post, "/order/202309/orders/search", params, body) do
       {:ok, %{"data" => %{"orders" => orders} = data}} when is_list(orders) ->
@@ -86,7 +86,7 @@ defmodule Pavoi.Workers.CreatorPurchaseSyncWorker do
 
         if next_token && next_token != "" && new_stats.pages < 50 do
           # Max 50 pages to avoid runaway
-          sync_orders_page(next_token, creator_lookup, existing_ids, start_time, new_stats)
+          sync_orders_page(next_token, creator_lookup, existing_ids, new_stats)
         else
           {:ok, new_stats}
         end
@@ -98,7 +98,7 @@ defmodule Pavoi.Workers.CreatorPurchaseSyncWorker do
         next_token = data["next_page_token"]
 
         if next_token && next_token != "" && new_stats.pages < 50 do
-          sync_orders_page(next_token, creator_lookup, existing_ids, start_time, new_stats)
+          sync_orders_page(next_token, creator_lookup, existing_ids, new_stats)
         else
           {:ok, new_stats}
         end

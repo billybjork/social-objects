@@ -1227,6 +1227,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
         |> assign(:editing_contact, false)
         |> assign(:contact_form, nil)
         |> assign(:modal_samples, nil)
+        |> assign(:modal_purchases, nil)
         |> assign(:modal_videos, nil)
         |> assign(:modal_performance, nil)
         |> assign(:modal_fulfillment_stats, nil)
@@ -1242,6 +1243,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
         |> assign(:active_tab, tab)
         # Reset lazy-loaded data
         |> assign(:modal_samples, nil)
+        |> assign(:modal_purchases, nil)
         |> assign(:modal_videos, nil)
         |> assign(:modal_performance, nil)
         |> assign(:modal_fulfillment_stats, fulfillment_stats)
@@ -1258,6 +1260,14 @@ defmodule PavoiWeb.CreatorsLive.Index do
       socket
     else
       assign(socket, :modal_samples, Creators.get_samples_for_modal(creator_id))
+    end
+  end
+
+  defp load_modal_tab_data(socket, "purchases", creator_id) do
+    if socket.assigns.modal_purchases do
+      socket
+    else
+      assign(socket, :modal_purchases, Creators.get_purchases_for_modal(creator_id))
     end
   end
 

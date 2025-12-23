@@ -1235,6 +1235,83 @@ defmodule PavoiWeb.CreatorComponents do
   end
 
   @doc """
+  Renders a purchases table for the creator detail view.
+  Shows orders placed BY the creator (creator is the buyer).
+  """
+  attr :purchases, :list, required: true
+
+  def purchases_table(assigns) do
+    ~H"""
+    <%= if Enum.empty?(@purchases) do %>
+      <div class="empty-state">
+        <.icon name="hero-shopping-bag" class="empty-state__icon size-8" />
+        <p class="empty-state__title">No purchases yet</p>
+        <p class="empty-state__description">
+          Orders placed by this creator will appear here
+        </p>
+      </div>
+    <% else %>
+      <table class="creator-table">
+        <thead>
+          <tr>
+            <th>Order ID</th>
+            <th>Status</th>
+            <th class="text-right">Amount</th>
+            <th>Products</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          <%= for purchase <- @purchases do %>
+            <tr class={purchase.is_sample_order && "purchase--sample"}>
+              <td class="font-mono text-sm">{String.slice(purchase.tiktok_order_id, 0, 12)}...</td>
+              <td>
+                <span class={["status-badge", status_class(purchase.order_status)]}>
+                  {purchase.order_status}
+                </span>
+              </td>
+              <td class="text-right">
+                <%= if purchase.is_sample_order do %>
+                  <span class="text-secondary">Sample</span>
+                <% else %>
+                  {format_currency(purchase.total_amount_cents, purchase.currency)}
+                <% end %>
+              </td>
+              <td>
+                <%= if purchase.line_items && length(purchase.line_items) > 0 do %>
+                  <span class="text-secondary">{length(purchase.line_items)} items</span>
+                <% else %>
+                  <span class="text-secondary">-</span>
+                <% end %>
+              </td>
+              <td class="text-secondary">
+                {if purchase.ordered_at,
+                  do: Calendar.strftime(purchase.ordered_at, "%b %d, %Y"),
+                  else: "-"}
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% end %>
+    """
+  end
+
+  defp status_class(nil), do: "status-badge--pending"
+  defp status_class("COMPLETED"), do: "status-badge--completed"
+  defp status_class("CANCELLED"), do: "status-badge--cancelled"
+  defp status_class("IN_TRANSIT"), do: "status-badge--in_transit"
+  defp status_class("DELIVERED"), do: "status-badge--delivered"
+  defp status_class(_), do: "status-badge--pending"
+
+  defp format_currency(nil, _), do: "$0.00"
+  defp format_currency(cents, _currency) when is_integer(cents) do
+    dollars = cents / 100
+    "$#{:erlang.float_to_binary(dollars, decimals: 2)}"
+  end
+  defp format_currency(_, _), do: "$0.00"
+
+  @doc """
   Renders a videos table for the creator detail view.
   """
   attr :videos, :list, required: true
@@ -1363,6 +1440,7 @@ defmodule PavoiWeb.CreatorComponents do
   attr :contact_form, :any, default: nil
   attr :tag_picker_open, :boolean, default: false
   attr :samples, :list, default: nil
+  attr :purchases, :list, default: nil
   attr :videos, :list, default: nil
   attr :performance, :list, default: nil
   attr :fulfillment_stats, :map, default: nil
@@ -1484,6 +1562,14 @@ defmodule PavoiWeb.CreatorComponents do
             </button>
             <button
               type="button"
+              class={["tab", @active_tab == "purchases" && "tab--active"]}
+              phx-click="change_tab"
+              phx-value-tab="purchases"
+            >
+              Purchases
+            </button>
+            <button
+              type="button"
               class={["tab", @active_tab == "videos" && "tab--active"]}
               phx-click="change_tab"
               phx-value-tab="videos"
@@ -1510,6 +1596,8 @@ defmodule PavoiWeb.CreatorComponents do
                 />
               <% "samples" -> %>
                 <.samples_table samples={@samples || []} />
+              <% "purchases" -> %>
+                <.purchases_table purchases={@purchases || []} />
               <% "videos" -> %>
                 <.videos_table videos={@videos || []} username={@creator.tiktok_username} />
               <% "performance" -> %>
