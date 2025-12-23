@@ -22,6 +22,8 @@ defmodule Pavoi.Storage do
       url = Pavoi.Storage.public_url("sessions/123/image.webp")
   """
 
+  require Logger
+
   @doc """
   Generates a presigned PUT URL for direct browser upload.
 
