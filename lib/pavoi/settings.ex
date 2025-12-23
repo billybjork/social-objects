@@ -113,6 +113,41 @@ defmodule Pavoi.Settings do
   end
 
   @doc """
+  Gets the last creator enrichment sync timestamp.
+
+  Returns nil if never synced or a DateTime if synced before.
+  """
+  def get_enrichment_last_sync_at do
+    case Repo.get_by(SystemSetting, key: "enrichment_last_sync_at") do
+      nil -> nil
+      setting -> parse_datetime(setting.value)
+    end
+  end
+
+  @doc """
+  Updates the last creator enrichment sync timestamp to the current time.
+  """
+  def update_enrichment_last_sync_at do
+    now = DateTime.utc_now() |> DateTime.to_iso8601()
+
+    case Repo.get_by(SystemSetting, key: "enrichment_last_sync_at") do
+      nil ->
+        %SystemSetting{}
+        |> SystemSetting.changeset(%{
+          key: "enrichment_last_sync_at",
+          value: now,
+          value_type: "datetime"
+        })
+        |> Repo.insert()
+
+      setting ->
+        setting
+        |> SystemSetting.changeset(%{value: now})
+        |> Repo.update()
+    end
+  end
+
+  @doc """
   Gets a generic string setting by key.
 
   Returns nil if the setting doesn't exist.

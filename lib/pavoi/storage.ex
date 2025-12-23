@@ -51,8 +51,7 @@ defmodule Pavoi.Storage do
         query_params: [{"Content-Type", content_type}]
       )
     else
-      {:error,
-       "Storage not configured. Ensure Railway Bucket is linked to this service."}
+      {:error, "Storage not configured. Ensure Railway Bucket is linked to this service."}
     end
   end
 
@@ -155,11 +154,33 @@ defmodule Pavoi.Storage do
     end
   end
 
-  defp upload_binary(key, binary, content_type) do
-    bucket = bucket_name()
+  @doc """
+  Uploads binary data directly to storage.
 
-    ExAws.S3.put_object(bucket, key, binary, content_type: content_type)
-    |> ExAws.request(config() |> Map.to_list())
+  ## Parameters
+
+  - `key` - The object key (path within the bucket)
+  - `binary` - The binary data to upload
+  - `content_type` - The MIME type
+
+  ## Returns
+
+  - `{:ok, key}` - The storage key on success
+  - `{:error, reason}` - If upload fails
+  """
+  @spec upload_binary(String.t(), binary(), String.t()) :: {:ok, String.t()} | {:error, term()}
+  def upload_binary(key, binary, content_type) do
+    if configured?() do
+      bucket = bucket_name()
+
+      case ExAws.S3.put_object(bucket, key, binary, content_type: content_type)
+           |> ExAws.request(config() |> Map.to_list()) do
+        {:ok, _} -> {:ok, key}
+        {:error, reason} -> {:error, reason}
+      end
+    else
+      {:error, :storage_not_configured}
+    end
   end
 
   @doc """

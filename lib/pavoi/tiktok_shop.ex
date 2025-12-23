@@ -348,6 +348,102 @@ defmodule Pavoi.TiktokShop do
     :crypto.strong_rand_bytes(16) |> Base.url_encode64(padding: false)
   end
 
+  # =============================================================================
+  # Creator Marketplace API
+  # =============================================================================
+
+  @marketplace_creators_path "/affiliate_seller/202406/marketplace_creators"
+
+  @doc """
+  Searches for creators on the TikTok Marketplace.
+
+  ## Options
+    - keyword: Search term (username, nickname)
+    - page_size: Number of results (must be 12 or 20, default: 12)
+    - page_token: Token for pagination (from previous response)
+    - gmv_ranges: List of GMV range filters (e.g., ["GMV_RANGE_10000_AND_ABOVE"])
+    - units_sold_ranges: List of unit sold filters
+    - follower_demographics: Map with age_ranges, count_range, gender_distribution
+
+  ## Returns
+    {:ok, %{creators: [...], next_page_token: "..."}} or {:error, reason}
+
+  ## Examples
+      # Search by username
+      search_marketplace_creators(keyword: "zoekate1")
+
+      # Search high-GMV creators
+      search_marketplace_creators(gmv_ranges: ["GMV_RANGE_10000_AND_ABOVE"])
+  """
+  def search_marketplace_creators(opts \\ []) do
+    keyword = Keyword.get(opts, :keyword)
+    page_size = Keyword.get(opts, :page_size, 12)
+    page_token = Keyword.get(opts, :page_token)
+
+    params = %{page_size: page_size}
+    params = if page_token, do: Map.put(params, :page_token, page_token), else: params
+
+    body = %{}
+    body = if keyword, do: Map.put(body, "keyword", keyword), else: body
+    body = maybe_add_filter(body, "gmv_ranges", Keyword.get(opts, :gmv_ranges))
+    body = maybe_add_filter(body, "units_sold_ranges", Keyword.get(opts, :units_sold_ranges))
+    body = maybe_add_filter(body, "follower_demographics", Keyword.get(opts, :follower_demographics))
+
+    case make_api_request(:post, "#{@marketplace_creators_path}/search", params, body) do
+      {:ok, %{"code" => 0, "data" => data}} ->
+        {:ok, %{
+          creators: Map.get(data, "creators", []),
+          next_page_token: Map.get(data, "next_page_token"),
+          search_key: Map.get(data, "search_key")
+        }}
+
+      {:ok, %{"code" => code, "message" => message}} ->
+        {:error, "API error [#{code}]: #{message}"}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Gets detailed performance data for a specific marketplace creator.
+
+  ## Parameters
+    - creator_user_id: The TikTok user ID of the creator
+
+  ## Returns
+    {:ok, creator_data} or {:error, reason}
+
+  ## Notes
+    - Rate limit: 10,000 requests per day
+    - Only works for creators in the same region as the seller
+    - Returns error 16901005 if creator doesn't have e-commerce permission
+    - Returns error 16901006 if region doesn't match
+
+  ## Example
+      get_marketplace_creator("7494112116023331142")
+  """
+  def get_marketplace_creator(creator_user_id) when is_binary(creator_user_id) do
+    case make_api_request(:get, "#{@marketplace_creators_path}/#{creator_user_id}", %{}, %{}) do
+      {:ok, %{"code" => 0, "data" => data}} ->
+        {:ok, data}
+
+      {:ok, %{"code" => code, "message" => message}} ->
+        {:error, "API error [#{code}]: #{message}"}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp maybe_add_filter(body, _key, nil), do: body
+  defp maybe_add_filter(body, _key, []), do: body
+  defp maybe_add_filter(body, key, value), do: Map.put(body, key, value)
+
+  # =============================================================================
+  # Token Storage
+  # =============================================================================
+
   defp store_tokens(token_data) do
     access_expires_in = Map.get(token_data, "access_token_expire_in", 0)
     refresh_expires_in = Map.get(token_data, "refresh_token_expire_in", 0)

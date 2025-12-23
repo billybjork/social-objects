@@ -17,6 +17,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
   alias Pavoi.Outreach
   alias Pavoi.Settings
   alias Pavoi.Workers.BigQueryOrderSyncWorker
+  alias Pavoi.Workers.CreatorEnrichmentWorker
   alias Pavoi.Workers.CreatorOutreachWorker
 
   import PavoiWeb.CreatorComponents
@@ -46,14 +47,17 @@ defmodule PavoiWeb.CreatorsLive.Index do
 
   @impl true
   def mount(_params, _session, socket) do
-    # Subscribe to BigQuery sync and outreach events
+    # Subscribe to BigQuery sync, enrichment, and outreach events
     if connected?(socket) do
       Phoenix.PubSub.subscribe(Pavoi.PubSub, "bigquery:sync")
+      Phoenix.PubSub.subscribe(Pavoi.PubSub, "creator:enrichment")
       Phoenix.PubSub.subscribe(Pavoi.PubSub, "outreach:updates")
     end
 
     bigquery_last_sync_at = Settings.get_bigquery_last_sync_at()
     bigquery_syncing = sync_job_active?(BigQueryOrderSyncWorker)
+    enrichment_last_sync_at = Settings.get_enrichment_last_sync_at()
+    enrichment_syncing = sync_job_active?(CreatorEnrichmentWorker)
     features = Application.get_env(:pavoi, :features, [])
 
     # Get the PAVOI brand for tag operations
@@ -82,6 +86,8 @@ defmodule PavoiWeb.CreatorsLive.Index do
       |> assign(:modal_samples, nil)
       |> assign(:modal_videos, nil)
       |> assign(:modal_performance, nil)
+      |> assign(:modal_fulfillment_stats, nil)
+      |> assign(:refreshing, false)
       # Unified creators state (merged CRM + Outreach)
       |> assign(:outreach_status, nil)
       |> assign(:selected_ids, MapSet.new())
@@ -99,6 +105,8 @@ defmodule PavoiWeb.CreatorsLive.Index do
       # Sync state
       |> assign(:bigquery_syncing, bigquery_syncing)
       |> assign(:bigquery_last_sync_at, bigquery_last_sync_at)
+      |> assign(:enrichment_syncing, enrichment_syncing)
+      |> assign(:enrichment_last_sync_at, enrichment_last_sync_at)
       # Tag state
       |> assign(:brand_id, brand_id)
       |> assign(:available_tags, available_tags)
@@ -260,6 +268,63 @@ defmodule PavoiWeb.CreatorsLive.Index do
       |> put_flash(:info, "BigQuery orders sync initiated...")
 
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("trigger_enrichment_sync", _params, socket) do
+    %{}
+    |> CreatorEnrichmentWorker.new()
+    |> Oban.insert()
+
+    socket =
+      socket
+      |> assign(:enrichment_syncing, true)
+      |> put_flash(:info, "Creator enrichment started...")
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("refresh_creator_data", %{"id" => id}, socket) do
+    creator = Creators.get_creator!(id)
+
+    case CreatorEnrichmentWorker.enrich_single(creator) do
+      {:ok, updated_creator} ->
+        # Reload creator with full modal data
+        updated_creator = Creators.get_creator_for_modal!(updated_creator.id)
+
+        socket =
+          socket
+          |> assign(:selected_creator, updated_creator)
+          |> assign(:refreshing, false)
+          |> put_flash(:info, "Creator data refreshed")
+
+        {:noreply, socket}
+
+      {:error, :not_found} ->
+        socket =
+          socket
+          |> assign(:refreshing, false)
+          |> put_flash(:error, "Creator not found in TikTok marketplace")
+
+        {:noreply, socket}
+
+      {:error, :no_username} ->
+        socket =
+          socket
+          |> assign(:refreshing, false)
+          |> put_flash(:error, "Creator has no TikTok username")
+
+        {:noreply, socket}
+
+      {:error, reason} ->
+        socket =
+          socket
+          |> assign(:refreshing, false)
+          |> put_flash(:error, "Refresh failed: #{inspect(reason)}")
+
+        {:noreply, socket}
+    end
   end
 
   # Status filter event handlers
@@ -889,6 +954,38 @@ defmodule PavoiWeb.CreatorsLive.Index do
     {:noreply, socket}
   end
 
+  # Creator enrichment PubSub handlers
+  @impl true
+  def handle_info({:enrichment_started}, socket) do
+    {:noreply, assign(socket, :enrichment_syncing, true)}
+  end
+
+  @impl true
+  def handle_info({:enrichment_completed, stats}, socket) do
+    socket =
+      socket
+      |> assign(:enrichment_syncing, false)
+      |> assign(:enrichment_last_sync_at, Settings.get_enrichment_last_sync_at())
+      |> assign(:page, 1)
+      |> load_creators()
+      |> put_flash(
+        :info,
+        "Enriched #{stats.enriched} creators (#{stats.not_found} not found, #{stats.skipped} skipped)"
+      )
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:enrichment_failed, reason}, socket) do
+    socket =
+      socket
+      |> assign(:enrichment_syncing, false)
+      |> put_flash(:error, "Creator enrichment failed: #{inspect(reason)}")
+
+    {:noreply, socket}
+  end
+
   # Outreach PubSub handler - reload data when outreach completes
   @impl true
   def handle_info({:outreach_sent, _creator}, socket) do
@@ -1132,11 +1229,13 @@ defmodule PavoiWeb.CreatorsLive.Index do
         |> assign(:modal_samples, nil)
         |> assign(:modal_videos, nil)
         |> assign(:modal_performance, nil)
+        |> assign(:modal_fulfillment_stats, nil)
 
       creator_id ->
         # Load only basic creator info + tags (not samples/videos/performance)
         creator = Creators.get_creator_for_modal!(creator_id)
         tab = params["tab"] || "contact"
+        fulfillment_stats = Creators.get_fulfillment_stats(creator_id)
 
         socket
         |> assign(:selected_creator, creator)
@@ -1145,6 +1244,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
         |> assign(:modal_samples, nil)
         |> assign(:modal_videos, nil)
         |> assign(:modal_performance, nil)
+        |> assign(:modal_fulfillment_stats, fulfillment_stats)
         # Load the data for the active tab
         |> load_modal_tab_data(tab, creator.id)
     end

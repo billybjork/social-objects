@@ -411,6 +411,8 @@ defmodule PavoiWeb.CoreComponents do
   attr :tiktok_last_sync_at, :any, default: nil
   attr :bigquery_syncing, :boolean, default: false
   attr :bigquery_last_sync_at, :any, default: nil
+  attr :enrichment_syncing, :boolean, default: false
+  attr :enrichment_last_sync_at, :any, default: nil
 
   def nav_tabs(assigns) do
     ~H"""
@@ -507,6 +509,22 @@ defmodule PavoiWeb.CoreComponents do
               <div class="navbar__sync-meta">
                 Synced: {if @bigquery_last_sync_at,
                   do: format_relative_time(@bigquery_last_sync_at),
+                  else: "Never"}
+              </div>
+            </div>
+            <div class="navbar__sync-group">
+              <.button
+                variant="primary"
+                size="sm"
+                phx-click="trigger_enrichment_sync"
+                class={@enrichment_syncing && "button--disabled"}
+                disabled={@enrichment_syncing}
+              >
+                {if @enrichment_syncing, do: "Syncing Creators...", else: "Sync Creators"}
+              </.button>
+              <div class="navbar__sync-meta">
+                Synced: {if @enrichment_last_sync_at,
+                  do: format_relative_time(@enrichment_last_sync_at),
                   else: "Never"}
               </div>
             </div>

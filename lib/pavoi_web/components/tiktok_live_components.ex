@@ -7,6 +7,7 @@ defmodule PavoiWeb.TiktokLiveComponents do
   import PavoiWeb.CoreComponents
   import PavoiWeb.ViewHelpers
 
+  alias Pavoi.TiktokLive.Stream
   alias Phoenix.LiveView.JS
 
   use Phoenix.VerifiedRoutes,
@@ -50,7 +51,7 @@ defmodule PavoiWeb.TiktokLiveComponents do
 
   ## Examples
 
-      <.stream_thumbnail url={stream.cover_image_url} />
+      <.stream_thumbnail url={Stream.cover_image_url(stream)} />
   """
   attr :url, :string, default: nil
 
@@ -97,7 +98,7 @@ defmodule PavoiWeb.TiktokLiveComponents do
               class={[@on_row_click && "cursor-pointer hover:bg-hover"]}
             >
               <td class="streams-table__td-thumbnail">
-                <.stream_thumbnail url={stream.cover_image_url} />
+                <.stream_thumbnail url={Stream.cover_image_url(stream)} />
               </td>
               <td>
                 <div class="streams-table__title">
@@ -141,7 +142,6 @@ defmodule PavoiWeb.TiktokLiveComponents do
   attr :comment_search_query, :string, default: ""
   attr :stream_stats, :list, default: []
   attr :linked_sessions, :list, default: []
-  attr :suggested_sessions, :list, default: []
   attr :all_sessions, :list, default: []
   attr :session_search_query, :string, default: ""
   attr :product_interest, :list, default: []
@@ -260,7 +260,6 @@ defmodule PavoiWeb.TiktokLiveComponents do
               <% "sessions" -> %>
                 <.sessions_tab
                   linked_sessions={@linked_sessions}
-                  suggested_sessions={@suggested_sessions}
                   all_sessions={@all_sessions}
                   search_query={@session_search_query}
                   product_interest={@product_interest}
@@ -327,7 +326,6 @@ defmodule PavoiWeb.TiktokLiveComponents do
   Renders the sessions tab for linking sessions to streams.
   """
   attr :linked_sessions, :list, default: []
-  attr :suggested_sessions, :list, default: []
   attr :all_sessions, :list, default: []
   attr :search_query, :string, default: ""
   attr :product_interest, :list, default: []
@@ -384,37 +382,7 @@ defmodule PavoiWeb.TiktokLiveComponents do
         </div>
 
         <div class="sessions-tab__column">
-          <%= if length(@suggested_sessions) > 0 do %>
-            <h3 class="sessions-tab__heading">Suggested Sessions</h3>
-            <p class="sessions-tab__subtext">Based on showcased products</p>
-
-            <div class="suggested-sessions-list">
-              <%= for suggestion <- @suggested_sessions do %>
-                <div class="suggested-session-item">
-                  <div class="suggested-session-item__info">
-                    <span class="suggested-session-item__name">{suggestion.session.name}</span>
-                    <span class="suggested-session-item__match">
-                      {suggestion.matched_count}/{suggestion.total_count} products match
-                      ({format_match_score(suggestion.match_score)})
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    class="button button--sm button--primary"
-                    phx-click="link_session"
-                    phx-value-session-id={suggestion.session.id}
-                    phx-value-source="suggestion"
-                  >
-                    Link
-                  </button>
-                </div>
-              <% end %>
-            </div>
-
-            <h3 class="sessions-tab__heading sessions-tab__heading--mt">Or Search</h3>
-          <% else %>
-            <h3 class="sessions-tab__heading">Link a Session</h3>
-          <% end %>
+          <h3 class="sessions-tab__heading">Link a Session</h3>
 
           <div class="sessions-tab__search">
             <.search_input
@@ -622,9 +590,4 @@ defmodule PavoiWeb.TiktokLiveComponents do
     }
   end
 
-  defp format_match_score(score) when is_float(score) do
-    "#{round(score * 100)}%"
-  end
-
-  defp format_match_score(_), do: "0%"
 end

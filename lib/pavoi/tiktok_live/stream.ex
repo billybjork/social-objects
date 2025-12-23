@@ -23,7 +23,7 @@ defmodule Pavoi.TiktokLive.Stream do
     field :total_comments, :integer, default: 0
     field :total_gifts_value, :integer, default: 0
     field :raw_metadata, :map, default: %{}
-    field :cover_image_url, :string
+    field :cover_image_key, :string
 
     has_many :comments, Pavoi.TiktokLive.Comment, foreign_key: :stream_id
     has_many :stats, Pavoi.TiktokLive.StreamStat, foreign_key: :stream_id
@@ -50,10 +50,18 @@ defmodule Pavoi.TiktokLive.Stream do
       :total_comments,
       :total_gifts_value,
       :raw_metadata,
-      :cover_image_url
+      :cover_image_key
     ])
     |> validate_required([:room_id, :unique_id, :started_at])
   end
+
+  @doc """
+  Returns a presigned URL for the cover image, or nil if no cover image is stored.
+
+  URLs are valid for 7 days and are generated on demand to avoid expiration issues.
+  """
+  def cover_image_url(%__MODULE__{cover_image_key: nil}), do: nil
+  def cover_image_url(%__MODULE__{cover_image_key: key}), do: Pavoi.Storage.public_url(key)
 
   @doc """
   Returns the list of valid stream statuses.

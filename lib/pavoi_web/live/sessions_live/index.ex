@@ -67,9 +67,11 @@ defmodule PavoiWeb.SessionsLive.Index do
   alias Pavoi.Sessions
   alias Pavoi.Sessions.{Session, SessionProduct}
   alias Pavoi.Storage
+  alias Pavoi.TiktokLive.Stream, as: TiktokStream
 
   import PavoiWeb.AIComponents
   import PavoiWeb.ProductComponents
+  import PavoiWeb.TiktokLiveComponents
   import PavoiWeb.ViewHelpers
 
   @impl true

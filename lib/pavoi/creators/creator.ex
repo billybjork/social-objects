@@ -48,10 +48,24 @@ defmodule Pavoi.Creators.Creator do
     field :is_whitelisted, :boolean, default: false
     field :notes, :string
 
-    # Current metrics
+    # Current metrics (cached from latest enrichment)
     field :follower_count, :integer
     field :total_gmv_cents, :integer, default: 0
     field :total_videos, :integer, default: 0
+    field :video_gmv_cents, :integer, default: 0
+    field :live_gmv_cents, :integer, default: 0
+    field :avg_video_views, :integer
+    field :video_count, :integer, default: 0
+    field :live_count, :integer, default: 0
+
+    # TikTok identity from marketplace API
+    field :tiktok_nickname, :string
+    field :tiktok_avatar_url, :string
+    field :tiktok_bio, :string
+
+    # Enrichment tracking
+    field :last_enriched_at, :utc_datetime
+    field :enrichment_source, :string
 
     # Outreach tracking
     field :outreach_status, :string
@@ -81,6 +95,9 @@ defmodule Pavoi.Creators.Creator do
       :tiktok_username,
       :tiktok_user_id,
       :tiktok_profile_url,
+      :tiktok_nickname,
+      :tiktok_avatar_url,
+      :tiktok_bio,
       :email,
       :phone,
       :phone_verified,
@@ -98,6 +115,13 @@ defmodule Pavoi.Creators.Creator do
       :follower_count,
       :total_gmv_cents,
       :total_videos,
+      :video_gmv_cents,
+      :live_gmv_cents,
+      :avg_video_views,
+      :video_count,
+      :live_count,
+      :last_enriched_at,
+      :enrichment_source,
       :outreach_status,
       :outreach_sent_at,
       :sms_consent,

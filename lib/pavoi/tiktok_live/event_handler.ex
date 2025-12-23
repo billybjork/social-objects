@@ -268,22 +268,36 @@ defmodule Pavoi.TiktokLive.EventHandler do
     update_stream_field(state.stream, :status, :ended)
     update_stream_field(state.stream, :ended_at, DateTime.utc_now())
 
+    # Auto-link to session if one was active during the stream
+    auto_link_stream(state.stream_id)
+
     state
   end
 
-  defp process_event(%{type: :connected} = event, state) do
-    # Try to capture cover image if available
-    if cover_url = event[:cover_url] do
-      # Run async to not block event processing
-      Task.start(fn ->
-        case Pavoi.TiktokLive.update_stream_cover(state.stream_id, cover_url) do
-          {:ok, _} -> Logger.info("Cover image saved for stream #{state.stream_id}")
-          {:error, reason} -> Logger.warning("Failed to save cover for stream #{state.stream_id}: #{inspect(reason)}")
-        end
-      end)
-    end
-
+  defp process_event(%{type: :connected}, state) do
     broadcast_to_stream(state.stream_id, {:connected})
+    state
+  end
+
+  defp process_event(%{type: :thumbnail, thumbnail_base64: base64}, state) do
+    # Decode and upload thumbnail to storage
+    Task.start(fn ->
+      case upload_thumbnail(state.stream_id, base64) do
+        {:ok, key} ->
+          Logger.info("Thumbnail uploaded for stream #{state.stream_id}: #{key}")
+
+          # Update stream with the storage key
+          state.stream
+          |> Stream.changeset(%{cover_image_key: key})
+          |> Repo.update()
+
+        {:error, reason} ->
+          Logger.warning(
+            "Failed to upload thumbnail for stream #{state.stream_id}: #{inspect(reason)}"
+          )
+      end
+    end)
+
     state
   end
 
@@ -294,6 +308,9 @@ defmodule Pavoi.TiktokLive.EventHandler do
     # Mark stream as ended on disconnect (the worker will also handle cleanup)
     update_stream_field(state.stream, :status, :ended)
     update_stream_field(state.stream, :ended_at, DateTime.utc_now())
+
+    # Auto-link to session if one was active during the stream
+    auto_link_stream(state.stream_id)
 
     state
   end
@@ -489,4 +506,26 @@ defmodule Pavoi.TiktokLive.EventHandler do
   end
 
   defp sanitize_raw_event(_), do: %{}
+
+  defp upload_thumbnail(stream_id, base64_data) do
+    binary = Base.decode64!(base64_data)
+    key = "streams/#{stream_id}/thumbnail.jpg"
+    Pavoi.Storage.upload_binary(key, binary, "image/jpeg")
+  end
+
+  defp auto_link_stream(stream_id) do
+    case Pavoi.TiktokLive.auto_link_stream_to_session(stream_id) do
+      {:ok, _session_stream} ->
+        Logger.info("Stream #{stream_id} auto-linked to session")
+
+      {:already_linked, session} ->
+        Logger.debug("Stream #{stream_id} already linked to session #{session.id}")
+
+      :none ->
+        Logger.debug("No active session detected for stream #{stream_id}")
+
+      {:error, reason} ->
+        Logger.warning("Failed to auto-link stream #{stream_id}: #{inspect(reason)}")
+    end
+  end
 end

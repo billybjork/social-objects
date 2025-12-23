@@ -55,7 +55,6 @@ defmodule PavoiWeb.TiktokLive.Index do
       |> assign(:scanning, false)
       # Session linking state
       |> assign(:linked_sessions, [])
-      |> assign(:suggested_sessions, [])
       |> assign(:all_sessions, [])
       |> assign(:session_search_query, "")
       |> assign(:product_interest, [])
@@ -130,7 +129,6 @@ defmodule PavoiWeb.TiktokLive.Index do
       |> assign(:comment_search_query, "")
       |> assign(:stream_stats, [])
       |> assign(:linked_sessions, [])
-      |> assign(:suggested_sessions, [])
       |> assign(:all_sessions, [])
       |> assign(:session_search_query, "")
       |> assign(:product_interest, [])
@@ -193,14 +191,13 @@ defmodule PavoiWeb.TiktokLive.Index do
     case TiktokLiveContext.link_stream_to_session(stream_id, session_id, linked_by: linked_by) do
       {:ok, _} ->
         linked = TiktokLiveContext.get_linked_sessions(stream_id)
-        suggested = TiktokLiveContext.get_suggested_sessions(stream_id)
         product_interest = load_product_interest(stream_id, linked)
 
         socket =
           socket
           |> assign(:linked_sessions, linked)
-          |> assign(:suggested_sessions, suggested)
           |> assign(:product_interest, product_interest)
+          |> load_available_sessions()
           |> put_flash(:info, "Session linked and comments parsed")
 
         {:noreply, socket}
@@ -218,14 +215,13 @@ defmodule PavoiWeb.TiktokLive.Index do
     TiktokLiveContext.unlink_stream_from_session(stream_id, session_id)
 
     linked = TiktokLiveContext.get_linked_sessions(stream_id)
-    suggested = TiktokLiveContext.get_suggested_sessions(stream_id)
     product_interest = load_product_interest(stream_id, linked)
 
     socket =
       socket
       |> assign(:linked_sessions, linked)
-      |> assign(:suggested_sessions, suggested)
       |> assign(:product_interest, product_interest)
+      |> load_available_sessions()
       |> put_flash(:info, "Session unlinked")
 
     {:noreply, socket}
@@ -624,12 +620,10 @@ defmodule PavoiWeb.TiktokLive.Index do
 
   defp load_tab_data(socket, "sessions", stream_id) do
     linked = TiktokLiveContext.get_linked_sessions(stream_id)
-    suggested = TiktokLiveContext.get_suggested_sessions(stream_id)
     product_interest = load_product_interest(stream_id, linked)
 
     socket
     |> assign(:linked_sessions, linked)
-    |> assign(:suggested_sessions, suggested)
     |> assign(:product_interest, product_interest)
     |> load_available_sessions()
   end

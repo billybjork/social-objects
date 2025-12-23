@@ -1,31 +1,21 @@
 # TikTok Shop Affiliate API Notes
 
-## Discovery Date: 2024-12-23
-
 ## Current Status (Updated 2025-12-23)
 
-### ✅ All Scopes Working!
-Token reauthorized with new scopes. All affiliate APIs confirmed working.
-
 ### Working Endpoints
+
 | Endpoint | Method | Status |
 |----------|--------|--------|
 | `/order/202309/orders/search` | POST | ✅ 473k+ orders |
-| `/affiliate_seller/202406/marketplace_creators/search` | POST | ✅ Works! |
-| `/affiliate_seller/202406/marketplace_creators/{creator_user_id}` | GET | ✅ Ready |
+| `/affiliate_seller/202406/marketplace_creators/search` | POST | ✅ Works |
+| `/affiliate_seller/202406/marketplace_creators/{creator_user_id}` | GET | ✅ Works |
 | `/affiliate_seller/202405/open_collaborations` | POST | ✅ Needs ProductId |
 | `/affiliate_seller/202405/target_collaborations` | POST | ✅ Needs Name |
 
-### Sample Results
-- Creator search returns 12 creators per page
-- High-GMV filter found creator with **$179,363 GMV**
-- Keyword search works (e.g., "beauty" creators)
-
 ---
 
-## Working Endpoints (Seller Account)
+## Orders API
 
-### Orders API
 | Endpoint | Method | Status |
 |----------|--------|--------|
 | `/order/202309/orders/search` | POST | ✅ WORKS - 473k+ orders |
@@ -130,35 +120,46 @@ Token reauthorized with new scopes. All affiliate APIs confirmed working.
 
 ---
 
-## Creator-Side Endpoints (Require Creator Auth)
-
-These endpoints require a creator account to be authorized (not just seller):
-
-| Endpoint | Error |
-|----------|-------|
-| `/affiliate_creator/202508/profiles` | "user type can not access" |
-| `/affiliate_creator/202405/open_collaborations/products/search` | Needs creator auth |
-
----
-
-## API Patterns Learned
+## API Patterns
 
 1. **Path Structure:** `/{domain}_{user_type}/{version}/{resource}`
-   - Examples: `/affiliate_seller/202406/...`, `/affiliate_creator/202405/...`
+   - Examples: `/affiliate_seller/202406/...`, `/order/202309/...`
 
 2. **Versions vary by endpoint:**
    - Marketplace creators: 202406
    - Open collaborations: 202405
-   - Creator profiles: 202508
    - Orders: 202309
 
 3. **Pagination:**
    - Uses `page_token` and `next_page_token`
    - page_size varies by endpoint (some require 12 or 20)
 
-4. **Error Codes:**
-   - 40006: "no schema found" = path doesn't exist
-   - 36009004: Parameter validation error (path exists)
-   - 36009002: Rate limit
-   - 45101004: Daily quota exceeded (10k/day)
-   - 105001: "user type can not access" = wrong auth type
+---
+
+## Error Code Reference
+
+| Code | HTTP | Meaning |
+|------|------|---------|
+| 0 | 200 | Success |
+| 40006 | 403 | Path does not exist ("no schema found") |
+| 36009004 | 400 | Path exists, but version/parameter invalid |
+| 36009002 | 429 | Rate limit exceeded |
+| 45101004 | 429 | Daily quota exceeded (10k/day) |
+| 105001 | 403 | Wrong auth type (e.g., seller token for creator endpoint) |
+| 105002 | 401 | Expired credentials |
+
+---
+
+## Endpoints Tested But Not Working (2025-12-23)
+
+### Live Room APIs (creator.affiliate.info)
+**Status: Not available via TikTok Shop API**
+
+Tested 30+ path variations. All returned "no schema found" or 404.
+Live room detection continues to use HTML scraping via `TiktokLive.Client.fetch_room_info/1`.
+
+### Messaging APIs (seller.affiliate_messages.write)
+**Status: Path exists but inaccessible**
+
+`/affiliate_seller/YYYYMM/conversations` returns "Invalid API version" for all tested versions (202301-202512).
+May require different scope authorization or region-specific access.

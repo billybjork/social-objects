@@ -284,17 +284,25 @@ defmodule Pavoi.TiktokLive.BridgeClient do
   defp handle_bridge_event(%{"type" => "connected", "uniqueId" => unique_id} = event) do
     Logger.info("Stream connected: @#{unique_id}")
     room_id = event["roomId"]
-    cover_url = event["coverUrl"]
-
-    if cover_url do
-      Logger.info("Cover URL available for @#{unique_id}")
-    end
 
     broadcast_event(unique_id, %{
       type: :connected,
       room_id: room_id,
-      cover_url: cover_url,
       raw: event
+    })
+  end
+
+  defp handle_bridge_event(%{
+         "type" => "thumbnail",
+         "uniqueId" => unique_id,
+         "thumbnailBase64" => thumbnail_base64
+       }) do
+    Logger.info("Thumbnail received for @#{unique_id}")
+
+    broadcast_event(unique_id, %{
+      type: :thumbnail,
+      thumbnail_base64: thumbnail_base64,
+      content_type: "image/jpeg"
     })
   end
 

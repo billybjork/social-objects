@@ -55,22 +55,24 @@
    ============================================================================= */
 
 .stream-thumbnail {
-  width: 56px;
-  height: 56px;
+  width: auto;
+  height: auto;
+  max-height: 80px;
   border-radius: var(--radius-sm);
   overflow: hidden;
   flex-shrink: 0;
 }
 
 .stream-thumbnail__image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  width: auto;
+  height: auto;
+  max-height: 80px;
+  object-fit: contain;
 }
 
 .stream-thumbnail__placeholder {
-  width: 100%;
-  height: 100%;
+  width: 45px;
+  height: 80px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -563,7 +565,7 @@
 
 .sessions-tab__columns {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--space-6);
 }
 
@@ -571,6 +573,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  min-width: 0;
 }
 
 .sessions-tab__heading {
@@ -625,11 +628,19 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+  min-width: 0;
+  flex: 1;
+  margin-right: var(--space-3);
 }
 
 .suggested-session-item__name {
   font-weight: var(--font-medium);
   color: var(--color-text-primary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
 }
 
 .suggested-session-item__match {
@@ -658,11 +669,19 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+  min-width: 0;
+  flex: 1;
+  margin-right: var(--space-3);
 }
 
 .linked-session-item__name {
   font-weight: var(--font-medium);
   color: var(--color-text-primary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
 }
 
 .linked-session-item__meta {
@@ -693,11 +712,19 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+  min-width: 0;
+  flex: 1;
+  margin-right: var(--space-3);
 }
 
 .available-session-item__name {
   font-weight: var(--font-medium);
   color: var(--color-text-primary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
 }
 
 .available-session-item__meta {
@@ -721,6 +748,7 @@
   padding: var(--space-2) var(--space-3);
   background: var(--color-surface-primary);
   border-radius: var(--radius-sm);
+  min-width: 0;
 }
 
 .product-interest-item__number {

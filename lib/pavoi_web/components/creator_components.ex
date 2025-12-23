@@ -484,6 +484,69 @@ defmodule PavoiWeb.CreatorComponents do
   end
 
   @doc """
+  Renders a creator avatar with fallback to initials.
+
+  ## Examples
+
+      <.creator_avatar creator={@creator} size="sm" />
+      <.creator_avatar creator={@creator} size="lg" />
+  """
+  attr :creator, :any, required: true
+  attr :size, :string, default: "sm"
+
+  def creator_avatar(assigns) do
+    initials = get_initials(assigns.creator)
+    size_class = "creator-avatar--#{assigns.size}"
+    assigns = assign(assigns, initials: initials, size_class: size_class)
+
+    ~H"""
+    <%= if @creator.tiktok_avatar_url do %>
+      <img
+        src={@creator.tiktok_avatar_url}
+        alt=""
+        class={["creator-avatar", @size_class]}
+        loading="lazy"
+      />
+    <% else %>
+      <div class={["creator-avatar", "creator-avatar--fallback", @size_class]}>
+        {@initials}
+      </div>
+    <% end %>
+    """
+  end
+
+  defp get_initials(creator) do
+    initials_from_nickname(creator.tiktok_nickname) ||
+      initials_from_username(creator.tiktok_username) ||
+      initials_from_name(creator.first_name, creator.last_name) ||
+      "?"
+  end
+
+  defp initials_from_nickname(nil), do: nil
+  defp initials_from_nickname(""), do: nil
+
+  defp initials_from_nickname(nickname) do
+    nickname
+    |> String.split()
+    |> Enum.take(2)
+    |> Enum.map_join(&String.first/1)
+    |> String.upcase()
+  end
+
+  defp initials_from_username(nil), do: nil
+  defp initials_from_username(""), do: nil
+  defp initials_from_username(username), do: username |> String.slice(0, 2) |> String.upcase()
+
+  defp initials_from_name(nil, _), do: nil
+  defp initials_from_name("", _), do: nil
+
+  defp initials_from_name(first, last) do
+    first_initial = String.first(first) || ""
+    last_initial = if last, do: String.first(last) || "", else: ""
+    String.upcase(first_initial <> last_initial)
+  end
+
+  @doc """
   Formats a phone number for display.
 
   ## Examples
@@ -895,18 +958,10 @@ defmodule PavoiWeb.CreatorComponents do
               dir={@sort_dir}
               on_sort={@on_sort}
             />
-            <%!-- 3. Username --%>
+            <%!-- 3. Avatar + Username --%>
             <.sort_header
-              label="Username"
+              label="Creator"
               field="username"
-              current={@sort_by}
-              dir={@sort_dir}
-              on_sort={@on_sort}
-            />
-            <%!-- 3. Name --%>
-            <.sort_header
-              label="Name"
-              field="name"
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
@@ -919,17 +974,9 @@ defmodule PavoiWeb.CreatorComponents do
               dir={@sort_dir}
               on_sort={@on_sort}
             />
-            <%!-- 5. Phone --%>
-            <.sort_header
-              label="Phone"
-              field="phone"
-              current={@sort_by}
-              dir={@sort_dir}
-              on_sort={@on_sort}
-            />
-            <%!-- 6. Tags --%>
+            <%!-- 5. Tags --%>
             <th class="col-tags" data-column-id="tags">Tags</th>
-            <%!-- 7. Followers --%>
+            <%!-- 6. Followers --%>
             <.sort_header
               label="Followers"
               field="followers"
@@ -938,7 +985,7 @@ defmodule PavoiWeb.CreatorComponents do
               on_sort={@on_sort}
               class="text-right"
             />
-            <%!-- 8. GMV --%>
+            <%!-- 7. Total GMV --%>
             <.sort_header
               label="GMV"
               field="gmv"
@@ -947,7 +994,25 @@ defmodule PavoiWeb.CreatorComponents do
               on_sort={@on_sort}
               class="text-right"
             />
-            <%!-- 9. Samples --%>
+            <%!-- 8. Video GMV --%>
+            <.sort_header
+              label="Video GMV"
+              field="video_gmv"
+              current={@sort_by}
+              dir={@sort_dir}
+              on_sort={@on_sort}
+              class="text-right"
+            />
+            <%!-- 9. Avg Views --%>
+            <.sort_header
+              label="Avg Views"
+              field="avg_views"
+              current={@sort_by}
+              dir={@sort_dir}
+              on_sort={@on_sort}
+              class="text-right"
+            />
+            <%!-- 10. Samples --%>
             <.sort_header
               label="Samples"
               field="samples"
@@ -956,27 +1021,10 @@ defmodule PavoiWeb.CreatorComponents do
               on_sort={@on_sort}
               class="text-right"
             />
-            <%!-- 10. Videos --%>
+            <%!-- 11. Enriched --%>
             <.sort_header
-              label="Videos"
-              field="videos"
-              current={@sort_by}
-              dir={@sort_dir}
-              on_sort={@on_sort}
-              class="text-right"
-            />
-            <%!-- 11. SMS Consent --%>
-            <.sort_header
-              label="SMS"
-              field="sms_consent"
-              current={@sort_by}
-              dir={@sort_dir}
-              on_sort={@on_sort}
-            />
-            <%!-- 12. Added --%>
-            <.sort_header
-              label="Added"
-              field="added"
+              label="Enriched"
+              field="enriched"
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
@@ -1006,54 +1054,54 @@ defmodule PavoiWeb.CreatorComponents do
               <td class="text-center">
                 <.engagement_status_badge creator={creator} />
               </td>
-              <%!-- 3. Username --%>
-              <td class="text-secondary">
-                <%= cond do %>
-                  <% creator.tiktok_username && creator.tiktok_profile_url -> %>
-                    <a
-                      href={creator.tiktok_profile_url}
-                      target="_blank"
-                      rel="noopener"
-                      class="link"
-                      phx-click="stop_propagation"
-                    >
-                      @{creator.tiktok_username}
-                    </a>
-                  <% creator.tiktok_username -> %>
-                    @{creator.tiktok_username}
-                  <% true -> %>
-                    -
-                <% end %>
+              <%!-- 3. Avatar + Username + Nickname --%>
+              <td>
+                <div class="creator-cell">
+                  <.creator_avatar creator={creator} size="sm" />
+                  <div class="creator-cell__info">
+                    <%= cond do %>
+                      <% creator.tiktok_username && creator.tiktok_profile_url -> %>
+                        <a
+                          href={creator.tiktok_profile_url}
+                          target="_blank"
+                          rel="noopener"
+                          class="link creator-cell__username"
+                          phx-click="stop_propagation"
+                        >
+                          @{creator.tiktok_username}
+                        </a>
+                      <% creator.tiktok_username -> %>
+                        <span class="creator-cell__username">@{creator.tiktok_username}</span>
+                      <% true -> %>
+                        <span class="creator-cell__username text-secondary">-</span>
+                    <% end %>
+                    <%= if creator.tiktok_nickname do %>
+                      <span class="creator-cell__nickname">{creator.tiktok_nickname}</span>
+                    <% end %>
+                  </div>
+                </div>
               </td>
-              <%!-- 3. Name --%>
-              <td>{display_name(creator)}</td>
               <%!-- 4. Email --%>
               <td class="text-secondary">{creator.email || "-"}</td>
-              <%!-- 5. Phone --%>
-              <td class="text-secondary font-mono">{format_phone(creator.phone)}</td>
-              <%!-- 6. Tags --%>
+              <%!-- 5. Tags --%>
               <td class="col-tags" phx-click="stop_propagation">
                 <.tag_cell creator={creator} />
               </td>
-              <%!-- 7. Followers --%>
+              <%!-- 6. Followers --%>
               <td class="text-right">{format_number(creator.follower_count)}</td>
-              <%!-- 8. GMV --%>
+              <%!-- 7. Total GMV --%>
               <td class="text-right">{format_gmv(creator.total_gmv_cents)}</td>
-              <%!-- 9. Samples --%>
+              <%!-- 8. Video GMV --%>
+              <td class="text-right">{format_gmv(creator.video_gmv_cents)}</td>
+              <%!-- 9. Avg Views --%>
+              <td class="text-right">{format_number(creator.avg_video_views)}</td>
+              <%!-- 10. Samples --%>
               <td class="text-right">{creator.sample_count || 0}</td>
-              <%!-- 10. Videos --%>
-              <td class="text-right">{creator.total_videos || 0}</td>
-              <%!-- 11. SMS Consent --%>
-              <td class="text-center">
-                <%= if creator.sms_consent do %>
-                  <span class="badge badge--success">Yes</span>
-                <% else %>
-                  <span class="badge badge--muted">No</span>
-                <% end %>
-              </td>
-              <%!-- 12. Added --%>
+              <%!-- 11. Enriched --%>
               <td class="text-secondary text-xs">
-                {format_relative_time(creator.inserted_at)}
+                {if creator.last_enriched_at,
+                  do: format_relative_time(creator.last_enriched_at),
+                  else: "Never"}
               </td>
             </tr>
           <% end %>
@@ -1317,6 +1365,8 @@ defmodule PavoiWeb.CreatorComponents do
   attr :samples, :list, default: nil
   attr :videos, :list, default: nil
   attr :performance, :list, default: nil
+  attr :fulfillment_stats, :map, default: nil
+  attr :refreshing, :boolean, default: false
 
   def creator_detail_modal(assigns) do
     ~H"""
@@ -1330,26 +1380,48 @@ defmodule PavoiWeb.CreatorComponents do
       >
         <div class="modal__header">
           <div class="creator-modal-header">
-            <div class="creator-modal-header__row">
-              <h2 class="modal__title">
-                <%= if @creator.tiktok_username do %>
-                  @{@creator.tiktok_username}
-                <% else %>
-                  {Creator.full_name(@creator) || "Creator"}
+            <div class="creator-modal-header__top">
+              <.creator_avatar creator={@creator} size="lg" />
+              <div class="creator-modal-header__info">
+                <div class="creator-modal-header__row">
+                  <h2 class="modal__title">
+                    <%= if @creator.tiktok_username do %>
+                      @{@creator.tiktok_username}
+                    <% else %>
+                      {Creator.full_name(@creator) || "Creator"}
+                    <% end %>
+                  </h2>
+                  <%= if @creator.tiktok_profile_url do %>
+                    <a
+                      href={@creator.tiktok_profile_url}
+                      target="_blank"
+                      rel="noopener"
+                      class="link text-sm"
+                    >
+                      View TikTok Profile →
+                    </a>
+                  <% end %>
+                  <.whitelisted_badge is_whitelisted={@creator.is_whitelisted} />
+                  <.badge_pill level={@creator.tiktok_badge_level} />
+                </div>
+                <%= if @creator.tiktok_nickname do %>
+                  <div class="creator-modal-header__nickname">{@creator.tiktok_nickname}</div>
                 <% end %>
-              </h2>
-              <%= if @creator.tiktok_profile_url do %>
-                <a
-                  href={@creator.tiktok_profile_url}
-                  target="_blank"
-                  rel="noopener"
-                  class="link text-sm"
+                <%= if @creator.tiktok_bio do %>
+                  <div class="creator-modal-header__bio">{@creator.tiktok_bio}</div>
+                <% end %>
+              </div>
+              <div class="creator-modal-header__actions">
+                <.button
+                  variant="outline"
+                  size="sm"
+                  phx-click="refresh_creator_data"
+                  phx-value-id={@creator.id}
+                  disabled={@refreshing}
                 >
-                  View TikTok Profile →
-                </a>
-              <% end %>
-              <.whitelisted_badge is_whitelisted={@creator.is_whitelisted} />
-              <.badge_pill level={@creator.tiktok_badge_level} />
+                  {if @refreshing, do: "Refreshing...", else: "Refresh Data"}
+                </.button>
+              </div>
             </div>
             <div class="creator-modal-tags" data-modal-tag-target={@creator.id}>
               <.tag_pills tags={@creator.creator_tags} max_visible={999} />
@@ -1372,13 +1444,25 @@ defmodule PavoiWeb.CreatorComponents do
               <span class="creator-modal-stat__value">{format_number(@creator.follower_count)}</span>
             </div>
             <div class="creator-modal-stat">
-              <span class="creator-modal-stat__label">GMV</span>
+              <span class="creator-modal-stat__label">Total GMV</span>
               <span class="creator-modal-stat__value">{format_gmv(@creator.total_gmv_cents)}</span>
             </div>
             <div class="creator-modal-stat">
-              <span class="creator-modal-stat__label">Videos</span>
-              <span class="creator-modal-stat__value">{@creator.total_videos || 0}</span>
+              <span class="creator-modal-stat__label">Video GMV</span>
+              <span class="creator-modal-stat__value">{format_gmv(@creator.video_gmv_cents)}</span>
             </div>
+            <div class="creator-modal-stat">
+              <span class="creator-modal-stat__label">Avg Views</span>
+              <span class="creator-modal-stat__value">{format_number(@creator.avg_video_views)}</span>
+            </div>
+            <%= if @fulfillment_stats do %>
+              <div class="creator-modal-stat">
+                <span class="creator-modal-stat__label">Fulfillment</span>
+                <span class="creator-modal-stat__value">
+                  {@fulfillment_stats.fulfilled}/{@fulfillment_stats.total_samples}
+                </span>
+              </div>
+            <% end %>
           </div>
 
           <div class="creator-modal-tabs">

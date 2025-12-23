@@ -32,6 +32,9 @@ defmodule Pavoi.Creators.CreatorVideo do
     # Commission
     field :est_commission_cents, :integer
 
+    # Sample fulfillment - which sample this video fulfilled
+    belongs_to :attributed_sample, Pavoi.Creators.CreatorSample
+
     # Associations
     has_many :video_products, Pavoi.Creators.CreatorVideoProduct
 
@@ -55,7 +58,8 @@ defmodule Pavoi.Creators.CreatorVideo do
       :comments,
       :shares,
       :ctr,
-      :est_commission_cents
+      :est_commission_cents,
+      :attributed_sample_id
     ])
     |> validate_required([:creator_id, :tiktok_video_id])
     |> unique_constraint(:tiktok_video_id)

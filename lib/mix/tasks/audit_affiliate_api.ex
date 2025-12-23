@@ -52,7 +52,11 @@ defmodule Mix.Tasks.AuditAffiliateApi do
       case scope do
         "marketplace" -> audit_marketplace_endpoints(verbose)
         "collaboration" -> audit_collaboration_endpoints(verbose)
-        _ -> audit_marketplace_endpoints(verbose) ++ audit_collaboration_endpoints(verbose)
+        "live" -> audit_live_endpoints(verbose)
+        _ ->
+          audit_marketplace_endpoints(verbose) ++
+            audit_collaboration_endpoints(verbose) ++
+            audit_live_endpoints(verbose)
       end
 
     print_summary(results)
@@ -147,10 +151,8 @@ defmodule Mix.Tasks.AuditAffiliateApi do
        "List Sample Applications (Creator)"},
 
       # Orders - discovered: /order/202309/orders/search
-      {:post, "/order/202309/orders/search", %{}, %{},
-       "Search Orders (202309)"},
-      {:get, "/order/202309/orders", %{}, %{},
-       "List Orders (202309)"},
+      {:post, "/order/202309/orders/search", %{}, %{}, "Search Orders (202309)"},
+      {:get, "/order/202309/orders", %{}, %{}, "List Orders (202309)"},
 
       # Affiliate orders specifically
       {:post, "/affiliate_seller/202405/orders/search", %{}, %{},
@@ -177,21 +179,126 @@ defmodule Mix.Tasks.AuditAffiliateApi do
        "Generate Promotion Link (202509)"},
 
       # Product activation - discovered: /product/202309/products/activate
-      {:post, "/product/202309/products/activate", %{}, %{},
-       "Activate Products"}
+      {:post, "/product/202309/products/activate", %{}, %{}, "Activate Products"}
     ]
 
-    read_results = Enum.map(read_endpoints, fn {method, path, params, body, name} ->
-      test_endpoint(method, path, params, body, name, verbose)
-    end)
+    read_results =
+      Enum.map(read_endpoints, fn {method, path, params, body, name} ->
+        test_endpoint(method, path, params, body, name, verbose)
+      end)
 
     Mix.shell().info("\n  --- Write Endpoints (probing for schema) ---\n")
 
-    write_results = Enum.map(write_endpoints, fn {method, path, params, body, name} ->
-      test_endpoint(method, path, params, body, name, verbose)
-    end)
+    write_results =
+      Enum.map(write_endpoints, fn {method, path, params, body, name} ->
+        test_endpoint(method, path, params, body, name, verbose)
+      end)
 
     read_results ++ write_results
+  end
+
+  # ============================================================================
+  # Live Room Endpoints (creator.affiliate.info)
+  # ============================================================================
+
+  defp audit_live_endpoints(verbose) do
+    Mix.shell().info("""
+    ┌──────────────────────────────────────────────────────────────────┐
+    │  SCOPE: creator.affiliate.info                                  │
+    │  Testing live room and product information endpoints            │
+    └──────────────────────────────────────────────────────────────────┘
+    """)
+
+    # These are the endpoints we want to discover:
+    # - Get Live Room Info (could replace HTML scraping)
+    # - Get user online room's product information
+
+    # Try various path patterns based on TikTok API conventions
+    endpoints = [
+      # Live room info - various possible paths
+      {:get, "/live_info/202405/room", %{}, %{}, "Get Live Room Info (202405)"},
+      {:get, "/live_info/202406/room", %{}, %{}, "Get Live Room Info (202406)"},
+      {:get, "/live_info/202309/room", %{}, %{}, "Get Live Room Info (202309)"},
+
+      {:get, "/affiliate_creator/202405/live/room", %{}, %{}, "Creator Live Room (202405)"},
+      {:get, "/affiliate_creator/202406/live/room", %{}, %{}, "Creator Live Room (202406)"},
+      {:get, "/affiliate_creator/202508/live/room", %{}, %{}, "Creator Live Room (202508)"},
+
+      {:get, "/affiliate_creator/202405/live/room_info", %{}, %{}, "Creator Room Info (202405)"},
+      {:get, "/affiliate_creator/202406/live_room", %{}, %{}, "Creator Live Room Alt (202406)"},
+      {:get, "/affiliate_creator/202508/live_info", %{}, %{}, "Creator Live Info (202508)"},
+
+      # Live account info
+      {:get, "/affiliate_creator/202405/live/account", %{}, %{}, "Live Account Info (202405)"},
+      {:get, "/affiliate_creator/202406/live/account", %{}, %{}, "Live Account Info (202406)"},
+
+      # Products in live room
+      {:get, "/affiliate_creator/202405/live/products", %{}, %{}, "Live Products (202405)"},
+      {:get, "/affiliate_creator/202406/live/products", %{}, %{}, "Live Products (202406)"},
+      {:post, "/affiliate_creator/202405/live/products/search", %{}, %{}, "Search Live Products (202405)"},
+      {:post, "/affiliate_creator/202406/live/products/search", %{}, %{}, "Search Live Products (202406)"},
+
+      # Showcase products
+      {:get, "/affiliate_creator/202405/showcase/products", %{}, %{}, "Showcase Products (202405)"},
+      {:get, "/affiliate_creator/202406/showcase/products", %{}, %{}, "Showcase Products (202406)"},
+      {:post, "/affiliate_creator/202405/showcase/products/search", %{}, %{}, "Search Showcase Products"},
+
+      # Room products specifically
+      {:get, "/affiliate_creator/202405/room/products", %{}, %{}, "Room Products (202405)"},
+      {:post, "/affiliate_creator/202406/rooms/products/search", %{}, %{}, "Search Room Products"},
+
+      # Try seller-side live endpoints too
+      {:get, "/affiliate_seller/202405/live/room", %{}, %{}, "Seller Live Room (202405)"},
+      {:get, "/affiliate_seller/202406/live/products", %{}, %{}, "Seller Live Products (202406)"},
+
+      # Live stream specific paths
+      {:get, "/live/202309/room", %{}, %{}, "Live Room (202309)"},
+      {:get, "/live/202405/room", %{}, %{}, "Live Room (202405)"},
+      {:get, "/live/202406/room", %{}, %{}, "Live Room (202406)"},
+
+      # Anchor-related (from docs: "Check Anchor Content", "Check Anchor Prerequisites")
+      {:get, "/affiliate_creator/202405/anchor/info", %{}, %{}, "Anchor Info (202405)"},
+      {:get, "/affiliate_creator/202406/anchor/content", %{}, %{}, "Anchor Content (202406)"},
+      {:get, "/affiliate_creator/202405/anchor/prerequisites", %{}, %{}, "Anchor Prerequisites"},
+
+      # ecommerce live
+      {:get, "/ecommerce/202405/live/room", %{}, %{}, "Ecommerce Live Room (202405)"},
+      {:get, "/ecommerce/202406/live/products", %{}, %{}, "Ecommerce Live Products"},
+
+      # ===============================================================
+      # Messaging APIs (seller.affiliate_messages.write)
+      # Version as query param since 36009004 error indicates path exists but version format wrong
+      # ===============================================================
+      {:get, "/affiliate_seller/conversations", %{version: "202405"}, %{}, "Get Conversations (v=202405)"},
+      {:get, "/affiliate_seller/conversations", %{version: "202406"}, %{}, "Get Conversations (v=202406)"},
+      {:get, "/affiliate_seller/conversations", %{version: "202309"}, %{}, "Get Conversations (v=202309)"},
+      {:get, "/affiliate_seller/conversations", %{version: "202410"}, %{}, "Get Conversations (v=202410)"},
+      {:post, "/affiliate_seller/conversations", %{version: "202405"}, %{}, "Create Conversation (v=202405)"},
+      {:post, "/affiliate_seller/conversations", %{version: "202406"}, %{}, "Create Conversation (v=202406)"},
+      {:get, "/affiliate_seller/messages", %{version: "202405"}, %{}, "Get Messages (v=202405)"},
+      {:get, "/affiliate_seller/messages", %{version: "202406"}, %{}, "Get Messages (v=202406)"},
+      {:post, "/affiliate_seller/messages", %{version: "202405"}, %{}, "Send Message (v=202405)"},
+      {:post, "/affiliate_seller/messages", %{version: "202406"}, %{}, "Send Message (v=202406)"},
+      {:get, "/affiliate_seller/im/conversations", %{version: "202405"}, %{}, "IM Conversations (v=202405)"},
+      {:get, "/affiliate_seller/im/conversations", %{version: "202406"}, %{}, "IM Conversations (v=202406)"},
+      {:post, "/affiliate_seller/im/messages", %{version: "202405"}, %{}, "IM Send Message (v=202405)"},
+      {:post, "/affiliate_seller/im/messages", %{version: "202406"}, %{}, "IM Send Message (v=202406)"},
+
+      # Sample Applications (seller.affiliate_collaboration.write)
+      {:get, "/affiliate_seller/202405/sample_applications", %{page_size: 10}, %{}, "Sample Applications (202405)"},
+      {:get, "/affiliate_seller/202406/sample_applications", %{page_size: 10}, %{}, "Sample Applications (202406)"},
+      {:post, "/affiliate_seller/202405/sample_applications/search", %{}, %{}, "Search Sample Apps (202405)"},
+      {:post, "/affiliate_seller/202406/sample_applications/search", %{}, %{}, "Search Sample Apps (202406)"},
+      {:post, "/affiliate_seller/202405/sample_applications/review", %{}, %{}, "Review Sample App (202405)"},
+
+      # Promotion links
+      {:post, "/affiliate_seller/202405/promotion_links", %{}, %{}, "Generate Promo Link (202405)"},
+      {:post, "/affiliate_seller/202406/promotion_links", %{}, %{}, "Generate Promo Link (202406)"}
+    ]
+
+    Enum.map(endpoints, fn {method, path, params, body, name} ->
+      test_endpoint(method, path, params, body, name, verbose)
+    end)
   end
 
   # ============================================================================
@@ -237,22 +344,7 @@ defmodule Mix.Tasks.AuditAffiliateApi do
     error_str = if is_binary(reason), do: reason, else: inspect(reason)
     Mix.shell().info("    ❌ Error: #{truncate(error_str, 100)}")
 
-    # Extract useful info from error messages
-    cond do
-      String.contains?(error_str, "Invalid path") ->
-        Mix.shell().info("       → Path not found")
-
-      String.contains?(error_str, "scope") or String.contains?(error_str, "permission") ->
-        Mix.shell().info("       → Scope/permission issue")
-
-      String.contains?(error_str, "required") ->
-        # This is actually useful - tells us what params are needed
-        Mix.shell().info("       → Missing required parameters (check full error)")
-        if verbose, do: Mix.shell().info("       Full: #{error_str}")
-
-      true ->
-        :ok
-    end
+    print_error_hint(error_str, verbose)
 
     if verbose and not String.contains?(error_str, "Invalid path") do
       Mix.shell().info("       Full: #{error_str}")
@@ -262,28 +354,29 @@ defmodule Mix.Tasks.AuditAffiliateApi do
     {:error, name, reason}
   end
 
+  defp print_error_hint(error_str, verbose) do
+    cond do
+      String.contains?(error_str, "Invalid path") ->
+        Mix.shell().info("       → Path not found")
+
+      String.contains?(error_str, "scope") or String.contains?(error_str, "permission") ->
+        Mix.shell().info("       → Scope/permission issue")
+
+      String.contains?(error_str, "required") ->
+        Mix.shell().info("       → Missing required parameters (check full error)")
+        if verbose, do: Mix.shell().info("       Full: #{error_str}")
+
+      true ->
+        :ok
+    end
+  end
+
   defp print_data_summary(data, verbose) when is_map(data) do
     keys = Map.keys(data)
     Mix.shell().info("    Data keys: #{Enum.join(keys, ", ")}")
 
     # Show counts for list fields
-    Enum.each(data, fn {key, value} ->
-      case value do
-        list when is_list(list) ->
-          Mix.shell().info("      #{key}: #{length(list)} items")
-
-          if verbose and length(list) > 0 do
-            first = List.first(list)
-
-            if is_map(first) do
-              Mix.shell().info("        First item keys: #{Map.keys(first) |> Enum.join(", ")}")
-            end
-          end
-
-        _ ->
-          :ok
-      end
-    end)
+    Enum.each(data, fn {key, value} -> print_field_summary(key, value, verbose) end)
 
     if verbose, do: print_full_response(data)
     Mix.shell().info("")
@@ -293,6 +386,19 @@ defmodule Mix.Tasks.AuditAffiliateApi do
     if verbose, do: print_full_response(data)
     Mix.shell().info("")
   end
+
+  defp print_field_summary(key, list, verbose) when is_list(list) do
+    Mix.shell().info("      #{key}: #{length(list)} items")
+    print_first_item_keys(list, verbose)
+  end
+
+  defp print_field_summary(_key, _value, _verbose), do: :ok
+
+  defp print_first_item_keys([first | _], true) when is_map(first) do
+    Mix.shell().info("        First item keys: #{Map.keys(first) |> Enum.join(", ")}")
+  end
+
+  defp print_first_item_keys(_list, _verbose), do: :ok
 
   defp print_full_response(data) do
     json = Jason.encode!(data, pretty: true)
@@ -345,20 +451,17 @@ defmodule Mix.Tasks.AuditAffiliateApi do
     end
 
     # Group errors by type
-    path_errors = Enum.filter(errors, fn {_, _, reason} ->
-      reason_str = if is_binary(reason), do: reason, else: inspect(reason)
-      String.contains?(reason_str, "Invalid path") or String.contains?(reason_str, "404")
-    end)
+    path_errors =
+      Enum.filter(errors, fn {_, _, reason} ->
+        reason_str = if is_binary(reason), do: reason, else: inspect(reason)
+        String.contains?(reason_str, "Invalid path") or String.contains?(reason_str, "404")
+      end)
 
     other_errors = errors -- path_errors
 
     if length(other_errors) > 0 do
       Mix.shell().info("\n  Other Errors (investigate these):")
-
-      Enum.each(other_errors, fn {_, name, reason} ->
-        reason_str = if is_binary(reason), do: reason, else: inspect(reason)
-        Mix.shell().info("    • #{name}: #{truncate(reason_str, 80)}")
-      end)
+      Enum.each(other_errors, &print_error_line/1)
     end
 
     Mix.shell().info("""
@@ -370,6 +473,11 @@ defmodule Mix.Tasks.AuditAffiliateApi do
     3. Run with --verbose for full response bodies
     ────────────────────────────────────────────────────────────────────
     """)
+  end
+
+  defp print_error_line({_, name, reason}) do
+    reason_str = if is_binary(reason), do: reason, else: inspect(reason)
+    Mix.shell().info("    • #{name}: #{truncate(reason_str, 80)}")
   end
 
   defp truncate(str, max_length) do

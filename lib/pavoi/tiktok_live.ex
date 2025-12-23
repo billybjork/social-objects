@@ -31,10 +31,9 @@ defmodule Pavoi.TiktokLive do
 
   require Logger
 
-  alias Pavoi.Catalog.Product
   alias Pavoi.Repo
-  alias Pavoi.Sessions.{Session, SessionProduct}
-  alias Pavoi.TiktokLive.{Client, Comment, SessionStream, Stream, StreamProduct, StreamStat}
+  alias Pavoi.Sessions.SessionProduct
+  alias Pavoi.TiktokLive.{Client, Comment, SessionStream, Stream, StreamStat}
   alias Pavoi.Workers.{TiktokLiveMonitorWorker, TiktokLiveStreamWorker}
 
   ## Streams
@@ -293,46 +292,6 @@ defmodule Pavoi.TiktokLive do
     })
     |> Repo.update()
   end
-
-  @doc """
-  Updates a stream's cover image by downloading from URL and uploading to storage.
-
-  This is typically called when we receive the connected event from the bridge,
-  which includes the cover image URL from TikTok's roomInfo.
-
-  Returns `{:ok, stream}` on success, `{:error, reason}` on failure.
-  """
-  def update_stream_cover(stream_id, cover_url) when is_binary(cover_url) do
-    stream = get_stream!(stream_id)
-
-    # Skip if stream already has a cover image
-    if stream.cover_image_url do
-      {:ok, stream}
-    else
-      # Generate storage key for the cover image
-      storage_key = "streams/#{stream_id}/cover.jpg"
-
-      case Pavoi.Storage.upload_from_url(cover_url, storage_key) do
-        {:ok, _key} ->
-          # Get the public URL and update stream
-          public_url = Pavoi.Storage.public_url(storage_key)
-
-          stream
-          |> Stream.changeset(%{cover_image_url: public_url})
-          |> Repo.update()
-
-        {:error, reason} ->
-          Logger.warning(
-            "Failed to upload cover image for stream #{stream_id}: #{inspect(reason)}"
-          )
-
-          {:error, reason}
-      end
-    end
-  end
-
-  def update_stream_cover(_stream_id, nil), do: {:ok, nil}
-  def update_stream_cover(_stream_id, _), do: {:ok, nil}
 
   @doc """
   Deletes a stream and all associated data (comments, stats).
@@ -621,6 +580,68 @@ defmodule Pavoi.TiktokLive do
     |> Enum.map(& &1.stream)
   end
 
+  @doc """
+  Detects which session was actively used during a stream based on session_state updates.
+
+  Returns the session whose state was updated during the stream's time window.
+  If multiple sessions were active, returns the one with the most recent update
+  (indicating it was the primary/last session used).
+
+  Returns `{:ok, session}` if a session was detected, `:none` otherwise.
+  """
+  def detect_active_session(stream_id) do
+    stream = get_stream!(stream_id)
+
+    # Stream must have both started_at and ended_at to detect session
+    if is_nil(stream.started_at) or is_nil(stream.ended_at) do
+      :none
+    else
+      # Find session_states that were updated during the stream window
+      # Order by most recent update (the primary session being used at stream end)
+      query =
+        from(ss in Pavoi.Sessions.SessionState,
+          where: ss.updated_at >= ^stream.started_at,
+          where: ss.updated_at <= ^stream.ended_at,
+          join: s in assoc(ss, :session),
+          order_by: [desc: ss.updated_at],
+          limit: 1,
+          select: s
+        )
+
+      case Repo.one(query) do
+        nil -> :none
+        session -> {:ok, session}
+      end
+    end
+  end
+
+  @doc """
+  Attempts to auto-link a stream to a session based on session controller activity.
+
+  This should be called when a stream ends. It detects which session was being
+  used during the stream and automatically links them.
+
+  Returns `{:ok, session_stream}` if auto-linked, `:none` if no session detected,
+  or `{:already_linked, session}` if the stream is already linked to a session.
+  """
+  def auto_link_stream_to_session(stream_id) do
+    # Check if already linked
+    case get_linked_sessions(stream_id) do
+      [session | _] ->
+        {:already_linked, session}
+
+      [] ->
+        case detect_active_session(stream_id) do
+          {:ok, session} ->
+            Logger.info("Auto-linking stream #{stream_id} to session #{session.id} (#{session.name})")
+            link_stream_to_session(stream_id, session.id, linked_by: "auto")
+
+          :none ->
+            :none
+        end
+    end
+  end
+
   ## Comment Parsing
 
   @doc """
@@ -699,6 +720,8 @@ defmodule Pavoi.TiktokLive do
     end) || :no_match
   end
 
+  def parse_product_number(_text, _max_position), do: :no_match
+
   defp try_extract_product_number(pattern, text, max_position) do
     with [_, number_str] <- Regex.run(pattern, text),
          number = String.to_integer(number_str),
@@ -708,8 +731,6 @@ defmodule Pavoi.TiktokLive do
       _ -> nil
     end
   end
-
-  def parse_product_number(_text, _max_position), do: :no_match
 
   defp clear_parsed_products_for_link(stream_id, session_id) do
     # Get session product IDs for this session
@@ -752,107 +773,5 @@ defmodule Pavoi.TiktokLive do
       order_by: [desc: count(c.id)]
     )
     |> Repo.all()
-  end
-
-  ## Session Suggestions (based on product overlap)
-
-  @doc """
-  Returns suggested sessions for a stream based on product overlap.
-
-  Matching algorithm:
-  1. Get all TikTok product IDs showcased in the stream
-  2. Find internal products where those IDs exist in tiktok_product_ids array
-  3. Find sessions containing those products
-  4. Score each session: matched_products / total_session_products
-
-  ## Options
-
-  - `:limit` - Maximum suggestions to return (default: 5)
-
-  Returns a list of maps with :session, :matched_count, :total_count, :match_score
-  """
-  def get_suggested_sessions(stream_id, opts \\ []) do
-    limit = Keyword.get(opts, :limit, 5)
-
-    # Get TikTok product IDs showcased in this stream
-    stream_product_ids = get_stream_product_ids(stream_id)
-
-    if Enum.empty?(stream_product_ids) do
-      []
-    else
-      suggest_sessions_by_products(stream_product_ids, stream_id, limit)
-    end
-  end
-
-  defp get_stream_product_ids(stream_id) do
-    from(sp in StreamProduct,
-      where: sp.stream_id == ^stream_id,
-      select: sp.tiktok_product_id
-    )
-    |> Repo.all()
-  end
-
-  defp suggest_sessions_by_products(tiktok_product_ids, stream_id, limit) do
-    # Find internal products matching these TikTok IDs
-    # Uses array overlap operator (&&) for tiktok_product_ids array
-    # Also checks the single tiktok_product_id field
-    matching_product_ids =
-      from(p in Product,
-        where:
-          fragment("? && ?", p.tiktok_product_ids, ^tiktok_product_ids) or
-            p.tiktok_product_id in ^tiktok_product_ids,
-        select: p.id
-      )
-      |> Repo.all()
-
-    if Enum.empty?(matching_product_ids) do
-      []
-    else
-      # Get already linked session IDs to exclude
-      linked_session_ids = get_linked_session_ids(stream_id)
-
-      # Find sessions containing matching products and count matches
-      from(s in Session,
-        join: sp in SessionProduct,
-        on: sp.session_id == s.id,
-        where: sp.product_id in ^matching_product_ids,
-        where: s.id not in ^linked_session_ids,
-        group_by: s.id,
-        select: %{
-          session: s,
-          matched_count: count(sp.id, :distinct)
-        },
-        order_by: [desc: count(sp.id, :distinct)],
-        limit: ^limit
-      )
-      |> Repo.all()
-      |> Enum.map(fn %{session: session, matched_count: matched_count} ->
-        # Get total products in session
-        total_count = get_session_product_count(session.id)
-
-        %{
-          session: session,
-          matched_count: matched_count,
-          total_count: total_count,
-          match_score: if(total_count > 0, do: matched_count / total_count, else: 0)
-        }
-      end)
-    end
-  end
-
-  defp get_linked_session_ids(stream_id) do
-    from(ss in SessionStream,
-      where: ss.stream_id == ^stream_id,
-      select: ss.session_id
-    )
-    |> Repo.all()
-  end
-
-  defp get_session_product_count(session_id) do
-    from(sp in SessionProduct,
-      where: sp.session_id == ^session_id,
-      select: count(sp.id)
-    )
-    |> Repo.one() || 0
   end
 end

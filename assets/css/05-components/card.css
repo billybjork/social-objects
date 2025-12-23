@@ -821,3 +821,78 @@
     font-size: var(--text-sm);
   }
 }
+
+/* ============================================================================
+   LINKED STREAM THUMBNAILS
+   Stream thumbnails shown in expanded session view
+   ============================================================================ */
+
+.session-card__streams {
+  margin-bottom: var(--space-4);
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* Fade in and slide down when expanded */
+.session-card__content-switcher--expanded .session-card__streams {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.1s;
+}
+
+.session-card__streams-label {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.session-card__streams-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.session-card__stream-thumb {
+  position: relative;
+  display: block;
+  text-decoration: none;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.session-card__stream-thumb:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Override stream-thumbnail styles for this context - preserve aspect ratio */
+.session-card__stream-thumb .stream-thumbnail {
+  width: auto;
+  height: auto;
+  max-width: 120px;
+  max-height: 160px;
+  aspect-ratio: auto;
+}
+
+.session-card__stream-thumb .stream-thumbnail__image {
+  width: auto;
+  height: auto;
+  max-width: 120px;
+  max-height: 160px;
+  object-fit: contain;
+}
+
+.session-card__stream-thumb .stream-thumbnail__placeholder {
+  width: 80px;
+  height: 120px;
+}
+
+.session-card__stream-status {
+  position: absolute;
+  bottom: var(--space-1);
+  left: var(--space-1);
+}

@@ -155,6 +155,25 @@ defmodule Pavoi.Creators do
   defp apply_unified_sort(query, "status", "desc"),
     do: order_by(query, [c], desc_nulls_last: c.outreach_status)
 
+  # Enrichment columns
+  defp apply_unified_sort(query, "enriched", "asc"),
+    do: order_by(query, [c], asc_nulls_last: c.last_enriched_at)
+
+  defp apply_unified_sort(query, "enriched", "desc"),
+    do: order_by(query, [c], desc_nulls_first: c.last_enriched_at)
+
+  defp apply_unified_sort(query, "video_gmv", "asc"),
+    do: order_by(query, [c], asc_nulls_last: c.video_gmv_cents)
+
+  defp apply_unified_sort(query, "video_gmv", "desc"),
+    do: order_by(query, [c], desc_nulls_last: c.video_gmv_cents)
+
+  defp apply_unified_sort(query, "avg_views", "asc"),
+    do: order_by(query, [c], asc_nulls_last: c.avg_video_views)
+
+  defp apply_unified_sort(query, "avg_views", "desc"),
+    do: order_by(query, [c], desc_nulls_last: c.avg_video_views)
+
   # Delegate to existing sort handlers for CRM columns
   defp apply_unified_sort(query, sort_by, sort_dir),
     do: apply_creator_sort(query, sort_by, sort_dir)
@@ -595,6 +614,108 @@ defmodule Pavoi.Creators do
     |> Repo.insert(on_conflict: :nothing)
   end
 
+  ## Sample Fulfillment
+
+  @doc """
+  Marks a sample as fulfilled by a video.
+  Uses strict product matching - only auto-attributes if exact product_id matches.
+
+  Returns {:ok, updated_sample} or {:error, reason}
+  """
+  def mark_sample_fulfilled(sample, video) do
+    now = DateTime.utc_now()
+
+    sample
+    |> CreatorSample.changeset(%{
+      fulfilled: true,
+      fulfilled_at: now,
+      attributed_video_id: video.id
+    })
+    |> Repo.update()
+  end
+
+  @doc """
+  Attempts to auto-attribute a video to an unfulfilled sample using strict product matching.
+  Only matches if the video's products include the sample's product_id.
+
+  Returns {:ok, sample} if a match is found and attributed, or {:ok, nil} if no match.
+  """
+  def auto_attribute_video_to_sample(video) do
+    # Get creator's unfulfilled samples
+    unfulfilled_samples = get_unfulfilled_samples_for_creator(video.creator_id)
+
+    # Get product IDs from this video
+    video_product_ids = get_product_ids_for_video(video.id)
+
+    # Find a sample that matches by product_id (strict match)
+    matching_sample =
+      Enum.find(unfulfilled_samples, fn sample ->
+        sample.product_id && sample.product_id in video_product_ids
+      end)
+
+    if matching_sample do
+      mark_sample_fulfilled(matching_sample, video)
+    else
+      {:ok, nil}
+    end
+  end
+
+  @doc """
+  Gets unfulfilled samples for a creator.
+  """
+  def get_unfulfilled_samples_for_creator(creator_id) do
+    from(s in CreatorSample,
+      where: s.creator_id == ^creator_id,
+      where: s.fulfilled == false or is_nil(s.fulfilled),
+      where: not is_nil(s.product_id),
+      order_by: [desc: s.ordered_at]
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Gets product IDs linked to a video through video_products.
+  """
+  def get_product_ids_for_video(video_id) do
+    from(vp in CreatorVideoProduct,
+      where: vp.creator_video_id == ^video_id,
+      where: not is_nil(vp.product_id),
+      select: vp.product_id
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Gets fulfillment stats for a creator.
+  Returns %{total_samples: n, fulfilled: n, unfulfilled: n, fulfillment_rate: float}
+  Returns nil if the fulfillment columns don't exist yet (migration not run).
+  """
+  def get_fulfillment_stats(creator_id) do
+    # Query just the count and fulfilled status to avoid loading full records
+    # If the fulfilled column doesn't exist yet, catch the error and return nil
+    total =
+      from(s in CreatorSample, where: s.creator_id == ^creator_id, select: count())
+      |> Repo.one()
+
+    fulfilled =
+      from(s in CreatorSample,
+        where: s.creator_id == ^creator_id and s.fulfilled == true,
+        select: count()
+      )
+      |> Repo.one()
+
+    %{
+      total_samples: total,
+      fulfilled: fulfilled,
+      unfulfilled: total - fulfilled,
+      fulfillment_rate: if(total > 0, do: fulfilled / total, else: 0.0)
+    }
+  rescue
+    Postgrex.Error ->
+      # Column doesn't exist yet - migration hasn't been run
+      nil
+  end
+
   ## Performance Snapshots
 
   @doc """
@@ -630,6 +751,18 @@ defmodule Pavoi.Creators do
   end
 
   ## BigQuery Sync Helpers
+
+  @doc """
+  Gets a creator by their TikTok user ID.
+  Returns nil if not found or if user_id is nil/empty.
+  """
+  def get_creator_by_tiktok_user_id(nil), do: nil
+  def get_creator_by_tiktok_user_id(""), do: nil
+
+  def get_creator_by_tiktok_user_id(user_id) when is_binary(user_id) do
+    from(c in Creator, where: c.tiktok_user_id == ^user_id, limit: 1)
+    |> Repo.one()
+  end
 
   @doc """
   Gets a creator by normalized phone number.

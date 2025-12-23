@@ -16,6 +16,14 @@ import http from 'http';
 import { URL } from 'url';
 import { WebSocketServer, WebSocket } from 'ws';
 import { WebcastPushConnection } from 'tiktok-live-connector';
+import ffmpeg from 'fluent-ffmpeg';
+import ffmpegPath from 'ffmpeg-static';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+
+// Set FFmpeg path from static binary
+ffmpeg.setFfmpegPath(ffmpegPath);
 
 const PORT = process.env.PORT || 8080;
 const HOST = process.env.HOST || '0.0.0.0';
@@ -125,20 +133,34 @@ function extractProductDetails(p) {
 }
 
 /**
- * Extract cover image URL from roomInfo.
- * TikTok provides cover images in roomInfo.cover.url_list array.
+ * Capture a video thumbnail from an HLS stream URL.
+ * Returns base64-encoded JPEG image data.
  */
-function extractCoverUrl(roomInfo) {
-  if (!roomInfo) return null;
+async function captureVideoThumbnail(hlsUrl, uniqueId) {
+  const tmpFile = path.join(os.tmpdir(), `thumb_${uniqueId}_${Date.now()}.jpg`);
 
-  // Try cover.url_list first (most common)
-  const urlList = roomInfo.cover?.url_list;
-  if (Array.isArray(urlList) && urlList.length > 0) {
-    return urlList[0];
-  }
-
-  // Fallback to other possible locations
-  return roomInfo.coverUrl || roomInfo.cover_url || null;
+  return new Promise((resolve, reject) => {
+    // Wait 5 seconds into stream, capture 1 frame
+    // Scale to max 320px height while preserving aspect ratio (TikTok is vertical 9:16)
+    // -2 ensures width is even number (required by some encoders)
+    ffmpeg(hlsUrl)
+      .setStartTime(5)
+      .frames(1)
+      .outputOptions(['-vf', 'scale=-2:320'])
+      .output(tmpFile)
+      .on('end', () => {
+        try {
+          const buffer = fs.readFileSync(tmpFile);
+          const base64 = buffer.toString('base64');
+          fs.unlinkSync(tmpFile);
+          resolve(base64);
+        } catch (err) {
+          reject(err);
+        }
+      })
+      .on('error', reject)
+      .run();
+  });
 }
 
 /**
@@ -195,19 +217,36 @@ async function connectToStream(uniqueId) {
     connection.on('connected', (state) => {
       console.log(`[${uniqueId}] Connected! Room ID: ${state.roomId}`);
 
-      // Extract cover image URL from roomInfo
-      const coverUrl = extractCoverUrl(state.roomInfo);
-      if (coverUrl) {
-        console.log(`[${uniqueId}] Cover URL: ${coverUrl.substring(0, 80)}...`);
-      }
+      // Extract HLS stream URL for thumbnail capture
+      const hlsUrl = state.roomInfo?.stream_url?.hls_pull_url;
 
+      // Broadcast connected event immediately (don't block on thumbnail)
       broadcastEvent({
         type: 'connected',
         uniqueId,
         roomId: state.roomId,
-        coverUrl: coverUrl,
         roomInfo: state.roomInfo
       });
+
+      // Capture thumbnail asynchronously, send separate event when done
+      if (hlsUrl) {
+        console.log(`[${uniqueId}] HLS URL found, capturing thumbnail...`);
+        captureVideoThumbnail(hlsUrl, uniqueId)
+          .then((thumbnailBase64) => {
+            console.log(`[${uniqueId}] Thumbnail captured (${thumbnailBase64.length} chars base64)`);
+            broadcastEvent({
+              type: 'thumbnail',
+              uniqueId,
+              thumbnailBase64,
+              contentType: 'image/jpeg'
+            });
+          })
+          .catch((err) => {
+            console.error(`[${uniqueId}] Thumbnail capture failed:`, err.message);
+          });
+      } else {
+        console.log(`[${uniqueId}] No HLS URL available for thumbnail capture`);
+      }
     });
 
     connection.on('disconnected', () => {

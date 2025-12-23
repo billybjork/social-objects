@@ -30,6 +30,11 @@ defmodule Pavoi.Creators.CreatorSample do
     # Status
     field :status, :string
 
+    # Fulfillment tracking - did creator post about this sample?
+    field :fulfilled, :boolean, default: false
+    field :fulfilled_at, :utc_datetime
+    belongs_to :attributed_video, Pavoi.Creators.CreatorVideo
+
     timestamps()
   end
 
@@ -48,7 +53,10 @@ defmodule Pavoi.Creators.CreatorSample do
       :ordered_at,
       :shipped_at,
       :delivered_at,
-      :status
+      :status,
+      :fulfilled,
+      :fulfilled_at,
+      :attributed_video_id
     ])
     |> validate_required([:creator_id, :brand_id])
     |> validate_inclusion(:status, @statuses)
