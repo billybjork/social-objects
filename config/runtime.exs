@@ -43,7 +43,10 @@ if config_env() == :dev do
     # Euler Stream API key for TikTok Live capture (legacy, kept for reference)
     euler_stream_api_key: System.get_env("EULER_STREAM_API_KEY"),
     # TikTok Bridge service URL (self-hosted replacement for Euler Stream)
-    tiktok_bridge_url: System.get_env("TIKTOK_BRIDGE_URL", "http://localhost:8080")
+    tiktok_bridge_url: System.get_env("TIKTOK_BRIDGE_URL", "http://localhost:8080"),
+    # Slack configuration for stream reports
+    slack_bot_token: System.get_env("SLACK_BOT_TOKEN"),
+    slack_channel: System.get_env("SLACK_CHANNEL", "#tiktok-live-reports")
 
   # OpenAI client configuration
   config :pavoi, Pavoi.AI.OpenAIClient,
@@ -122,7 +125,10 @@ if config_env() == :prod do
     # Euler Stream API key for TikTok Live capture (legacy, kept for reference)
     euler_stream_api_key: System.get_env("EULER_STREAM_API_KEY"),
     # TikTok Bridge service URL (self-hosted replacement for Euler Stream)
-    tiktok_bridge_url: System.get_env("TIKTOK_BRIDGE_URL", "http://localhost:8080")
+    tiktok_bridge_url: System.get_env("TIKTOK_BRIDGE_URL", "http://localhost:8080"),
+    # Slack configuration for stream reports
+    slack_bot_token: System.get_env("SLACK_BOT_TOKEN"),
+    slack_channel: System.get_env("SLACK_CHANNEL", "#tiktok-live-reports")
 
   # OpenAI client configuration
   config :pavoi, Pavoi.AI.OpenAIClient,

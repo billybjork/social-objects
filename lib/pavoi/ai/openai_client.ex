@@ -9,10 +9,20 @@ defmodule Pavoi.AI.OpenAIClient do
   alias OpenaiEx.Chat
   alias OpenaiEx.ChatMessage
 
-  # Load system prompt at compile time for better performance
+  # Load system prompts at compile time for better performance
   @prompt_path Path.join([__DIR__, "../../..", "priv", "prompts", "talking_points_system.md"])
   @external_resource @prompt_path
   @system_prompt File.read!(@prompt_path)
+
+  @sentiment_prompt_path Path.join([
+                           __DIR__,
+                           "../../..",
+                           "priv",
+                           "prompts",
+                           "stream_sentiment_analysis.md"
+                         ])
+  @external_resource @sentiment_prompt_path
+  @sentiment_prompt File.read!(@sentiment_prompt_path)
 
   # Configuration getters - these read from application environment
   defp config, do: Application.get_env(:pavoi, __MODULE__, [])
@@ -69,6 +79,81 @@ defmodule Pavoi.AI.OpenAIClient do
          {:ok, response} <- call_openai(openai, system_prompt, user_prompt) do
       {:ok, extract_content(response)}
     end
+  end
+
+  @doc """
+  Analyzes stream comments for sentiment and actionable insights using GPT-4o.
+
+  Returns `{:ok, analysis}` on success or `{:error, reason}` on failure.
+
+  ## Parameters
+    - comments_text: String of comments to analyze (newline or bullet-separated)
+    - opts: Keyword options for retries
+
+  ## Example
+      iex> comments = "Love this bracelet!\\nDoes it come in silver?\\nJust bought #4!"
+      iex> OpenAIClient.analyze_stream_comments(comments)
+      {:ok, "- Strong interest in...\\n- Questions about..."}
+  """
+  def analyze_stream_comments(comments_text, opts \\ []) do
+    retries = Keyword.get(opts, :retries, max_retries())
+    attempt = Keyword.get(opts, :attempt, 1)
+
+    case do_analyze_comments(comments_text) do
+      {:ok, analysis} ->
+        {:ok, analysis}
+
+      {:error, reason} = error ->
+        if attempt < retries do
+          backoff = calculate_backoff(attempt)
+
+          Logger.warning(
+            "OpenAI sentiment analysis failed (attempt #{attempt}/#{retries}): #{inspect(reason)}. " <>
+              "Retrying in #{backoff}ms..."
+          )
+
+          Process.sleep(backoff)
+          analyze_stream_comments(comments_text, retries: retries, attempt: attempt + 1)
+        else
+          Logger.error(
+            "OpenAI sentiment analysis failed after #{retries} attempts: #{inspect(reason)}"
+          )
+
+          error
+        end
+    end
+  end
+
+  defp do_analyze_comments(comments_text) do
+    with {:ok, openai} <- build_client(),
+         {:ok, response} <- call_openai_sentiment(openai, comments_text) do
+      {:ok, extract_content(response)}
+    end
+  end
+
+  defp call_openai_sentiment(client, comments_text) do
+    # Use GPT-4o for better analysis quality (sentiment analysis benefits from stronger model)
+    chat_req =
+      Chat.Completions.new(
+        model: "gpt-4o",
+        messages: [
+          ChatMessage.system(@sentiment_prompt),
+          ChatMessage.user(comments_text)
+        ],
+        temperature: 0.5,
+        max_tokens: 800
+      )
+
+    case Chat.Completions.create(client, chat_req) do
+      {:ok, response} ->
+        {:ok, response}
+
+      {:error, reason} ->
+        {:error, "OpenAI API call failed: #{inspect(reason)}"}
+    end
+  rescue
+    e ->
+      {:error, "Exception during OpenAI API call: #{Exception.message(e)}"}
   end
 
   @doc """

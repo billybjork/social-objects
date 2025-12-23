@@ -26,7 +26,7 @@ defmodule Pavoi.Workers.TiktokLiveMonitorWorker do
 
   alias Pavoi.Repo
   alias Pavoi.TiktokLive.{Client, Stream}
-  alias Pavoi.Workers.TiktokLiveStreamWorker
+  alias Pavoi.Workers.{StreamReportWorker, TiktokLiveStreamWorker}
 
   @impl Oban.Worker
   def perform(%Oban.Job{}) do
@@ -101,12 +101,25 @@ defmodule Pavoi.Workers.TiktokLiveMonitorWorker do
     Enum.each(capturing_streams, fn stream ->
       Logger.info("Marking stream #{stream.id} as ended (account no longer live)")
 
-      stream
-      |> Stream.changeset(%{
-        status: :ended,
-        ended_at: DateTime.utc_now() |> DateTime.truncate(:second)
-      })
-      |> Repo.update()
+      case stream
+           |> Stream.changeset(%{
+             status: :ended,
+             ended_at: DateTime.utc_now() |> DateTime.truncate(:second)
+           })
+           |> Repo.update() do
+        {:ok, updated_stream} ->
+          # Enqueue Slack report job for the completed stream
+          Logger.info("Enqueueing stream report for stream #{updated_stream.id}")
+
+          %{stream_id: updated_stream.id}
+          |> StreamReportWorker.new()
+          |> Oban.insert()
+
+        {:error, changeset} ->
+          Logger.error(
+            "Failed to mark stream #{stream.id} as ended: #{inspect(changeset.errors)}"
+          )
+      end
     end)
   end
 

@@ -61,7 +61,7 @@ config :pavoi, Oban,
        {"0 */6 * * *", Pavoi.Workers.CreatorEnrichmentWorker}
      ]}
   ],
-  queues: [default: 10, shopify: 5, tiktok: 5, creators: 5, bigquery: 3, enrichment: 2]
+  queues: [default: 10, shopify: 5, tiktok: 5, creators: 5, bigquery: 3, enrichment: 2, slack: 3]
 
 # TikTok Live stream capture configuration
 config :pavoi, :tiktok_live_monitor, accounts: ["pavoi"]
