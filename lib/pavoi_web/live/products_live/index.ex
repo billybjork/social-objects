@@ -19,8 +19,12 @@ defmodule PavoiWeb.ProductsLive.Index do
 
   @impl true
   def mount(_params, _session, socket) do
+    # Track connection state - products only load after connection to prevent
+    # double animation (static render + WebSocket reconnect)
+    connected = connected?(socket)
+
     # Subscribe to Shopify sync events, TikTok sync events, and AI generation events
-    if connected?(socket) do
+    if connected do
       Phoenix.PubSub.subscribe(Pavoi.PubSub, "shopify:sync")
       Phoenix.PubSub.subscribe(Pavoi.PubSub, "tiktok:sync")
       Phoenix.PubSub.subscribe(Pavoi.PubSub, "ai:talking_points")
@@ -36,6 +40,7 @@ defmodule PavoiWeb.ProductsLive.Index do
 
     socket =
       socket
+      |> assign(:connected, connected)
       |> assign(:brands, brands)
       |> assign(:last_sync_at, last_sync_at)
       |> assign(:syncing, shopify_syncing)
@@ -55,6 +60,7 @@ defmodule PavoiWeb.ProductsLive.Index do
       |> assign(:product_total_count, 0)
       |> assign(:products_has_more, false)
       |> assign(:loading_products, false)
+      |> assign(:initial_load_done, false)
       |> assign(:search_touched, false)
       |> stream(:products, [])
       |> assign(:generating_product_id, nil)
@@ -533,6 +539,7 @@ defmodule PavoiWeb.ProductsLive.Index do
       # Products already have primary_image field from Catalog context
       socket
       |> assign(:loading_products, false)
+      |> assign(:initial_load_done, true)
       |> stream(:products, products_with_index,
         reset: !append,
         at: if(append, do: -1, else: 0)
@@ -544,6 +551,7 @@ defmodule PavoiWeb.ProductsLive.Index do
       _e ->
         socket
         |> assign(:loading_products, false)
+        |> assign(:initial_load_done, true)
         |> put_flash(:error, "Failed to load products")
     end
   end
@@ -588,26 +596,32 @@ defmodule PavoiWeb.ProductsLive.Index do
   end
 
   defp apply_search_params(socket, params) do
-    # Read "q" param for search query, "sort" param for sorting, and "platform" for filtering
-    search_query = params["q"] || ""
-    sort_by = params["sort"] || ""
-    platform_filter = params["platform"] || ""
+    # Skip loading products until connected - prevents double animation
+    # (static render animates, then LiveView connects and animates again)
+    if socket.assigns.connected do
+      # Read "q" param for search query, "sort" param for sorting, and "platform" for filtering
+      search_query = params["q"] || ""
+      sort_by = params["sort"] || ""
+      platform_filter = params["platform"] || ""
 
-    # Reload products if search query OR sort OR platform changed OR if products haven't been loaded yet
-    should_load =
-      socket.assigns.product_search_query != search_query ||
-        socket.assigns.product_sort_by != sort_by ||
-        socket.assigns.platform_filter != platform_filter ||
-        socket.assigns.product_total_count == 0
+      # Reload products if search query OR sort OR platform changed OR if products haven't been loaded yet
+      should_load =
+        socket.assigns.product_search_query != search_query ||
+          socket.assigns.product_sort_by != sort_by ||
+          socket.assigns.platform_filter != platform_filter ||
+          socket.assigns.product_total_count == 0
 
-    if should_load do
-      socket
-      |> assign(:product_search_query, search_query)
-      |> assign(:product_sort_by, sort_by)
-      |> assign(:platform_filter, platform_filter)
-      |> assign(:product_page, 1)
-      |> assign(:loading_products, true)
-      |> load_products_for_browse()
+      if should_load do
+        socket
+        |> assign(:product_search_query, search_query)
+        |> assign(:product_sort_by, sort_by)
+        |> assign(:platform_filter, platform_filter)
+        |> assign(:product_page, 1)
+        |> assign(:loading_products, true)
+        |> load_products_for_browse()
+      else
+        socket
+      end
     else
       socket
     end

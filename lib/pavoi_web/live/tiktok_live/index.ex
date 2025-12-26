@@ -723,8 +723,7 @@ defmodule PavoiWeb.TiktokLive.Index do
   defp apply_date_filter(filters, _), do: filters
 
   defp count_streams(filters) do
-    # Get count by listing with filters (could be optimized with a count query)
-    length(TiktokLiveContext.list_streams(filters))
+    TiktokLiveContext.count_streams(filters)
   end
 
   defp maybe_load_selected_stream(socket, params) do

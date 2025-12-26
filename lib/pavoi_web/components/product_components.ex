@@ -463,6 +463,10 @@ defmodule PavoiWeb.ProductComponents do
   attr :show_search, :boolean, default: true, doc: "Whether to show search input"
   attr :loading, :boolean, default: false, doc: "Whether products are currently loading"
 
+  attr :initial_load_done, :boolean,
+    default: true,
+    doc: "Whether initial load has completed (hides loading indicator on first load)"
+
   attr :search_placeholder, :string,
     default: "Search products...",
     doc: "Placeholder text for search input"
@@ -563,7 +567,16 @@ defmodule PavoiWeb.ProductComponents do
         </div>
       <% end %>
 
-      <%= if @is_empty do %>
+      <%= if @is_empty && @loading && @initial_load_done do %>
+        <div class="product-grid__loader">
+          <div class="product-grid__loading-indicator">
+            <div class="spinner"></div>
+            <span>Loading products...</span>
+          </div>
+        </div>
+      <% end %>
+
+      <%= if @is_empty && !@loading && @initial_load_done do %>
         <div class="product-grid__empty">
           No products found. Try a different search.
         </div>

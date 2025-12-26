@@ -60,6 +60,7 @@
     on_platform_filter_change="platform_filter_changed"
     loading={@loading_products}
     is_empty={@product_total_count == 0}
+    initial_load_done={@initial_load_done}
     viewport_bottom={
       @products_has_more && !@loading_products && @product_search_query == "" &&
         "load_more_products"

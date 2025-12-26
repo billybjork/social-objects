@@ -65,6 +65,20 @@ defmodule Pavoi.TiktokLive do
   end
 
   @doc """
+  Counts streams with optional filtering.
+
+  Same filters as `list_streams/1` except `:limit` and `:offset` are ignored.
+  """
+  def count_streams(opts \\ []) do
+    # Remove pagination options for count query
+    count_opts = Keyword.drop(opts, [:limit, :offset])
+
+    Stream
+    |> apply_filters(count_opts)
+    |> Repo.aggregate(:count)
+  end
+
+  @doc """
   Gets a single stream by ID.
 
   Returns `nil` if not found.

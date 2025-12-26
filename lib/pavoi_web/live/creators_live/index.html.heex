@@ -187,7 +187,10 @@
           <%!-- Selection Mode: Radio buttons --%>
           <div class="lark-presets-select">
             <%= for {preset_id, preset} <- @lark_presets do %>
-              <label class={"lark-preset-option #{if @selected_lark_preset == preset_id, do: "lark-preset-option--selected", else: ""}"}>
+              <label class={[
+                "lark-preset-option",
+                @selected_lark_preset == preset_id && "lark-preset-option--selected"
+              ]}>
                 <input
                   type="radio"
                   name="lark_preset"

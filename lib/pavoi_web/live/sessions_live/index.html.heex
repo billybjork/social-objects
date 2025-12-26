@@ -241,29 +241,6 @@
                 </div>
               <% end %>
 
-              <%!-- Linked stream thumbnails --%>
-              <%= if length(session.session_streams) > 0 do %>
-                <div class="session-card__streams" phx-click="stop_propagation">
-                  <span class="session-card__streams-label">Linked Streams</span>
-                  <div class="session-card__streams-list">
-                    <%= for session_stream <- session.session_streams do %>
-                      <a
-                        href={~p"/streams?id=#{session_stream.stream_id}"}
-                        class="session-card__stream-thumb"
-                        title={"Stream: #{session_stream.stream.title || session_stream.stream.unique_id}"}
-                      >
-                        <.stream_thumbnail url={
-                          TiktokStream.cover_image_url(session_stream.stream)
-                        } />
-                        <span class="session-card__stream-status">
-                          <.stream_status_badge status={session_stream.stream.status} />
-                        </span>
-                      </a>
-                    <% end %>
-                  </div>
-                </div>
-              <% end %>
-
               <%!-- Product list --%>
               <div
                 id={"session-#{session.id}-products"}

@@ -24,6 +24,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
   import PavoiWeb.ViewHelpers
 
   @sync_job_stale_after_seconds 30 * 60
+  @tag_colors ~w(amber blue green red purple gray)
 
   # Lark community invite link presets
   @lark_presets %{
@@ -486,8 +487,6 @@ defmodule PavoiWeb.CreatorsLive.Index do
   # =============================================================================
 
   @impl true
-  @tag_colors ~w(amber blue green red purple gray)
-
   def handle_event("open_tag_picker", %{"creator-id" => creator_id}, socket) do
     creator_id = String.to_integer(creator_id)
     selected_tag_ids = Creators.get_tag_ids_for_creator(creator_id)
