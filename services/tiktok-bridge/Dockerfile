@@ -5,9 +5,11 @@ FROM node:20-slim
 
 WORKDIR /app
 
-# Install dependencies for tiktok-live-connector (may need some native deps)
+# Install ffmpeg and dependencies
+# Using system ffmpeg instead of ffmpeg-static for better compatibility
 RUN apt-get update && apt-get install -y \
     ca-certificates \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy package files

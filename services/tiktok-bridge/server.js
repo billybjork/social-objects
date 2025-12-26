@@ -17,13 +17,12 @@ import { URL } from 'url';
 import { WebSocketServer, WebSocket } from 'ws';
 import { WebcastPushConnection } from 'tiktok-live-connector';
 import ffmpeg from 'fluent-ffmpeg';
-import ffmpegPath from 'ffmpeg-static';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
 
-// Set FFmpeg path from static binary
-ffmpeg.setFfmpegPath(ffmpegPath);
+// Use system ffmpeg (installed via apt in container) for better compatibility
+// ffmpeg-static has issues with FLV streams on certain architectures
 
 const PORT = process.env.PORT || 8080;
 const HOST = process.env.HOST || '0.0.0.0';
