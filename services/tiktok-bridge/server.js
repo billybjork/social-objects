@@ -231,18 +231,25 @@ async function connectToStream(uniqueId) {
       console.log(`[${uniqueId}] Connected! Room ID: ${state.roomId}`);
 
       // Debug: log roomInfo structure to understand what TikTok returns
+      const streamUrl = state.roomInfo?.stream_url;
       console.log(`[${uniqueId}] roomInfo keys:`, Object.keys(state.roomInfo || {}));
-      if (state.roomInfo?.stream_url) {
-        console.log(`[${uniqueId}] stream_url keys:`, Object.keys(state.roomInfo.stream_url));
+      if (streamUrl) {
+        console.log(`[${uniqueId}] stream_url keys:`, Object.keys(streamUrl));
+        console.log(`[${uniqueId}] hls_pull_url value:`, streamUrl.hls_pull_url ? streamUrl.hls_pull_url.substring(0, 80) + '...' : 'EMPTY/NULL');
+        console.log(`[${uniqueId}] flv_pull_url value:`, streamUrl.flv_pull_url ? 'present' : 'EMPTY/NULL');
       }
+
       // Check for cover image as potential fallback
       const coverUrl = state.roomInfo?.cover?.url_list?.[0] || state.roomInfo?.coverUrl;
       if (coverUrl) {
         console.log(`[${uniqueId}] Cover image available: ${coverUrl.substring(0, 80)}...`);
       }
 
-      // Extract HLS stream URL for thumbnail capture
-      const hlsUrl = state.roomInfo?.stream_url?.hls_pull_url;
+      // Try multiple stream URL sources for thumbnail capture
+      // Priority: HLS > FLV > HLS from map
+      const hlsUrl = streamUrl?.hls_pull_url ||
+                     streamUrl?.flv_pull_url ||
+                     (streamUrl?.hls_pull_url_map && Object.values(streamUrl.hls_pull_url_map)[0]);
 
       // Broadcast connected event immediately (don't block on thumbnail)
       broadcastEvent({
@@ -254,7 +261,8 @@ async function connectToStream(uniqueId) {
 
       // Capture thumbnail asynchronously, send separate event when done
       if (hlsUrl) {
-        console.log(`[${uniqueId}] HLS URL found, capturing thumbnail...`);
+        console.log(`[${uniqueId}] Stream URL found: ${hlsUrl.substring(0, 80)}...`);
+        console.log(`[${uniqueId}] Capturing video thumbnail...`);
         captureVideoThumbnail(hlsUrl, uniqueId)
           .then((thumbnailBase64) => {
             console.log(`[${uniqueId}] Thumbnail captured (${thumbnailBase64.length} chars base64)`);
