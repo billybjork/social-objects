@@ -148,7 +148,11 @@ async function captureVideoThumbnail(streamUrl, uniqueId) {
     const command = ffmpeg(streamUrl)
       .inputOptions([
         '-y',                    // Overwrite output
-        '-t', '10',              // Limit input duration to 10 seconds
+        '-t', '5',               // Limit input duration to 5 seconds
+        '-reconnect', '1',       // Enable reconnection
+        '-reconnect_streamed', '1',
+        '-reconnect_delay_max', '2',
+        '-user_agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
       ])
       .frames(1)
       .outputOptions([
@@ -173,8 +177,12 @@ async function captureVideoThumbnail(streamUrl, uniqueId) {
           reject(err);
         }
       })
+      .on('start', (cmdline) => {
+        console.log(`[${uniqueId}] FFmpeg command:`, cmdline.substring(0, 200));
+      })
       .on('error', (err, stdout, stderr) => {
-        console.error(`[${uniqueId}] FFmpeg stderr:`, stderr?.substring(0, 500));
+        console.error(`[${uniqueId}] FFmpeg error:`, err.message);
+        console.error(`[${uniqueId}] FFmpeg stderr:`, stderr?.substring(0, 1000));
         reject(err);
       })
       .run();
