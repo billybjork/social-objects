@@ -20,6 +20,7 @@ defmodule Pavoi.TiktokLive.EventHandler do
 
   alias Pavoi.Repo
   alias Pavoi.TiktokLive.{Comment, Stream, StreamProduct, StreamStat}
+  alias Pavoi.Workers.StreamReportWorker
 
   @batch_size 50
   @batch_flush_interval_ms 1_000
@@ -271,6 +272,9 @@ defmodule Pavoi.TiktokLive.EventHandler do
     # Auto-link to session if one was active during the stream
     auto_link_stream(state.stream_id)
 
+    # Enqueue Slack report job for the completed stream
+    enqueue_stream_report(state.stream_id)
+
     state
   end
 
@@ -311,6 +315,9 @@ defmodule Pavoi.TiktokLive.EventHandler do
 
     # Auto-link to session if one was active during the stream
     auto_link_stream(state.stream_id)
+
+    # Enqueue Slack report job for the completed stream
+    enqueue_stream_report(state.stream_id)
 
     state
   end
@@ -527,5 +534,13 @@ defmodule Pavoi.TiktokLive.EventHandler do
       {:error, reason} ->
         Logger.warning("Failed to auto-link stream #{stream_id}: #{inspect(reason)}")
     end
+  end
+
+  defp enqueue_stream_report(stream_id) do
+    Logger.info("Enqueueing stream report for stream #{stream_id}")
+
+    %{stream_id: stream_id}
+    |> StreamReportWorker.new()
+    |> Oban.insert()
   end
 end
