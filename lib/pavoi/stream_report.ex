@@ -191,8 +191,8 @@ defmodule Pavoi.StreamReport do
   Sends a complete stream report to Slack, including cover image if available.
 
   This is the main entry point for sending reports. It:
-  1. Uploads the cover image (if available) with the report as initial_comment
-  2. Or sends just the Block Kit message if no cover image
+  1. Includes the cover image in the Block Kit message if available
+  2. Otherwise sends just the Block Kit message
 
   Returns `:ok` on success, `{:error, reason}` on failure.
   """
@@ -200,29 +200,8 @@ defmodule Pavoi.StreamReport do
     alias Pavoi.Communications.Slack
 
     with {:ok, blocks} <- format_slack_blocks(report_data) do
-      stream = report_data.stream
-
-      # Try to upload cover image if present (failures are logged but don't block report)
-      maybe_upload_cover_image(stream)
-
       # Always send the message
       Slack.send_message(blocks)
-    end
-  end
-
-  defp maybe_upload_cover_image(%{cover_image_key: nil}), do: :ok
-  defp maybe_upload_cover_image(%{cover_image_key: key, id: stream_id}) do
-    alias Pavoi.Communications.Slack
-    alias Pavoi.Storage
-
-    with {:ok, image_binary} <- Storage.download(key),
-         filename = "stream_#{stream_id}_cover.jpg",
-         {:ok, _file_id} <- Slack.upload_image(image_binary, filename, title: "Stream Cover") do
-      :ok
-    else
-      {:error, reason} ->
-        Logger.warning("Failed to upload cover image: #{inspect(reason)}")
-        :ok
     end
   end
 
@@ -235,6 +214,7 @@ defmodule Pavoi.StreamReport do
     blocks =
       List.flatten([
         header_block(report_data.stream),
+        cover_image_block(report_data.stream),
         divider_block(),
         stats_block(report_data.stats),
         divider_block()
@@ -280,6 +260,22 @@ defmodule Pavoi.StreamReport do
         ]
       }
     ]
+  end
+
+  defp cover_image_block(stream) do
+    case Pavoi.TiktokLive.Stream.cover_image_url(stream) do
+      nil ->
+        []
+
+      url ->
+        [
+          %{
+            type: "image",
+            image_url: url,
+            alt_text: "Stream cover image"
+          }
+        ]
+    end
   end
 
   defp format_ended_at(nil), do: "Unknown"

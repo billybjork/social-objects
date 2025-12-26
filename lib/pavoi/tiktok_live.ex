@@ -106,6 +106,27 @@ defmodule Pavoi.TiktokLive do
     |> Repo.one()
   end
 
+  @doc """
+  Marks a stream as ended if it hasn't been ended already.
+
+  Returns `{:ok, :ended}` when the update was applied, or `{:error, :already_ended}`.
+  """
+  def mark_stream_ended(stream_id) do
+    ended_at = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    {updated, _} =
+      from(s in Stream,
+        where: s.id == ^stream_id and s.status != :ended
+      )
+      |> Repo.update_all(set: [status: :ended, ended_at: ended_at])
+
+    if updated == 1 do
+      {:ok, :ended}
+    else
+      {:error, :already_ended}
+    end
+  end
+
   ## Comments
 
   @doc """
@@ -633,7 +654,10 @@ defmodule Pavoi.TiktokLive do
       [] ->
         case detect_active_session(stream_id) do
           {:ok, session} ->
-            Logger.info("Auto-linking stream #{stream_id} to session #{session.id} (#{session.name})")
+            Logger.info(
+              "Auto-linking stream #{stream_id} to session #{session.id} (#{session.name})"
+            )
+
             link_stream_to_session(stream_id, session.id, linked_by: "auto")
 
           :none ->

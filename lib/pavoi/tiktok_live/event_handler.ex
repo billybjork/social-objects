@@ -265,15 +265,17 @@ defmodule Pavoi.TiktokLive.EventHandler do
     Logger.info("Stream #{state.stream_id} ended")
     broadcast_to_stream(state.stream_id, {:stream_ended})
 
-    # Update stream status
-    update_stream_field(state.stream, :status, :ended)
-    update_stream_field(state.stream, :ended_at, DateTime.utc_now())
+    case Pavoi.TiktokLive.mark_stream_ended(state.stream_id) do
+      {:ok, :ended} ->
+        # Auto-link to session if one was active during the stream
+        auto_link_stream(state.stream_id)
 
-    # Auto-link to session if one was active during the stream
-    auto_link_stream(state.stream_id)
+        # Enqueue Slack report job for the completed stream
+        enqueue_stream_report(state.stream_id)
 
-    # Enqueue Slack report job for the completed stream
-    enqueue_stream_report(state.stream_id)
+      {:error, :already_ended} ->
+        Logger.debug("Stream #{state.stream_id} already ended, skipping report enqueue")
+    end
 
     state
   end
@@ -310,14 +312,17 @@ defmodule Pavoi.TiktokLive.EventHandler do
     broadcast_to_stream(state.stream_id, {:disconnected, event[:reason]})
 
     # Mark stream as ended on disconnect (the worker will also handle cleanup)
-    update_stream_field(state.stream, :status, :ended)
-    update_stream_field(state.stream, :ended_at, DateTime.utc_now())
+    case Pavoi.TiktokLive.mark_stream_ended(state.stream_id) do
+      {:ok, :ended} ->
+        # Auto-link to session if one was active during the stream
+        auto_link_stream(state.stream_id)
 
-    # Auto-link to session if one was active during the stream
-    auto_link_stream(state.stream_id)
+        # Enqueue Slack report job for the completed stream
+        enqueue_stream_report(state.stream_id)
 
-    # Enqueue Slack report job for the completed stream
-    enqueue_stream_report(state.stream_id)
+      {:error, :already_ended} ->
+        Logger.debug("Stream #{state.stream_id} already ended, skipping report enqueue")
+    end
 
     state
   end
