@@ -8,23 +8,32 @@ defmodule PavoiWeb.TiktokLive.Index do
   """
   use PavoiWeb, :live_view
 
+  import Ecto.Query
+
   on_mount {PavoiWeb.NavHooks, :set_current_page}
 
+  alias Pavoi.Repo
   alias Pavoi.Sessions
+  alias Pavoi.Settings
   alias Pavoi.TiktokLive, as: TiktokLiveContext
+  alias Pavoi.Workers.StreamReportWorker
 
   import PavoiWeb.TiktokLiveComponents
   import PavoiWeb.ViewHelpers
 
   @per_page 20
   @comments_per_page 50
+  @stream_report_poll_ms 2_000
 
   @impl true
   def mount(_params, _session, socket) do
     # Subscribe to global TikTok live events
     if connected?(socket) do
       Phoenix.PubSub.subscribe(Pavoi.PubSub, "tiktok_live:events")
+      Phoenix.PubSub.subscribe(Pavoi.PubSub, "tiktok_live:scan")
     end
+
+    last_scan_at = Settings.get_tiktok_live_last_scan_at()
 
     socket =
       socket
@@ -37,6 +46,9 @@ defmodule PavoiWeb.TiktokLive.Index do
       |> assign(:search_query, "")
       |> assign(:status_filter, "all")
       |> assign(:date_filter, "all")
+      # Dropdown open states
+      |> assign(:show_status_filter, false)
+      |> assign(:show_date_filter, false)
       # Modal state
       |> assign(:selected_stream, nil)
       |> assign(:stream_summary, nil)
@@ -53,6 +65,11 @@ defmodule PavoiWeb.TiktokLive.Index do
       |> assign(:capture_loading, false)
       |> assign(:capture_error, nil)
       |> assign(:scanning, false)
+      |> assign(:last_scan_at, last_scan_at)
+      |> assign(:sending_stream_report, false)
+      |> assign(:slack_dev_user_id_present, slack_dev_user_id_present?())
+      |> assign(:stream_report_last_sent_at, nil)
+      |> assign(:stream_report_last_error, nil)
       # Session linking state
       |> assign(:linked_sessions, [])
       |> assign(:all_sessions, [])
@@ -75,6 +92,57 @@ defmodule PavoiWeb.TiktokLive.Index do
 
   # Event handlers
 
+  # Status filter dropdown handlers
+  @impl true
+  def handle_event("toggle_streams_status", _params, socket) do
+    {:noreply, assign(socket, :show_status_filter, !socket.assigns.show_status_filter)}
+  end
+
+  @impl true
+  def handle_event("close_streams_status", _params, socket) do
+    {:noreply, assign(socket, :show_status_filter, false)}
+  end
+
+  @impl true
+  def handle_event("change_streams_status", %{"value" => status}, socket) do
+    socket = assign(socket, :show_status_filter, false)
+    params = build_query_params(socket, status_filter: status, page: 1)
+    {:noreply, push_patch(socket, to: ~p"/streams?#{params}")}
+  end
+
+  @impl true
+  def handle_event("clear_streams_status", _params, socket) do
+    socket = assign(socket, :show_status_filter, false)
+    params = build_query_params(socket, status_filter: "all", page: 1)
+    {:noreply, push_patch(socket, to: ~p"/streams?#{params}")}
+  end
+
+  # Date filter dropdown handlers
+  @impl true
+  def handle_event("toggle_streams_date", _params, socket) do
+    {:noreply, assign(socket, :show_date_filter, !socket.assigns.show_date_filter)}
+  end
+
+  @impl true
+  def handle_event("close_streams_date", _params, socket) do
+    {:noreply, assign(socket, :show_date_filter, false)}
+  end
+
+  @impl true
+  def handle_event("change_streams_date", %{"value" => date}, socket) do
+    socket = assign(socket, :show_date_filter, false)
+    params = build_query_params(socket, date_filter: date, page: 1)
+    {:noreply, push_patch(socket, to: ~p"/streams?#{params}")}
+  end
+
+  @impl true
+  def handle_event("clear_streams_date", _params, socket) do
+    socket = assign(socket, :show_date_filter, false)
+    params = build_query_params(socket, date_filter: "all", page: 1)
+    {:noreply, push_patch(socket, to: ~p"/streams?#{params}")}
+  end
+
+  # Legacy event handlers (kept for backwards compatibility, can be removed later)
   @impl true
   def handle_event("filter_status", %{"status" => status}, socket) do
     params = build_query_params(socket, status_filter: status, page: 1)
@@ -95,13 +163,16 @@ defmodule PavoiWeb.TiktokLive.Index do
 
   @impl true
   def handle_event("scan_streams", _params, socket) do
-    socket = assign(socket, :scanning, true)
-    pid = self()
+    socket =
+      case TiktokLiveContext.check_live_status_now("manual") do
+        {:ok, _job} ->
+          assign(socket, :scanning, true)
 
-    Task.start(fn ->
-      result = TiktokLiveContext.check_live_status_now()
-      send(pid, {:scan_result, result})
-    end)
+        {:error, changeset} ->
+          socket
+          |> assign(:scanning, false)
+          |> put_flash(:error, "Failed to scan streams: #{inspect(changeset.errors)}")
+      end
 
     {:noreply, socket}
   end
@@ -168,6 +239,18 @@ defmodule PavoiWeb.TiktokLive.Index do
       {:error, _reason} ->
         {:noreply, socket}
     end
+  end
+
+  @impl true
+  def handle_event("send_stream_report", %{"id" => id}, socket) do
+    socket =
+      if socket.assigns.dev_mode do
+        maybe_send_stream_report(socket, id)
+      else
+        socket
+      end
+
+    {:noreply, socket}
   end
 
   @impl true
@@ -523,10 +606,36 @@ defmodule PavoiWeb.TiktokLive.Index do
   end
 
   @impl true
-  def handle_info({:scan_result, _result}, socket) do
-    # The monitor worker will broadcast events if it finds/starts a stream
-    # Just reset the scanning state
-    {:noreply, assign(socket, :scanning, false)}
+  def handle_info({:scan_completed, _source}, socket) do
+    last_scan_at = Settings.get_tiktok_live_last_scan_at()
+
+    socket =
+      socket
+      |> assign(:last_scan_at, last_scan_at)
+      |> assign(:scanning, false)
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:refresh_stream_report_status, stream_id}, socket) do
+    socket =
+      if socket.assigns.dev_mode &&
+           socket.assigns.selected_stream &&
+           socket.assigns.selected_stream.id == stream_id do
+        status = stream_report_job_status(stream_id)
+
+        socket =
+          socket
+          |> assign_stream_report_status(status)
+          |> maybe_schedule_stream_report_poll(stream_id, status)
+
+        socket
+      else
+        socket
+      end
+
+    {:noreply, socket}
   end
 
   @impl true
@@ -625,6 +734,9 @@ defmodule PavoiWeb.TiktokLive.Index do
         |> assign(:selected_stream, nil)
         |> assign(:stream_summary, nil)
         |> assign(:active_tab, "comments")
+        |> assign(:sending_stream_report, false)
+        |> assign(:stream_report_last_sent_at, nil)
+        |> assign(:stream_report_last_error, nil)
         |> maybe_unsubscribe_from_stream()
 
       stream_id ->
@@ -641,6 +753,7 @@ defmodule PavoiWeb.TiktokLive.Index do
             |> assign(:active_tab, tab)
             |> load_tab_data(tab, stream_id)
             |> maybe_subscribe_to_stream(stream)
+            |> maybe_assign_stream_report_status(stream_id)
 
           socket
         rescue
@@ -774,6 +887,161 @@ defmodule PavoiWeb.TiktokLive.Index do
   defp default_value?({:page, 1}), do: true
   defp default_value?({:tab, "comments"}), do: true
   defp default_value?(_), do: false
+
+  defp maybe_send_stream_report(socket, id) do
+    cond do
+      socket.assigns.sending_stream_report ->
+        socket
+
+      not socket.assigns.slack_dev_user_id_present ->
+        put_flash(socket, :error, "Slack dev user id not configured")
+
+      true ->
+        case Integer.parse(id) do
+          {stream_id, ""} ->
+            enqueue_stream_report_job(socket, stream_id)
+
+          _ ->
+            put_flash(socket, :error, "Invalid stream id")
+        end
+    end
+  end
+
+  defp slack_dev_user_id_present? do
+    case Application.get_env(:pavoi, :slack_dev_user_id) do
+      nil -> false
+      "" -> false
+      _ -> true
+    end
+  end
+
+  defp enqueue_stream_report_job(socket, stream_id) do
+    case StreamReportWorker.new(%{stream_id: stream_id}) |> Oban.insert() do
+      {:ok, _job} ->
+        status = stream_report_job_status(stream_id)
+
+        socket
+        |> assign_stream_report_status(status)
+        |> maybe_schedule_stream_report_poll(stream_id, status)
+        |> put_flash(:info, "Slack report queued")
+
+      {:error, changeset} ->
+        socket
+        |> assign(:sending_stream_report, false)
+        |> assign(:stream_report_last_error, format_stream_report_error(changeset.errors))
+        |> put_flash(:error, "Failed to enqueue Slack report: #{inspect(changeset.errors)}")
+    end
+  end
+
+  defp maybe_assign_stream_report_status(socket, stream_id) do
+    if socket.assigns.dev_mode do
+      status = stream_report_job_status(stream_id)
+
+      socket
+      |> assign_stream_report_status(status)
+      |> maybe_schedule_stream_report_poll(stream_id, status)
+    else
+      socket
+    end
+  end
+
+  defp assign_stream_report_status(socket, status) do
+    socket
+    |> assign(:sending_stream_report, status.sending)
+    |> assign(:stream_report_last_sent_at, status.last_sent_at)
+    |> assign(:stream_report_last_error, status.last_error)
+  end
+
+  defp stream_report_job_status(stream_id) do
+    worker_name = "Pavoi.Workers.StreamReportWorker"
+
+    job =
+      from(j in Oban.Job,
+        where: j.worker == ^worker_name,
+        where: fragment("?->>'stream_id' = ?", j.args, ^to_string(stream_id)),
+        order_by: [desc: j.inserted_at],
+        limit: 1
+      )
+      |> Repo.one()
+
+    case job do
+      nil ->
+        %{sending: false, last_sent_at: nil, last_error: nil}
+
+      %Oban.Job{} = job ->
+        %{
+          sending: stream_report_job_active?(job),
+          last_sent_at: stream_report_job_sent_at(job),
+          last_error: stream_report_job_error(job)
+        }
+    end
+  end
+
+  defp stream_report_job_active?(%Oban.Job{state: "executing"}), do: true
+  defp stream_report_job_active?(%Oban.Job{state: "available"}), do: true
+  defp stream_report_job_active?(%Oban.Job{state: "retryable"}), do: true
+
+  defp stream_report_job_active?(%Oban.Job{state: "scheduled", scheduled_at: scheduled_at})
+       when not is_nil(scheduled_at) do
+    DateTime.compare(scheduled_at, DateTime.utc_now()) in [:lt, :eq]
+  end
+
+  defp stream_report_job_active?(_job), do: false
+
+  defp stream_report_job_sent_at(%Oban.Job{state: "completed", completed_at: completed_at}),
+    do: completed_at
+
+  defp stream_report_job_sent_at(_job), do: nil
+
+  defp stream_report_job_error(%Oban.Job{state: "completed"}), do: nil
+
+  defp stream_report_job_error(%Oban.Job{state: state} = job)
+       when state in ["discarded", "cancelled"] do
+    message = stream_report_job_error_message(job)
+    format_stream_report_job_error(state, message)
+  end
+
+  defp stream_report_job_error(%Oban.Job{attempt: attempt} = job) when attempt > 0 do
+    message = stream_report_job_error_message(job)
+
+    case job.state do
+      "retryable" -> format_stream_report_job_error("retryable", message)
+      "scheduled" -> format_stream_report_job_error("retryable", message)
+      "available" -> format_stream_report_job_error("retryable", message)
+      "executing" -> format_stream_report_job_error("retryable", message)
+      _ -> message
+    end
+  end
+
+  defp stream_report_job_error(_job), do: nil
+
+  defp stream_report_job_error_message(%Oban.Job{errors: errors}) do
+    errors
+    |> List.last()
+    |> case do
+      %{"error" => error} -> error
+      %{"message" => message} -> message
+      %{"exception" => exception} -> exception
+      error when is_map(error) -> inspect(error)
+      _ -> nil
+    end
+  end
+
+  defp format_stream_report_job_error("cancelled", nil), do: "Cancelled"
+  defp format_stream_report_job_error("discarded", nil), do: "Discarded"
+  defp format_stream_report_job_error("retryable", nil), do: "Retrying"
+  defp format_stream_report_job_error("retryable", message), do: "Retrying: #{message}"
+  defp format_stream_report_job_error(_state, message), do: message
+
+  defp maybe_schedule_stream_report_poll(socket, stream_id, %{sending: true}) do
+    Process.send_after(self(), {:refresh_stream_report_status, stream_id}, @stream_report_poll_ms)
+    socket
+  end
+
+  defp maybe_schedule_stream_report_poll(socket, _stream_id, _status), do: socket
+
+  defp format_stream_report_error(reason) when is_binary(reason), do: reason
+  defp format_stream_report_error(reason), do: inspect(reason)
 
   defp load_available_sessions(socket) do
     linked_ids = Enum.map(socket.assigns.linked_sessions, & &1.id)

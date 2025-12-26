@@ -63,15 +63,10 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
         :ok
 
       {:error, :rate_limited} ->
-        Logger.warning("Rate limited by TikTok Shop API, will retry")
+        handle_rate_limit()
 
-        Phoenix.PubSub.broadcast(
-          Pavoi.PubSub,
-          "tiktok:sync",
-          {:tiktok_sync_failed, :rate_limited}
-        )
-
-        {:snooze, 60}
+      {:error, {:rate_limited, _reason}} ->
+        handle_rate_limit()
 
       {:error, reason} ->
         Logger.error("TikTok Shop sync failed: #{inspect(reason)}")
@@ -109,6 +104,18 @@ defmodule Pavoi.Workers.TiktokSyncWorker do
         Logger.error("TikTok sync failed with unexpected result: #{inspect(other)}")
         {:error, :unexpected_result}
     end
+  end
+
+  defp handle_rate_limit do
+    Logger.warning("Rate limited by TikTok Shop API, will retry")
+
+    Phoenix.PubSub.broadcast(
+      Pavoi.PubSub,
+      "tiktok:sync",
+      {:tiktok_sync_failed, :rate_limited}
+    )
+
+    {:snooze, 60}
   end
 
   defp filter_products_with_valid_pricing(products) do

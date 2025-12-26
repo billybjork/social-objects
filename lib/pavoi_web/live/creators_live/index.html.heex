@@ -19,12 +19,23 @@
         <span class="creators-count">{format_number(@total)} creators</span>
       </div>
 
-      <%!-- Status Filter Dropdown --%>
-      <.status_filter
-        current_status={@outreach_status}
-        stats={@outreach_stats}
-        open={@show_status_filter}
-      />
+      <%!-- Status Filter --%>
+      <form phx-change="change_outreach_status">
+        <select name="status" class="filter-select" value={@outreach_status || ""}>
+          <option value="">
+            All Status ({@outreach_stats.pending + @outreach_stats.sent + @outreach_stats.skipped})
+          </option>
+          <option value="pending" selected={@outreach_status == "pending"}>
+            Pending ({@outreach_stats.pending})
+          </option>
+          <option value="sent" selected={@outreach_status == "sent"}>
+            Sent ({@outreach_stats.sent})
+          </option>
+          <option value="skipped" selected={@outreach_status == "skipped"}>
+            Skipped ({@outreach_stats.skipped})
+          </option>
+        </select>
+      </form>
     </div>
 
     <div class="page-header__right">

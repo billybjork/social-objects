@@ -47,6 +47,7 @@
 @import "./05-components/voice-control.css";
 @import "./05-components/creator.css";
 @import "./05-components/tiktok-live.css";
+@import "./05-components/filter-dropdown.css";
 
 /* Utilities Layer - Utility classes */
 @import "./06-utilities/utilities.css";

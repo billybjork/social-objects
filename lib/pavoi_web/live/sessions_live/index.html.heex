@@ -252,7 +252,9 @@
                         class="session-card__stream-thumb"
                         title={"Stream: #{session_stream.stream.title || session_stream.stream.unique_id}"}
                       >
-                        <.stream_thumbnail url={TiktokStream.cover_image_url(session_stream.stream)} />
+                        <.stream_thumbnail url={
+                          TiktokStream.cover_image_url(session_stream.stream)
+                        } />
                         <span class="session-card__stream-status">
                           <.stream_status_badge status={session_stream.stream.status} />
                         </span>

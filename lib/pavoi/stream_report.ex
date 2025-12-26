@@ -17,7 +17,7 @@ defmodule Pavoi.StreamReport do
   alias Pavoi.TiktokLive
   alias Pavoi.TiktokLive.Comment
 
-  @flash_sale_threshold 10
+  @flash_sale_threshold 50
   @max_comments_for_ai 200
 
   @doc """
@@ -317,14 +317,22 @@ defmodule Pavoi.StreamReport do
     lines =
       products
       |> Enum.with_index(1)
-      |> Enum.map(fn {p, rank} ->
+      |> Enum.map(fn {product, rank} ->
         # Extract a short, meaningful product name
-        name = shorten_product_name(p.product_name || "Unknown")
-        "`##{rank}` #{name} — *#{p.comment_count}*"
+        name = shorten_product_name(product.product_name || "Unknown")
+        link = product_more_info_link(product.product_id)
+        "`##{rank}` #{name} — *#{product.comment_count}*#{link}"
       end)
 
     text = ":shopping_bags: *Top Products in Comments*\n" <> Enum.join(lines, "\n")
     %{type: "section", text: %{type: "mrkdwn", text: text}}
+  end
+
+  defp product_more_info_link(nil), do: ""
+
+  defp product_more_info_link(product_id) do
+    url = "https://app.pavoi.com/products?p=#{product_id}"
+    " (<#{url}|more info>)"
   end
 
   # Extract a short, meaningful product name from verbose Amazon-style titles
@@ -342,7 +350,7 @@ defmodule Pavoi.StreamReport do
       flash_sales
       |> Enum.take(3)
       |> Enum.map(fn fs ->
-        "\"#{truncate(fs.text, 40)}\" — *#{format_number(fs.count)}x*"
+        "\"#{truncate(fs.text, 40)}\" (#{format_number(fs.count)} comments)"
       end)
 
     text = ":zap: *Flash Sales*\n" <> Enum.join(lines, "\n")

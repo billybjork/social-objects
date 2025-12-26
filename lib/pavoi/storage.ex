@@ -68,13 +68,19 @@ defmodule Pavoi.Storage do
 
   ## Returns
 
-  A presigned URL for viewing the object, or nil if storage isn't configured.
+  A presigned URL for viewing the object, a local uploads URL, or nil if
+  storage isn't configured.
   """
-  @spec public_url(String.t()) :: String.t() | nil
+  @spec public_url(String.t() | nil) :: String.t() | nil
+  def public_url(nil), do: nil
+  def public_url(""), do: nil
+  def public_url("/uploads/" <> _ = path), do: path
+  def public_url("uploads/" <> _ = path), do: "/" <> path
+
   def public_url(key_or_url) do
     # Handle both keys and full URLs (for backwards compatibility)
     key =
-      if String.starts_with?(key_or_url || "", "http") do
+      if String.starts_with?(key_or_url, "http") do
         key_from_url(key_or_url)
       else
         key_or_url
@@ -114,16 +120,11 @@ defmodule Pavoi.Storage do
   def upload_from_url(url, key) do
     if configured?() do
       try do
-        with {:ok, %{status: 200, body: body, headers: headers}} <- Req.get(url),
-             content_type <- get_content_type(headers, url),
+        with {:ok, body, content_type} <- fetch_url(url),
              {:ok, _} <- upload_binary(key, body, content_type) do
           {:ok, key}
         else
-          {:ok, %{status: status}} ->
-            {:error, {:http_error, status}}
-
-          {:error, reason} ->
-            {:error, reason}
+          {:error, reason} -> {:error, reason}
         end
       rescue
         e ->
@@ -132,6 +133,36 @@ defmodule Pavoi.Storage do
       end
     else
       {:error, :storage_not_configured}
+    end
+  end
+
+  @doc """
+  Stores a creator avatar either in the bucket or locally.
+
+  Returns the storage key or local uploads path.
+  """
+  @spec store_creator_avatar(String.t(), pos_integer()) ::
+          {:ok, String.t()} | {:error, term()} | :skip
+  def store_creator_avatar(url, creator_id) do
+    storage_requested = creator_avatar_storage_enabled?()
+    storage_enabled = storage_requested && configured?()
+    local_enabled = creator_avatar_local_storage_enabled?()
+
+    cond do
+      not is_binary(url) or url == "" ->
+        :skip
+
+      storage_enabled ->
+        store_creator_avatar_in_storage(url, creator_id)
+
+      local_enabled ->
+        store_creator_avatar_locally(url, creator_id)
+
+      storage_requested ->
+        {:error, :storage_not_configured}
+
+      true ->
+        :skip
     end
   end
 
@@ -152,6 +183,70 @@ defmodule Pavoi.Storage do
       String.contains?(url, ".webp") -> "image/webp"
       true -> "image/jpeg"
     end
+  end
+
+  defp fetch_url(url) do
+    with {:ok, %{status: 200, body: body, headers: headers}} <- Req.get(url),
+         content_type <- get_content_type(headers, url) do
+      {:ok, body, content_type}
+    else
+      {:ok, %{status: status}} -> {:error, {:http_error, status}}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp store_creator_avatar_in_storage(url, creator_id) do
+    key = "avatars/creators/#{creator_id}.webp"
+
+    case upload_from_url(url, key) do
+      {:ok, _key} -> {:ok, key}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp store_creator_avatar_locally(url, creator_id) do
+    with {:ok, body, content_type} <- fetch_url(url),
+         extension <- content_type_extension(content_type),
+         relative_path <- local_avatar_relative_path(creator_id, extension),
+         absolute_path <- local_avatar_absolute_path(relative_path),
+         :ok <- File.mkdir_p(Path.dirname(absolute_path)),
+         :ok <- File.write(absolute_path, body) do
+      {:ok, relative_path}
+    else
+      {:error, reason} -> {:error, reason}
+    end
+  rescue
+    e ->
+      Logger.error("Exception in store_creator_avatar_locally: #{inspect(e)}")
+      {:error, {:exception, e}}
+  end
+
+  defp content_type_extension(content_type) do
+    case normalize_content_type(content_type) do
+      "image/png" -> "png"
+      "image/gif" -> "gif"
+      "image/webp" -> "webp"
+      "image/jpg" -> "jpg"
+      "image/jpeg" -> "jpg"
+      _ -> "jpg"
+    end
+  end
+
+  defp normalize_content_type(content_type) do
+    content_type
+    |> String.split(";")
+    |> List.first()
+    |> to_string()
+    |> String.trim()
+  end
+
+  defp local_avatar_relative_path(creator_id, extension) do
+    "uploads/avatars/creators/#{creator_id}.#{extension}"
+  end
+
+  defp local_avatar_absolute_path(relative_path) do
+    priv_dir = :code.priv_dir(:pavoi) |> to_string()
+    Path.join([priv_dir, "static", relative_path])
   end
 
   @doc """
@@ -228,6 +323,40 @@ defmodule Pavoi.Storage do
     case uri.path do
       "/" <> key -> key
       key -> key
+    end
+  end
+
+  @doc """
+  Controls whether creator avatars should be stored in the bucket.
+
+  Defaults to true via application config and can be overridden by setting
+  `PAVOI_CREATOR_AVATAR_STORAGE` to "true"/"false".
+  """
+  @spec creator_avatar_storage_enabled?() :: boolean()
+  def creator_avatar_storage_enabled? do
+    case System.get_env("PAVOI_CREATOR_AVATAR_STORAGE") do
+      "true" -> true
+      "1" -> true
+      "false" -> false
+      "0" -> false
+      _ -> Keyword.get(Application.get_env(:pavoi, :creator_avatars, []), :store_in_storage, true)
+    end
+  end
+
+  @doc """
+  Controls whether creator avatars should be stored locally.
+
+  Defaults to false via application config and can be overridden by setting
+  `PAVOI_CREATOR_AVATAR_LOCAL` to "true"/"false".
+  """
+  @spec creator_avatar_local_storage_enabled?() :: boolean()
+  def creator_avatar_local_storage_enabled? do
+    case System.get_env("PAVOI_CREATOR_AVATAR_LOCAL") do
+      "true" -> true
+      "1" -> true
+      "false" -> false
+      "0" -> false
+      _ -> Keyword.get(Application.get_env(:pavoi, :creator_avatars, []), :store_locally, false)
     end
   end
 

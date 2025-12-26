@@ -100,4 +100,14 @@ config :phoenix_live_view,
 # Enable Swoosh API client for SendGrid (also works with Local adapter)
 config :swoosh, :api_client, Swoosh.ApiClient.Req
 
+# Avoid storing creator avatars in development unless explicitly enabled
+config :pavoi, :creator_avatars, store_in_storage: false, store_locally: true
+
 # Shopify configuration is set in config/runtime.exs after loading .env
+
+# Disable automated Oban cron jobs in dev; manual syncs only
+config :pavoi, Oban,
+  plugins: [
+    {Oban.Plugins.Pruner, max_age: 60 * 60 * 24 * 7},
+    {Oban.Plugins.Lifeline, rescue_after: :timer.seconds(60)}
+  ]

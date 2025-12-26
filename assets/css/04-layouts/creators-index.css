@@ -405,24 +405,33 @@
 /* Responsive adjustments */
 @media (max-width: 1200px) {
   .page-header__search-wrapper {
-    max-width: 320px;
+    max-width: 280px;
   }
 }
 
 @media (max-width: 1024px) {
-  .page-header {
-    flex-wrap: wrap;
+  .page-header__search-wrapper {
+    max-width: 240px;
+  }
+}
+
+@media (max-width: 900px) {
+  .page-header__search-wrapper {
+    max-width: 200px;
+    min-width: 150px;
   }
 
-  .page-header__left {
-    flex: 1 1 100%;
-    margin-bottom: var(--space-2);
+  /* Make filter buttons more compact */
+  .creators-index .filter-select {
+    min-width: 100px;
+    padding-left: var(--space-2);
+    /* Keep padding-right at 32px for chevron space */
   }
 
-  .page-header__right {
-    flex: 1 1 100%;
-    justify-content: flex-start;
-    margin-top: 0;
+  .creators-index .tag-filter__trigger {
+    min-width: 100px;
+    padding-left: var(--space-2);
+    padding-right: var(--space-2);
   }
 }
 
@@ -458,24 +467,41 @@
 /* Narrow mobile: shrink header elements to fit in one row */
 @media (max-width: 640px) {
   .creators-index .page-header {
-    flex-direction: column;
-    align-items: stretch;
     gap: var(--space-2);
   }
 
   .creators-index .page-header__left {
     gap: var(--space-2);
-  }
-
-  .creators-index .page-header__search-wrapper {
-    flex: 1 1 100%;
-    max-width: 100%;
+    flex: 1;
     min-width: 0;
   }
 
-  /* Keep view toggle and filter tabs on same row */
+  .creators-index .page-header__search-wrapper {
+    flex: 1;
+    max-width: none;
+    min-width: 120px;
+  }
+
   .creators-index .page-header__right {
-    display: contents;
+    gap: var(--space-2);
+    flex-shrink: 0;
+  }
+
+  /* Compact filter buttons on mobile */
+  .creators-index .filter-select {
+    min-width: 80px;
+    padding-left: var(--space-2);
+    /* Keep padding-right at 32px for chevron space */
+    font-size: var(--text-xs);
+    height: 32px;
+  }
+
+  .creators-index .tag-filter__trigger {
+    min-width: 80px;
+    padding-left: var(--space-2);
+    padding-right: var(--space-2);
+    font-size: var(--text-xs);
+    height: 32px;
   }
 
   .view-toggle {

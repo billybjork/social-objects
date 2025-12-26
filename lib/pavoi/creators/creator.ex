@@ -61,6 +61,7 @@ defmodule Pavoi.Creators.Creator do
     # TikTok identity from marketplace API
     field :tiktok_nickname, :string
     field :tiktok_avatar_url, :string
+    field :tiktok_avatar_storage_key, :string
     field :tiktok_bio, :string
 
     # Enrichment tracking
@@ -98,6 +99,7 @@ defmodule Pavoi.Creators.Creator do
       :tiktok_profile_url,
       :tiktok_nickname,
       :tiktok_avatar_url,
+      :tiktok_avatar_storage_key,
       :tiktok_bio,
       :email,
       :phone,

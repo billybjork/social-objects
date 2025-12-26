@@ -19,7 +19,7 @@
 
     <div class="page-header__filters">
       <form phx-change="platform_filter_changed">
-        <select name="platform" class="input input--sm" value={@platform_filter}>
+        <select name="platform" class="filter-select" value={@platform_filter}>
           <option value="">All Products</option>
           <option value="shopify" selected={@platform_filter == "shopify"}>Shopify</option>
           <option value="tiktok" selected={@platform_filter == "tiktok"}>TikTok Shop</option>
@@ -27,8 +27,8 @@
       </form>
 
       <form phx-change="sort_changed">
-        <select name="sort" class="input input--sm" value={@product_sort_by}>
-          <option value="">-- Sort by --</option>
+        <select name="sort" class="filter-select" value={@product_sort_by}>
+          <option value="">Sort by</option>
           <option value="name" selected={@product_sort_by == "name"}>Name (A-Z)</option>
           <option value="price_asc" selected={@product_sort_by == "price_asc"}>
             Price: Low to High

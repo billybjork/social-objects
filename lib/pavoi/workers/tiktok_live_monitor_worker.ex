@@ -25,16 +25,22 @@ defmodule Pavoi.Workers.TiktokLiveMonitorWorker do
   require Logger
 
   alias Pavoi.Repo
+  alias Pavoi.Settings
   alias Pavoi.TiktokLive.{Client, Stream}
   alias Pavoi.Workers.{StreamReportWorker, TiktokLiveStreamWorker}
 
   @impl Oban.Worker
-  def perform(%Oban.Job{}) do
+  def perform(%Oban.Job{args: args}) do
+    source = Map.get(args, "source", "cron")
     accounts = monitored_accounts()
 
     Logger.debug("Checking live status for accounts: #{inspect(accounts)}")
 
     Enum.each(accounts, &check_account/1)
+
+    Settings.update_tiktok_live_last_scan_at()
+
+    Phoenix.PubSub.broadcast(Pavoi.PubSub, "tiktok_live:scan", {:scan_completed, source})
 
     :ok
   end

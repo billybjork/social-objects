@@ -413,6 +413,9 @@ defmodule PavoiWeb.CoreComponents do
   attr :bigquery_last_sync_at, :any, default: nil
   attr :enrichment_syncing, :boolean, default: false
   attr :enrichment_last_sync_at, :any, default: nil
+  attr :stream_scan_syncing, :boolean, default: false
+  attr :stream_last_scan_at, :any, default: nil
+  attr :stream_scan_enabled, :boolean, default: true
 
   def nav_tabs(assigns) do
     ~H"""
@@ -491,6 +494,24 @@ defmodule PavoiWeb.CoreComponents do
               <div class="navbar__sync-meta">
                 Synced: {if @tiktok_last_sync_at,
                   do: format_relative_time(@tiktok_last_sync_at),
+                  else: "Never"}
+              </div>
+            </div>
+          <% end %>
+          <%= if @current_page == :streams and @stream_scan_enabled do %>
+            <div class="navbar__sync-group">
+              <.button
+                variant="primary"
+                size="sm"
+                phx-click="scan_streams"
+                class={@stream_scan_syncing && "button--disabled"}
+                disabled={@stream_scan_syncing}
+              >
+                {if @stream_scan_syncing, do: "Scanning...", else: "Scan Streams"}
+              </.button>
+              <div class="navbar__sync-meta">
+                Scanned: {if @stream_last_scan_at,
+                  do: format_relative_time(@stream_last_scan_at),
                   else: "Never"}
               </div>
             </div>

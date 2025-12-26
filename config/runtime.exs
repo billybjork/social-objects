@@ -46,7 +46,8 @@ if config_env() == :dev do
     tiktok_bridge_url: System.get_env("TIKTOK_BRIDGE_URL", "http://localhost:8080"),
     # Slack configuration for stream reports
     slack_bot_token: System.get_env("SLACK_BOT_TOKEN"),
-    slack_channel: System.get_env("SLACK_CHANNEL", "#tiktok-live-reports")
+    slack_channel: System.get_env("SLACK_CHANNEL", "#tiktok-live-reports"),
+    slack_dev_user_id: System.get_env("SLACK_DEV_USER_ID")
 
   # OpenAI client configuration
   config :pavoi, Pavoi.AI.OpenAIClient,

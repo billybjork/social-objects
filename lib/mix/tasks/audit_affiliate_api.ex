@@ -50,9 +50,15 @@ defmodule Mix.Tasks.AuditAffiliateApi do
 
     results =
       case scope do
-        "marketplace" -> audit_marketplace_endpoints(verbose)
-        "collaboration" -> audit_collaboration_endpoints(verbose)
-        "live" -> audit_live_endpoints(verbose)
+        "marketplace" ->
+          audit_marketplace_endpoints(verbose)
+
+        "collaboration" ->
+          audit_collaboration_endpoints(verbose)
+
+        "live" ->
+          audit_live_endpoints(verbose)
+
         _ ->
           audit_marketplace_endpoints(verbose) ++
             audit_collaboration_endpoints(verbose) ++
@@ -219,11 +225,9 @@ defmodule Mix.Tasks.AuditAffiliateApi do
       {:get, "/live_info/202405/room", %{}, %{}, "Get Live Room Info (202405)"},
       {:get, "/live_info/202406/room", %{}, %{}, "Get Live Room Info (202406)"},
       {:get, "/live_info/202309/room", %{}, %{}, "Get Live Room Info (202309)"},
-
       {:get, "/affiliate_creator/202405/live/room", %{}, %{}, "Creator Live Room (202405)"},
       {:get, "/affiliate_creator/202406/live/room", %{}, %{}, "Creator Live Room (202406)"},
       {:get, "/affiliate_creator/202508/live/room", %{}, %{}, "Creator Live Room (202508)"},
-
       {:get, "/affiliate_creator/202405/live/room_info", %{}, %{}, "Creator Room Info (202405)"},
       {:get, "/affiliate_creator/202406/live_room", %{}, %{}, "Creator Live Room Alt (202406)"},
       {:get, "/affiliate_creator/202508/live_info", %{}, %{}, "Creator Live Info (202508)"},
@@ -235,17 +239,23 @@ defmodule Mix.Tasks.AuditAffiliateApi do
       # Products in live room
       {:get, "/affiliate_creator/202405/live/products", %{}, %{}, "Live Products (202405)"},
       {:get, "/affiliate_creator/202406/live/products", %{}, %{}, "Live Products (202406)"},
-      {:post, "/affiliate_creator/202405/live/products/search", %{}, %{}, "Search Live Products (202405)"},
-      {:post, "/affiliate_creator/202406/live/products/search", %{}, %{}, "Search Live Products (202406)"},
+      {:post, "/affiliate_creator/202405/live/products/search", %{}, %{},
+       "Search Live Products (202405)"},
+      {:post, "/affiliate_creator/202406/live/products/search", %{}, %{},
+       "Search Live Products (202406)"},
 
       # Showcase products
-      {:get, "/affiliate_creator/202405/showcase/products", %{}, %{}, "Showcase Products (202405)"},
-      {:get, "/affiliate_creator/202406/showcase/products", %{}, %{}, "Showcase Products (202406)"},
-      {:post, "/affiliate_creator/202405/showcase/products/search", %{}, %{}, "Search Showcase Products"},
+      {:get, "/affiliate_creator/202405/showcase/products", %{}, %{},
+       "Showcase Products (202405)"},
+      {:get, "/affiliate_creator/202406/showcase/products", %{}, %{},
+       "Showcase Products (202406)"},
+      {:post, "/affiliate_creator/202405/showcase/products/search", %{}, %{},
+       "Search Showcase Products"},
 
       # Room products specifically
       {:get, "/affiliate_creator/202405/room/products", %{}, %{}, "Room Products (202405)"},
-      {:post, "/affiliate_creator/202406/rooms/products/search", %{}, %{}, "Search Room Products"},
+      {:post, "/affiliate_creator/202406/rooms/products/search", %{}, %{},
+       "Search Room Products"},
 
       # Try seller-side live endpoints too
       {:get, "/affiliate_seller/202405/live/room", %{}, %{}, "Seller Live Room (202405)"},
@@ -269,31 +279,48 @@ defmodule Mix.Tasks.AuditAffiliateApi do
       # Messaging APIs (seller.affiliate_messages.write)
       # Version as query param since 36009004 error indicates path exists but version format wrong
       # ===============================================================
-      {:get, "/affiliate_seller/conversations", %{version: "202405"}, %{}, "Get Conversations (v=202405)"},
-      {:get, "/affiliate_seller/conversations", %{version: "202406"}, %{}, "Get Conversations (v=202406)"},
-      {:get, "/affiliate_seller/conversations", %{version: "202309"}, %{}, "Get Conversations (v=202309)"},
-      {:get, "/affiliate_seller/conversations", %{version: "202410"}, %{}, "Get Conversations (v=202410)"},
-      {:post, "/affiliate_seller/conversations", %{version: "202405"}, %{}, "Create Conversation (v=202405)"},
-      {:post, "/affiliate_seller/conversations", %{version: "202406"}, %{}, "Create Conversation (v=202406)"},
+      {:get, "/affiliate_seller/conversations", %{version: "202405"}, %{},
+       "Get Conversations (v=202405)"},
+      {:get, "/affiliate_seller/conversations", %{version: "202406"}, %{},
+       "Get Conversations (v=202406)"},
+      {:get, "/affiliate_seller/conversations", %{version: "202309"}, %{},
+       "Get Conversations (v=202309)"},
+      {:get, "/affiliate_seller/conversations", %{version: "202410"}, %{},
+       "Get Conversations (v=202410)"},
+      {:post, "/affiliate_seller/conversations", %{version: "202405"}, %{},
+       "Create Conversation (v=202405)"},
+      {:post, "/affiliate_seller/conversations", %{version: "202406"}, %{},
+       "Create Conversation (v=202406)"},
       {:get, "/affiliate_seller/messages", %{version: "202405"}, %{}, "Get Messages (v=202405)"},
       {:get, "/affiliate_seller/messages", %{version: "202406"}, %{}, "Get Messages (v=202406)"},
       {:post, "/affiliate_seller/messages", %{version: "202405"}, %{}, "Send Message (v=202405)"},
       {:post, "/affiliate_seller/messages", %{version: "202406"}, %{}, "Send Message (v=202406)"},
-      {:get, "/affiliate_seller/im/conversations", %{version: "202405"}, %{}, "IM Conversations (v=202405)"},
-      {:get, "/affiliate_seller/im/conversations", %{version: "202406"}, %{}, "IM Conversations (v=202406)"},
-      {:post, "/affiliate_seller/im/messages", %{version: "202405"}, %{}, "IM Send Message (v=202405)"},
-      {:post, "/affiliate_seller/im/messages", %{version: "202406"}, %{}, "IM Send Message (v=202406)"},
+      {:get, "/affiliate_seller/im/conversations", %{version: "202405"}, %{},
+       "IM Conversations (v=202405)"},
+      {:get, "/affiliate_seller/im/conversations", %{version: "202406"}, %{},
+       "IM Conversations (v=202406)"},
+      {:post, "/affiliate_seller/im/messages", %{version: "202405"}, %{},
+       "IM Send Message (v=202405)"},
+      {:post, "/affiliate_seller/im/messages", %{version: "202406"}, %{},
+       "IM Send Message (v=202406)"},
 
       # Sample Applications (seller.affiliate_collaboration.write)
-      {:get, "/affiliate_seller/202405/sample_applications", %{page_size: 10}, %{}, "Sample Applications (202405)"},
-      {:get, "/affiliate_seller/202406/sample_applications", %{page_size: 10}, %{}, "Sample Applications (202406)"},
-      {:post, "/affiliate_seller/202405/sample_applications/search", %{}, %{}, "Search Sample Apps (202405)"},
-      {:post, "/affiliate_seller/202406/sample_applications/search", %{}, %{}, "Search Sample Apps (202406)"},
-      {:post, "/affiliate_seller/202405/sample_applications/review", %{}, %{}, "Review Sample App (202405)"},
+      {:get, "/affiliate_seller/202405/sample_applications", %{page_size: 10}, %{},
+       "Sample Applications (202405)"},
+      {:get, "/affiliate_seller/202406/sample_applications", %{page_size: 10}, %{},
+       "Sample Applications (202406)"},
+      {:post, "/affiliate_seller/202405/sample_applications/search", %{}, %{},
+       "Search Sample Apps (202405)"},
+      {:post, "/affiliate_seller/202406/sample_applications/search", %{}, %{},
+       "Search Sample Apps (202406)"},
+      {:post, "/affiliate_seller/202405/sample_applications/review", %{}, %{},
+       "Review Sample App (202405)"},
 
       # Promotion links
-      {:post, "/affiliate_seller/202405/promotion_links", %{}, %{}, "Generate Promo Link (202405)"},
-      {:post, "/affiliate_seller/202406/promotion_links", %{}, %{}, "Generate Promo Link (202406)"}
+      {:post, "/affiliate_seller/202405/promotion_links", %{}, %{},
+       "Generate Promo Link (202405)"},
+      {:post, "/affiliate_seller/202406/promotion_links", %{}, %{},
+       "Generate Promo Link (202406)"}
     ]
 
     Enum.map(endpoints, fn {method, path, params, body, name} ->

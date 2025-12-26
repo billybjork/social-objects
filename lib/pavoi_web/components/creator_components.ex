@@ -497,12 +497,20 @@ defmodule PavoiWeb.CreatorComponents do
   def creator_avatar(assigns) do
     initials = get_initials(assigns.creator)
     size_class = "creator-avatar--#{assigns.size}"
-    assigns = assign(assigns, initials: initials, size_class: size_class)
+
+    avatar_url =
+      case assigns.creator.tiktok_avatar_storage_key do
+        nil -> assigns.creator.tiktok_avatar_url
+        "" -> assigns.creator.tiktok_avatar_url
+        key -> Pavoi.Storage.public_url(key) || assigns.creator.tiktok_avatar_url
+      end
+
+    assigns = assign(assigns, initials: initials, size_class: size_class, avatar_url: avatar_url)
 
     ~H"""
-    <%= if @creator.tiktok_avatar_url do %>
+    <%= if @avatar_url do %>
       <img
-        src={@creator.tiktok_avatar_url}
+        src={@avatar_url}
         alt=""
         class={["creator-avatar", @size_class]}
         loading="lazy"
@@ -1305,10 +1313,12 @@ defmodule PavoiWeb.CreatorComponents do
   defp status_class(_), do: "status-badge--pending"
 
   defp format_currency(nil, _), do: "$0.00"
+
   defp format_currency(cents, _currency) when is_integer(cents) do
     dollars = cents / 100
     "$#{:erlang.float_to_binary(dollars, decimals: 2)}"
   end
+
   defp format_currency(_, _), do: "$0.00"
 
   @doc """

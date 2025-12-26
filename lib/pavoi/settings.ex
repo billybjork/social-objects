@@ -78,6 +78,41 @@ defmodule Pavoi.Settings do
   end
 
   @doc """
+  Gets the last TikTok Live scan timestamp.
+
+  Returns nil if never scanned or a DateTime if scanned before.
+  """
+  def get_tiktok_live_last_scan_at do
+    case Repo.get_by(SystemSetting, key: "tiktok_live_last_scan_at") do
+      nil -> nil
+      setting -> parse_datetime(setting.value)
+    end
+  end
+
+  @doc """
+  Updates the last TikTok Live scan timestamp to the current time.
+  """
+  def update_tiktok_live_last_scan_at do
+    now = DateTime.utc_now() |> DateTime.to_iso8601()
+
+    case Repo.get_by(SystemSetting, key: "tiktok_live_last_scan_at") do
+      nil ->
+        %SystemSetting{}
+        |> SystemSetting.changeset(%{
+          key: "tiktok_live_last_scan_at",
+          value: now,
+          value_type: "datetime"
+        })
+        |> Repo.insert()
+
+      setting ->
+        setting
+        |> SystemSetting.changeset(%{value: now})
+        |> Repo.update()
+    end
+  end
+
+  @doc """
   Gets the last BigQuery orders sync timestamp.
 
   Returns nil if never synced or a DateTime if synced before.

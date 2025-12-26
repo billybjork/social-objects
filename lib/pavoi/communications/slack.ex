@@ -5,6 +5,7 @@ defmodule Pavoi.Communications.Slack do
   Uses Slack Block Kit for rich message formatting.
   Requires SLACK_BOT_TOKEN environment variable (Bot User OAuth Token).
   Optionally configure SLACK_CHANNEL (defaults to #tiktok-live-reports).
+  In dev, you can set SLACK_DEV_USER_ID to route messages to a DM instead.
 
   ## File Uploads
 
@@ -33,10 +34,15 @@ defmodule Pavoi.Communications.Slack do
     config = get_config()
 
     if config_valid?(config) do
-      channel = Keyword.get(opts, :channel, config.channel)
       text = Keyword.get(opts, :text, "TikTok Live Stream Report")
 
-      do_send_message(config.bot_token, channel, text, blocks)
+      case resolve_channel(config, opts) do
+        {:ok, channel} ->
+          do_send_message(config.bot_token, channel, text, blocks)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
     else
       {:error, "Slack not configured - missing bot token"}
     end
@@ -110,13 +116,15 @@ defmodule Pavoi.Communications.Slack do
     config = get_config()
 
     if config_valid?(config) do
-      channel = Keyword.get(opts, :channel, config.channel)
       title = Keyword.get(opts, :title, filename)
       initial_comment = Keyword.get(opts, :initial_comment)
 
-      with {:ok, upload_url, file_id} <- get_upload_url(config.bot_token, filename, byte_size(binary)),
+      with {:ok, channel} <- resolve_channel(config, opts),
+           {:ok, upload_url, file_id} <-
+             get_upload_url(config.bot_token, filename, byte_size(binary)),
            :ok <- upload_to_url(upload_url, binary),
-           {:ok, _file} <- complete_upload(config.bot_token, file_id, channel, title, initial_comment) do
+           {:ok, _file} <-
+             complete_upload(config.bot_token, file_id, channel, title, initial_comment) do
         Logger.info("Slack image uploaded to #{channel}, file_id: #{file_id}")
         {:ok, file_id}
       end
@@ -138,7 +146,8 @@ defmodule Pavoi.Communications.Slack do
     ]
 
     case Req.post(req_opts) do
-      {:ok, %{status: 200, body: %{"ok" => true, "upload_url" => upload_url, "file_id" => file_id}}} ->
+      {:ok,
+       %{status: 200, body: %{"ok" => true, "upload_url" => upload_url, "file_id" => file_id}}} ->
         {:ok, upload_url, file_id}
 
       {:ok, %{status: 200, body: %{"ok" => false, "error" => error}}} ->
@@ -213,11 +222,57 @@ defmodule Pavoi.Communications.Slack do
   defp maybe_add(map, _key, nil), do: map
   defp maybe_add(map, key, value), do: Map.put(map, key, value)
 
+  defp resolve_channel(config, opts) do
+    if dev_mode?() do
+      case config.dev_user_id do
+        id when id in [nil, ""] ->
+          {:error, "Slack dev user id not configured"}
+
+        user_id ->
+          open_dm_channel(config.bot_token, user_id)
+      end
+    else
+      fallback_channel = Keyword.get(opts, :channel, config.channel)
+      {:ok, fallback_channel}
+    end
+  end
+
+  defp open_dm_channel(token, user_id) do
+    url = "#{@base_url}/conversations.open"
+
+    req_opts = [
+      url: url,
+      json: %{users: user_id},
+      headers: [{"Authorization", "Bearer #{token}"}],
+      finch: Pavoi.Finch,
+      receive_timeout: @timeout
+    ]
+
+    case Req.post(req_opts) do
+      {:ok, %{status: 200, body: %{"ok" => true, "channel" => %{"id" => channel_id}}}} ->
+        {:ok, channel_id}
+
+      {:ok, %{status: 200, body: %{"ok" => false, "error" => error}}} ->
+        {:error, "Slack conversations.open error: #{error}"}
+
+      {:ok, %{status: status, body: body}} ->
+        {:error, "Slack conversations.open HTTP error: #{status} #{normalize_body(body)}"}
+
+      {:error, exception} ->
+        {:error, "Slack conversations.open request failed: #{Exception.message(exception)}"}
+    end
+  end
+
   defp get_config do
     %{
       bot_token: Application.get_env(:pavoi, :slack_bot_token),
-      channel: Application.get_env(:pavoi, :slack_channel, "#tiktok-live-reports")
+      channel: Application.get_env(:pavoi, :slack_channel, "#tiktok-live-reports"),
+      dev_user_id: Application.get_env(:pavoi, :slack_dev_user_id)
     }
+  end
+
+  defp dev_mode? do
+    Application.get_env(:pavoi, :dev_routes, false)
   end
 
   defp config_valid?(config) do

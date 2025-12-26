@@ -267,8 +267,8 @@ defmodule Pavoi.TiktokLive do
 
   This enqueues the monitor worker to run immediately.
   """
-  def check_live_status_now do
-    TiktokLiveMonitorWorker.new(%{})
+  def check_live_status_now(source \\ "manual") do
+    TiktokLiveMonitorWorker.new(%{"source" => source})
     |> Oban.insert()
   end
 
@@ -787,10 +787,11 @@ defmodule Pavoi.TiktokLive do
       join: sp in SessionProduct,
       on: sp.session_id == ^session_id and sp.position == c.parsed_product_number,
       left_join: p in assoc(sp, :product),
-      group_by: [c.parsed_product_number, sp.id, p.name],
+      group_by: [c.parsed_product_number, sp.id, sp.product_id, p.name],
       select: %{
         product_number: c.parsed_product_number,
         session_product_id: sp.id,
+        product_id: sp.product_id,
         product_name: p.name,
         comment_count: count(c.id)
       },

@@ -37,6 +37,9 @@ config :pavoi, PavoiWeb.Endpoint,
 # at the `config/runtime.exs`.
 config :pavoi, Pavoi.Mailer, adapter: Swoosh.Adapters.Local
 
+# Store creator avatars in the bucket by default
+config :pavoi, :creator_avatars, store_in_storage: true, store_locally: false
+
 # Configure Oban background job processing
 config :pavoi, Oban,
   repo: Pavoi.Repo,

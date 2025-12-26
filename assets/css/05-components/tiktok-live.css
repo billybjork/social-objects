@@ -4,6 +4,70 @@
  */
 
 /* =============================================================================
+   RESPONSIVE PAGE HEADER
+   ============================================================================= */
+
+@media (max-width: 1024px) {
+  .tiktok-live-index .page-header__search {
+    max-width: 280px;
+  }
+
+  /* Force scan button to wrap to next line */
+  .tiktok-live-index .page-header > button,
+  .tiktok-live-index .capture-form {
+    flex-basis: 100%;
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 900px) {
+  .tiktok-live-index .page-header__search {
+    max-width: 220px;
+    min-width: 180px;
+  }
+
+  .tiktok-live-index .page-header__filters .filter-select {
+    min-width: 90px;
+    padding-left: var(--space-2);
+  }
+}
+
+@media (max-width: 640px) {
+  .tiktok-live-index .page-header {
+    gap: var(--space-2);
+  }
+
+  .tiktok-live-index .page-header__search {
+    flex: 1;
+    max-width: none;
+    min-width: 100px;
+  }
+
+  .tiktok-live-index .page-header__filters {
+    min-width: 0;
+    gap: var(--space-2);
+  }
+
+  .tiktok-live-index .page-header__filters .filter-select {
+    min-width: 70px;
+    padding-left: var(--space-1-5);
+    font-size: var(--text-xs);
+    height: 32px;
+  }
+}
+
+@media (max-width: 480px) {
+  .tiktok-live-index .page-header__search {
+    min-width: 80px;
+  }
+
+  .tiktok-live-index .page-header__filters .filter-select {
+    min-width: 60px;
+    padding-left: var(--space-1);
+  }
+}
+
+/* =============================================================================
    STREAM STATUS BADGES
    ============================================================================= */
 
@@ -221,6 +285,12 @@
 .tiktok-live-index .page-header__filters {
   display: flex;
   gap: var(--space-2);
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.tiktok-live-index .page-header__filters form {
+  min-width: 0;
 }
 
 .tiktok-live-index .capture-form {
@@ -252,8 +322,47 @@
 .stream-modal-header {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-3);
   width: 100%;
+}
+
+.stream-modal-header__top {
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+}
+
+.stream-modal-header__thumbnail {
+  flex-shrink: 0;
+}
+
+.stream-modal-header__thumbnail .stream-thumbnail {
+  width: 120px;
+  height: 160px;
+}
+
+.stream-modal-header__thumbnail .stream-thumbnail__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.stream-modal-header__thumbnail .stream-thumbnail__placeholder {
+  width: 100%;
+  height: 100%;
+}
+
+.stream-modal-header__thumbnail .stream-thumbnail__icon {
+  width: 32px;
+  height: 32px;
+}
+
+.stream-modal-header__info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
 }
 
 .stream-modal-header__title {
@@ -273,6 +382,28 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
+}
+
+.stream-modal-header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.stream-modal-header__action-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+}
+
+.stream-modal-header__action-meta {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+.stream-modal-header__action-meta--error {
+  color: var(--color-accent-red);
 }
 
 /* Stats bar */
@@ -448,17 +579,18 @@
    ============================================================================= */
 
 @media (max-width: 768px) {
-  .tiktok-live-index .page-header {
-    flex-direction: column;
-    align-items: stretch;
+  .stream-modal-header__top {
+    gap: var(--space-3);
   }
 
-  .tiktok-live-index .page-header__filters {
-    width: 100%;
+  .stream-modal-header__thumbnail .stream-thumbnail {
+    width: 80px;
+    height: 107px;
   }
 
-  .tiktok-live-index .page-header__filters select {
-    flex: 1;
+  .stream-modal-header__thumbnail .stream-thumbnail__icon {
+    width: 24px;
+    height: 24px;
   }
 
   .stream-modal-stats {
@@ -511,6 +643,16 @@
   .streams-table th:nth-child(6),
   .streams-table td:nth-child(6) {
     display: none;
+  }
+
+  .stream-modal-header__thumbnail .stream-thumbnail {
+    width: 60px;
+    height: 80px;
+  }
+
+  .stream-modal-header__thumbnail .stream-thumbnail__icon {
+    width: 20px;
+    height: 20px;
   }
 
   .stream-modal-stats {

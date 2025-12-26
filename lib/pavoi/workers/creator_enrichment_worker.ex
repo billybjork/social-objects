@@ -41,6 +41,8 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
   # Delay between API calls (ms) to avoid rate limiting
   # 300ms is safe and keeps batch runtime ~10 minutes
   @api_delay_ms 300
+  @rate_limit_max_consecutive 3
+  @rate_limit_backoff_seconds 15 * 60
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: args}) do
@@ -50,36 +52,51 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
     # This runs first so newly-linked creators can be enriched in step 2
     # Default to 20 pages (~2000 orders) to avoid rate limits when combined with enrichment
     sample_sync_pages = Map.get(args, "sample_sync_pages", 20)
-    {:ok, sample_stats} = sync_sample_orders(max_pages: sample_sync_pages)
 
-    # Brief pause between sample sync and enrichment to avoid rate limits
-    # Both use TikTok APIs that may share rate limit buckets
-    Process.sleep(5_000)
+    case sync_sample_orders(max_pages: sample_sync_pages) do
+      {:ok, sample_stats} ->
+        # Brief pause between sample sync and enrichment to avoid rate limits
+        # Both use TikTok APIs that may share rate limit buckets
+        Process.sleep(5_000)
 
-    # Step 2: Enrich creators with marketplace data (followers, GMV, etc.)
-    batch_size = Map.get(args, "batch_size", @batch_size)
-    Logger.info("Starting creator enrichment (batch_size: #{batch_size})...")
+        # Step 2: Enrich creators with marketplace data (followers, GMV, etc.)
+        batch_size = Map.get(args, "batch_size", @batch_size)
+        Logger.info("Starting creator enrichment (batch_size: #{batch_size})...")
 
-    {:ok, enrich_stats} = enrich_creators(batch_size)
+        case enrich_creators(batch_size) do
+          {:ok, enrich_stats} ->
+            Settings.update_enrichment_last_sync_at()
 
-    Settings.update_enrichment_last_sync_at()
+            Logger.info("""
+            Creator enrichment completed
+               Sample sync:
+                 - Matched: #{sample_stats.matched}
+                 - Created: #{sample_stats.created}
+                 - Already linked: #{sample_stats.already_linked}
+               Marketplace enrichment:
+                 - Enriched: #{enrich_stats.enriched}
+                 - Not found: #{enrich_stats.not_found}
+                 - Errors: #{enrich_stats.errors}
+                 - Skipped (no username): #{enrich_stats.skipped}
+            """)
 
-    Logger.info("""
-    Creator enrichment completed
-       Sample sync:
-         - Matched: #{sample_stats.matched}
-         - Created: #{sample_stats.created}
-         - Already linked: #{sample_stats.already_linked}
-       Marketplace enrichment:
-         - Enriched: #{enrich_stats.enriched}
-         - Not found: #{enrich_stats.not_found}
-         - Errors: #{enrich_stats.errors}
-         - Skipped (no username): #{enrich_stats.skipped}
-    """)
+            combined_stats = Map.merge(sample_stats, enrich_stats)
 
-    combined_stats = Map.merge(sample_stats, enrich_stats)
-    Phoenix.PubSub.broadcast(Pavoi.PubSub, "creator:enrichment", {:enrichment_completed, combined_stats})
-    :ok
+            Phoenix.PubSub.broadcast(
+              Pavoi.PubSub,
+              "creator:enrichment",
+              {:enrichment_completed, combined_stats}
+            )
+
+            :ok
+
+          {:error, reason} ->
+            handle_enrichment_error(reason)
+        end
+
+      {:error, reason} ->
+        handle_enrichment_error(reason)
+    end
   end
 
   @doc """
@@ -91,6 +108,32 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
       enrich_creator(creator)
     else
       {:error, :no_username}
+    end
+  end
+
+  defp handle_enrichment_error(reason) do
+    if rate_limited_reason?(reason) do
+      Logger.warning(
+        "Creator enrichment rate limited. Backing off for #{@rate_limit_backoff_seconds} seconds."
+      )
+
+      Phoenix.PubSub.broadcast(
+        Pavoi.PubSub,
+        "creator:enrichment",
+        {:enrichment_failed, :rate_limited}
+      )
+
+      {:snooze, @rate_limit_backoff_seconds}
+    else
+      Logger.error("Creator enrichment failed: #{inspect(reason)}")
+
+      Phoenix.PubSub.broadcast(
+        Pavoi.PubSub,
+        "creator:enrichment",
+        {:enrichment_failed, reason}
+      )
+
+      {:error, reason}
     end
   end
 
@@ -126,19 +169,29 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
       pages: 0
     }
 
-    {:ok, stats} = sync_sample_orders_page(nil, initial_stats, max_pages)
+    case sync_sample_orders_page(nil, initial_stats, max_pages) do
+      {:ok, stats} ->
+        Logger.info("""
+        [SampleSync] Completed
+           - Matched existing creators: #{stats.matched}
+           - Created new creators: #{stats.created}
+           - Already linked: #{stats.already_linked}
+           - Skipped (no match data): #{stats.skipped}
+           - Errors: #{stats.errors}
+           - Pages processed: #{stats.pages}
+        """)
 
-    Logger.info("""
-    [SampleSync] Completed
-       - Matched existing creators: #{stats.matched}
-       - Created new creators: #{stats.created}
-       - Already linked: #{stats.already_linked}
-       - Skipped (no match data): #{stats.skipped}
-       - Errors: #{stats.errors}
-       - Pages processed: #{stats.pages}
-    """)
+        {:ok, stats}
 
-    {:ok, stats}
+      {:error, reason} ->
+        if rate_limited_reason?(reason) do
+          Logger.warning("[SampleSync] Rate limited by TikTok API, backing off")
+        else
+          Logger.error("[SampleSync] Failed: #{inspect(reason)}")
+        end
+
+        {:error, reason}
+    end
   end
 
   defp sync_sample_orders_page(_page_token, stats, max_pages) when stats.pages >= max_pages do
@@ -155,8 +208,13 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
         handle_orders_response(data, stats, max_pages)
 
       {:error, reason} ->
-        Logger.error("[SampleSync] API error: #{inspect(reason)}")
-        {:ok, stats}
+        if rate_limited_reason?(reason) do
+          Logger.warning("[SampleSync] Rate limited by TikTok API, stopping early")
+          {:error, reason}
+        else
+          Logger.error("[SampleSync] API error: #{inspect(reason)}")
+          {:ok, stats}
+        end
     end
   end
 
@@ -291,7 +349,10 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
           %{acc | matched: acc.matched + 1}
 
         {:error, changeset} ->
-          Logger.warning("[SampleSync] Failed to update creator #{creator.id}: #{inspect(changeset.errors)}")
+          Logger.warning(
+            "[SampleSync] Failed to update creator #{creator.id}: #{inspect(changeset.errors)}"
+          )
+
           %{acc | errors: acc.errors + 1}
       end
     end
@@ -428,8 +489,16 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
       |> maybe_put(:last_name, last_name, &(!String.contains?(&1 || "", "*")))
       |> maybe_put(:address_line_1, recipient["address_line1"], &(!String.contains?(&1, "*")))
       |> maybe_put(:zipcode, recipient["postal_code"], &(!String.contains?(&1, "*")))
-      |> maybe_put(:city, find_district_value(district_info, "City"), &(!String.contains?(&1, "*")))
-      |> maybe_put(:state, find_district_value(district_info, "State"), &(!String.contains?(&1, "*")))
+      |> maybe_put(
+        :city,
+        find_district_value(district_info, "City"),
+        &(!String.contains?(&1, "*"))
+      )
+      |> maybe_put(
+        :state,
+        find_district_value(district_info, "State"),
+        &(!String.contains?(&1, "*"))
+      )
 
     case Creators.create_creator(attrs) do
       {:ok, creator} ->
@@ -472,23 +541,100 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
     Logger.info("Found #{length(creators)} creators to enrich")
 
     initial_stats = %{enriched: 0, not_found: 0, errors: 0, skipped: 0}
-    stats = Enum.reduce(creators, initial_stats, &process_creator/2)
 
-    {:ok, stats}
+    initial_state = %{
+      stats: initial_stats,
+      rate_limit_streak: 0,
+      last_rate_limit_reason: nil,
+      halted_reason: nil
+    }
+
+    final_state = Enum.reduce_while(creators, initial_state, &process_creator/2)
+
+    case final_state.halted_reason do
+      :rate_limited ->
+        Logger.warning("""
+        Marketplace API rate limited #{@rate_limit_max_consecutive} times in a row; stopping enrichment early.
+        Last error: #{inspect(final_state.last_rate_limit_reason)}
+        """)
+
+        {:error, final_state.last_rate_limit_reason || :rate_limited}
+
+      nil ->
+        {:ok, final_state.stats}
+    end
   end
 
-  defp process_creator(creator, acc) do
-    if is_nil(creator.tiktok_username) or creator.tiktok_username == "" do
-      %{acc | skipped: acc.skipped + 1}
+  defp process_creator(%Creator{tiktok_username: nil}, state) do
+    skip_creator(state)
+  end
+
+  defp process_creator(%Creator{tiktok_username: ""}, state) do
+    skip_creator(state)
+  end
+
+  defp process_creator(creator, state) do
+    stats = state.stats
+
+    if stats.enriched > 0, do: Process.sleep(@api_delay_ms)
+
+    result = enrich_creator(creator)
+    new_stats = update_stats(result, stats)
+    process_creator_result(result, new_stats, state)
+  end
+
+  defp skip_creator(state) do
+    stats = state.stats
+    new_stats = %{stats | skipped: stats.skipped + 1}
+    new_state = %{state | stats: new_stats}
+    {:cont, reset_rate_limit_state(new_state)}
+  end
+
+  defp process_creator_result({:error, reason}, new_stats, state) do
+    if rate_limited_reason?(reason) do
+      handle_rate_limit(new_stats, reason, state)
     else
-      if acc.enriched > 0, do: Process.sleep(@api_delay_ms)
-      update_stats(enrich_creator(creator), acc)
+      {:cont, reset_rate_limit_state(%{state | stats: new_stats})}
     end
+  end
+
+  defp process_creator_result(_result, new_stats, state) do
+    {:cont, reset_rate_limit_state(%{state | stats: new_stats})}
+  end
+
+  defp handle_rate_limit(new_stats, reason, state) do
+    new_streak = state.rate_limit_streak + 1
+
+    new_state = %{
+      state
+      | stats: new_stats,
+        rate_limit_streak: new_streak,
+        last_rate_limit_reason: reason
+    }
+
+    if new_streak >= @rate_limit_max_consecutive do
+      {:halt, %{new_state | halted_reason: :rate_limited}}
+    else
+      {:cont, new_state}
+    end
+  end
+
+  defp reset_rate_limit_state(state) do
+    %{state | rate_limit_streak: 0, last_rate_limit_reason: nil}
   end
 
   defp update_stats({:ok, _}, acc), do: %{acc | enriched: acc.enriched + 1}
   defp update_stats({:error, :not_found}, acc), do: %{acc | not_found: acc.not_found + 1}
   defp update_stats({:error, _}, acc), do: %{acc | errors: acc.errors + 1}
+
+  defp rate_limited_reason?(:rate_limited), do: true
+  defp rate_limited_reason?({:rate_limited, _}), do: true
+
+  defp rate_limited_reason?(reason) when is_binary(reason) do
+    String.contains?(reason, "HTTP 429")
+  end
+
+  defp rate_limited_reason?(_reason), do: false
 
   defp get_creators_to_enrich(limit) do
     # Prioritize:
@@ -539,7 +685,12 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
         end
 
       {:error, reason} ->
-        Logger.warning("Marketplace search failed for @#{username}: #{inspect(reason)}")
+        if rate_limited_reason?(reason) do
+          :ok
+        else
+          Logger.warning("Marketplace search failed for @#{username}: #{inspect(reason)}")
+        end
+
         {:error, reason}
     end
   end
@@ -555,57 +706,86 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
 
   defp update_creator_from_marketplace(creator, marketplace_data) do
     # Extract metrics from marketplace response
-    attrs = %{
-      follower_count: marketplace_data["follower_count"],
-      tiktok_nickname: marketplace_data["nickname"],
-      tiktok_avatar_url: get_in(marketplace_data, ["avatar", "url"]),
-      last_enriched_at: DateTime.utc_now(),
-      enrichment_source: "marketplace_api"
-    }
+    avatar_url = get_in(marketplace_data, ["avatar", "url"])
 
-    # Parse GMV if available
     attrs =
-      case marketplace_data["gmv"] do
-        %{"amount" => amount, "currency" => "USD"} when is_binary(amount) ->
-          {gmv_dollars, _} = Float.parse(amount)
-          gmv_cents = round(gmv_dollars * 100)
-          Map.put(attrs, :total_gmv_cents, gmv_cents)
-
-        _ ->
-          attrs
-      end
-
-    # Parse video GMV if available
-    attrs =
-      case marketplace_data["video_gmv"] do
-        %{"amount" => amount, "currency" => "USD"} when is_binary(amount) ->
-          {gmv_dollars, _} = Float.parse(amount)
-          gmv_cents = round(gmv_dollars * 100)
-          Map.put(attrs, :video_gmv_cents, gmv_cents)
-
-        _ ->
-          attrs
-      end
-
-    # Store avg video views if available
-    attrs =
-      if avg_views = marketplace_data["avg_ec_video_view_count"] do
-        Map.put(attrs, :avg_video_views, avg_views)
-      else
-        attrs
-      end
+      %{
+        follower_count: marketplace_data["follower_count"],
+        tiktok_nickname: marketplace_data["nickname"],
+        tiktok_avatar_url: avatar_url,
+        last_enriched_at: DateTime.utc_now(),
+        enrichment_source: "marketplace_api"
+      }
+      |> maybe_put_avatar_storage_key(creator, avatar_url)
+      |> maybe_put_gmv(marketplace_data)
+      |> maybe_put_video_gmv(marketplace_data)
+      |> maybe_put_avg_views(marketplace_data)
 
     case Creators.update_creator(creator, attrs) do
       {:ok, updated_creator} ->
         # Also create a performance snapshot for historical tracking
         create_enrichment_snapshot(updated_creator, marketplace_data)
-        Logger.debug("Enriched @#{creator.tiktok_username}: #{attrs[:follower_count]} followers, $#{(attrs[:total_gmv_cents] || 0) / 100} GMV")
+
+        Logger.debug(
+          "Enriched @#{creator.tiktok_username}: #{attrs[:follower_count]} followers, $#{(attrs[:total_gmv_cents] || 0) / 100} GMV"
+        )
+
         {:ok, updated_creator}
 
       {:error, changeset} ->
-        Logger.warning("Failed to update creator @#{creator.tiktok_username}: #{inspect(changeset.errors)}")
+        Logger.warning(
+          "Failed to update creator @#{creator.tiktok_username}: #{inspect(changeset.errors)}"
+        )
+
         {:error, :update_failed}
     end
+  end
+
+  defp maybe_put_avatar_storage_key(attrs, creator, avatar_url) do
+    case maybe_store_creator_avatar(creator, avatar_url) do
+      {:ok, key} ->
+        Map.put(attrs, :tiktok_avatar_storage_key, key)
+
+      :skip ->
+        attrs
+
+      {:error, reason} ->
+        Logger.warning(
+          "Failed to store avatar for creator @#{creator.tiktok_username}: #{inspect(reason)}"
+        )
+
+        attrs
+    end
+  end
+
+  defp maybe_put_gmv(attrs, %{"gmv" => %{"amount" => amount, "currency" => "USD"}})
+       when is_binary(amount) do
+    {gmv_dollars, _} = Float.parse(amount)
+    Map.put(attrs, :total_gmv_cents, round(gmv_dollars * 100))
+  end
+
+  defp maybe_put_gmv(attrs, _marketplace_data), do: attrs
+
+  defp maybe_put_video_gmv(attrs, %{"video_gmv" => %{"amount" => amount, "currency" => "USD"}})
+       when is_binary(amount) do
+    {gmv_dollars, _} = Float.parse(amount)
+    Map.put(attrs, :video_gmv_cents, round(gmv_dollars * 100))
+  end
+
+  defp maybe_put_video_gmv(attrs, _marketplace_data), do: attrs
+
+  defp maybe_put_avg_views(attrs, %{"avg_ec_video_view_count" => avg_views})
+       when not is_nil(avg_views) do
+    Map.put(attrs, :avg_video_views, avg_views)
+  end
+
+  defp maybe_put_avg_views(attrs, _marketplace_data), do: attrs
+
+  defp maybe_store_creator_avatar(_creator, nil), do: :skip
+  defp maybe_store_creator_avatar(_creator, ""), do: :skip
+
+  defp maybe_store_creator_avatar(creator, avatar_url) do
+    Pavoi.Storage.store_creator_avatar(avatar_url, creator.id)
   end
 
   defp create_enrichment_snapshot(creator, marketplace_data) do
@@ -631,7 +811,8 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
 
     case Creators.create_performance_snapshot(attrs) do
       {:ok, _snapshot} -> :ok
-      {:error, _} -> :ok  # Snapshot creation failure shouldn't fail enrichment
+      # Snapshot creation failure shouldn't fail enrichment
+      {:error, _} -> :ok
     end
   end
 end

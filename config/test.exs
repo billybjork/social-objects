@@ -29,6 +29,15 @@ config :swoosh, :api_client, false
 # Print only warnings and errors during test
 config :logger, level: :warning
 
+# Avoid storing creator avatars in test
+config :pavoi, :creator_avatars, store_in_storage: false, store_locally: false
+
+# Disable Oban background processing in test to avoid sandbox ownership conflicts
+config :pavoi, Oban,
+  testing: :manual,
+  queues: false,
+  plugins: false
+
 # Initialize plugs at runtime for faster test compilation
 config :phoenix, :plug_init_mode, :runtime
 

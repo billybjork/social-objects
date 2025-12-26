@@ -336,6 +336,10 @@ defmodule Pavoi.TiktokShop do
     {:ok, response_body}
   end
 
+  defp handle_response({:ok, %Req.Response{status: 429, body: response_body}}) do
+    {:error, {:rate_limited, response_body}}
+  end
+
   defp handle_response({:ok, %Req.Response{status: status, body: response_body}}) do
     {:error, "HTTP #{status}: #{inspect(response_body)}"}
   end
@@ -387,15 +391,18 @@ defmodule Pavoi.TiktokShop do
     body = if keyword, do: Map.put(body, "keyword", keyword), else: body
     body = maybe_add_filter(body, "gmv_ranges", Keyword.get(opts, :gmv_ranges))
     body = maybe_add_filter(body, "units_sold_ranges", Keyword.get(opts, :units_sold_ranges))
-    body = maybe_add_filter(body, "follower_demographics", Keyword.get(opts, :follower_demographics))
+
+    body =
+      maybe_add_filter(body, "follower_demographics", Keyword.get(opts, :follower_demographics))
 
     case make_api_request(:post, "#{@marketplace_creators_path}/search", params, body) do
       {:ok, %{"code" => 0, "data" => data}} ->
-        {:ok, %{
-          creators: Map.get(data, "creators", []),
-          next_page_token: Map.get(data, "next_page_token"),
-          search_key: Map.get(data, "search_key")
-        }}
+        {:ok,
+         %{
+           creators: Map.get(data, "creators", []),
+           next_page_token: Map.get(data, "next_page_token"),
+           search_key: Map.get(data, "search_key")
+         }}
 
       {:ok, %{"code" => code, "message" => message}} ->
         {:error, "API error [#{code}]: #{message}"}

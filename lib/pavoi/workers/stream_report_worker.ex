@@ -13,10 +13,12 @@ defmodule Pavoi.Workers.StreamReportWorker do
   - `stream_id` - ID of the completed stream
   """
 
+  @unique_opts if Mix.env() == :dev, do: false, else: [period: 300, keys: [:stream_id]]
+
   use Oban.Worker,
     queue: :slack,
     max_attempts: 3,
-    unique: [period: 300, keys: [:stream_id]]
+    unique: @unique_opts
 
   require Logger
 

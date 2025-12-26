@@ -145,6 +145,11 @@ defmodule PavoiWeb.TiktokLiveComponents do
   attr :all_sessions, :list, default: []
   attr :session_search_query, :string, default: ""
   attr :product_interest, :list, default: []
+  attr :dev_mode, :boolean, default: false
+  attr :sending_stream_report, :boolean, default: false
+  attr :slack_dev_user_id_present, :boolean, default: false
+  attr :stream_report_last_sent_at, :any, default: nil
+  attr :stream_report_last_error, :string, default: nil
 
   def stream_detail_modal(assigns) do
     ~H"""
@@ -157,26 +162,77 @@ defmodule PavoiWeb.TiktokLiveComponents do
       >
         <div class="modal__header">
           <div class="stream-modal-header">
-            <div class="stream-modal-header__title">
-              <h2 class="modal__title">{format_stream_title(@stream)}</h2>
-              <span class="text-secondary">@{@stream.unique_id}</span>
-            </div>
-            <div class="stream-modal-header__status">
-              <div class="stream-modal-header__status-left">
-                <.stream_status_badge status={@stream.status} />
-                <span class="text-secondary text-sm">
-                  Started {format_relative_time(@stream.started_at)}
-                </span>
+            <div class="stream-modal-header__top">
+              <div class="stream-modal-header__thumbnail">
+                <.stream_thumbnail url={Stream.cover_image_url(@stream)} />
               </div>
-              <button
-                type="button"
-                class="button button--sm button--ghost-error"
-                phx-click="delete_stream"
-                phx-value-id={@stream.id}
-                data-confirm="Are you sure you want to delete this stream and all its data? This cannot be undone."
-              >
-                Delete
-              </button>
+              <div class="stream-modal-header__info">
+                <div class="stream-modal-header__title">
+                  <h2 class="modal__title">{format_stream_title(@stream)}</h2>
+                  <span class="text-secondary">@{@stream.unique_id}</span>
+                </div>
+                <div class="stream-modal-header__status">
+                  <div class="stream-modal-header__status-left">
+                    <.stream_status_badge status={@stream.status} />
+                    <span class="text-secondary text-sm">
+                      Started {format_relative_time(@stream.started_at)}
+                    </span>
+                  </div>
+                  <div class="stream-modal-header__actions">
+                    <%= if @dev_mode do %>
+                      <div class="stream-modal-header__action-group">
+                        <.button
+                          id={"send-slack-report-#{@stream.id}"}
+                          variant="ghost"
+                          size="sm"
+                          phx-click="send_stream_report"
+                          phx-value-id={@stream.id}
+                          class={@sending_stream_report && "button--disabled"}
+                          disabled={@sending_stream_report || !@slack_dev_user_id_present}
+                        >
+                          <%= if @sending_stream_report do %>
+                            Sending Slack Report...
+                          <% else %>
+                            <%= if @slack_dev_user_id_present do %>
+                              Send Slack Report
+                            <% else %>
+                              Set SLACK_DEV_USER_ID
+                            <% end %>
+                          <% end %>
+                        </.button>
+                        <span class={[
+                          "stream-modal-header__action-meta",
+                          @stream_report_last_error && "stream-modal-header__action-meta--error"
+                        ]}>
+                          <%= cond do %>
+                            <% @stream_report_last_error -> %>
+                              <%= if String.starts_with?(@stream_report_last_error, "Retrying") do %>
+                                {@stream_report_last_error}
+                              <% else %>
+                                Failed: {@stream_report_last_error}
+                              <% end %>
+                            <% @sending_stream_report -> %>
+                              Sending...
+                            <% !@slack_dev_user_id_present -> %>
+                              Dev user id required
+                            <% true -> %>
+                              Last sent: {format_relative_time(@stream_report_last_sent_at)}
+                          <% end %>
+                        </span>
+                      </div>
+                    <% end %>
+                    <button
+                      type="button"
+                      class="button button--sm button--ghost-error"
+                      phx-click="delete_stream"
+                      phx-value-id={@stream.id}
+                      data-confirm="Are you sure you want to delete this stream and all its data? This cannot be undone."
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -589,5 +645,4 @@ defmodule PavoiWeb.TiktokLiveComponents do
       ]
     }
   end
-
 end

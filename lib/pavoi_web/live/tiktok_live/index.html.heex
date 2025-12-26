@@ -1,4 +1,9 @@
-<.nav_tabs current_page={@current_page} />
+<.nav_tabs
+  current_page={@current_page}
+  stream_scan_syncing={@scanning}
+  stream_last_scan_at={@last_scan_at}
+  stream_scan_enabled={not @dev_mode}
+/>
 
 <div class="container container--xl region tiktok-live-index">
   <div class="page-header">
@@ -13,7 +18,7 @@
 
     <div class="page-header__filters">
       <form phx-change="filter_status">
-        <select name="status" class="input input--sm" value={@status_filter}>
+        <select name="status" class="filter-select" value={@status_filter}>
           <option value="all" selected={@status_filter == "all"}>All Status</option>
           <option value="capturing" selected={@status_filter == "capturing"}>Live Now</option>
           <option value="ended" selected={@status_filter == "ended"}>Ended</option>
@@ -22,7 +27,7 @@
       </form>
 
       <form phx-change="filter_date">
-        <select name="date" class="input input--sm" value={@date_filter}>
+        <select name="date" class="filter-select" value={@date_filter}>
           <option value="all" selected={@date_filter == "all"}>All Time</option>
           <option value="today" selected={@date_filter == "today"}>Today</option>
           <option value="week" selected={@date_filter == "week"}>Last 7 Days</option>
@@ -56,20 +61,6 @@
           <span class="capture-error">{@capture_error}</span>
         <% end %>
       </form>
-    <% else %>
-      <button
-        type="button"
-        class="button button--sm button--primary"
-        style="margin-left: auto;"
-        phx-click="scan_streams"
-        disabled={@scanning}
-      >
-        <%= if @scanning do %>
-          Scanning...
-        <% else %>
-          Scan Streams
-        <% end %>
-      </button>
     <% end %>
   </div>
 
@@ -115,4 +106,9 @@
   all_sessions={@all_sessions}
   session_search_query={@session_search_query}
   product_interest={@product_interest}
+  dev_mode={@dev_mode}
+  sending_stream_report={@sending_stream_report}
+  slack_dev_user_id_present={@slack_dev_user_id_present}
+  stream_report_last_sent_at={@stream_report_last_sent_at}
+  stream_report_last_error={@stream_report_last_error}
 />

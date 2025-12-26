@@ -1,6 +1,8 @@
 defmodule PavoiWeb.ProductsLive.Index do
   use PavoiWeb, :live_view
 
+  import Ecto.Query
+
   on_mount {PavoiWeb.NavHooks, :set_current_page}
 
   alias Pavoi.AI
@@ -12,6 +14,8 @@ defmodule PavoiWeb.ProductsLive.Index do
 
   import PavoiWeb.ProductComponents
   import PavoiWeb.ViewHelpers
+
+  @sync_job_stale_after_seconds 30 * 60
 
   @impl true
   def mount(_params, _session, socket) do
@@ -38,6 +42,9 @@ defmodule PavoiWeb.ProductsLive.Index do
       |> assign(:tiktok_last_sync_at, tiktok_last_sync_at)
       |> assign(:tiktok_syncing, tiktok_syncing)
       |> assign(:platform_filter, "")
+      # Dropdown open states
+      |> assign(:show_platform_filter, false)
+      |> assign(:show_sort_filter, false)
       |> assign(:editing_product, nil)
       |> assign(:product_edit_form, to_form(Product.changeset(%Product{}, %{})))
       |> assign(:current_edit_image_index, 0)
@@ -218,34 +225,101 @@ defmodule PavoiWeb.ProductsLive.Index do
 
   @impl true
   def handle_event("trigger_shopify_sync", _params, socket) do
-    # Enqueue a Shopify sync job
-    %{}
-    |> ShopifySyncWorker.new()
-    |> Oban.insert()
-
-    socket =
-      socket
-      |> assign(:syncing, true)
-      |> put_flash(:info, "Shopify sync initiated...")
-
-    {:noreply, socket}
+    {:noreply,
+     enqueue_sync_job(
+       socket,
+       ShopifySyncWorker,
+       %{"source" => "manual"},
+       :syncing,
+       "Shopify sync initiated..."
+     )}
   end
 
   @impl true
   def handle_event("trigger_tiktok_sync", _params, socket) do
-    # Enqueue a TikTok sync job
-    %{}
-    |> TiktokSyncWorker.new()
-    |> Oban.insert()
-
-    socket =
-      socket
-      |> assign(:tiktok_syncing, true)
-      |> put_flash(:info, "TikTok sync initiated...")
-
-    {:noreply, socket}
+    {:noreply,
+     enqueue_sync_job(
+       socket,
+       TiktokSyncWorker,
+       %{"source" => "manual"},
+       :tiktok_syncing,
+       "TikTok sync initiated..."
+     )}
   end
 
+  # Platform filter dropdown handlers
+  @impl true
+  def handle_event("toggle_products_platform", _params, socket) do
+    {:noreply, assign(socket, :show_platform_filter, !socket.assigns.show_platform_filter)}
+  end
+
+  @impl true
+  def handle_event("close_products_platform", _params, socket) do
+    {:noreply, assign(socket, :show_platform_filter, false)}
+  end
+
+  @impl true
+  def handle_event("change_products_platform", %{"value" => platform}, socket) do
+    socket = assign(socket, :show_platform_filter, false)
+
+    query_params =
+      %{}
+      |> maybe_add_param(:q, socket.assigns.product_search_query)
+      |> maybe_add_param(:sort, socket.assigns.product_sort_by)
+      |> maybe_add_param(:platform, platform)
+
+    {:noreply, push_patch(socket, to: ~p"/products?#{query_params}")}
+  end
+
+  @impl true
+  def handle_event("clear_products_platform", _params, socket) do
+    socket = assign(socket, :show_platform_filter, false)
+
+    query_params =
+      %{}
+      |> maybe_add_param(:q, socket.assigns.product_search_query)
+      |> maybe_add_param(:sort, socket.assigns.product_sort_by)
+
+    {:noreply, push_patch(socket, to: ~p"/products?#{query_params}")}
+  end
+
+  # Sort filter dropdown handlers
+  @impl true
+  def handle_event("toggle_products_sort", _params, socket) do
+    {:noreply, assign(socket, :show_sort_filter, !socket.assigns.show_sort_filter)}
+  end
+
+  @impl true
+  def handle_event("close_products_sort", _params, socket) do
+    {:noreply, assign(socket, :show_sort_filter, false)}
+  end
+
+  @impl true
+  def handle_event("change_products_sort", %{"value" => sort_by}, socket) do
+    socket = assign(socket, :show_sort_filter, false)
+
+    query_params =
+      %{}
+      |> maybe_add_param(:q, socket.assigns.product_search_query)
+      |> maybe_add_param(:sort, sort_by)
+      |> maybe_add_param(:platform, socket.assigns.platform_filter)
+
+    {:noreply, push_patch(socket, to: ~p"/products?#{query_params}")}
+  end
+
+  @impl true
+  def handle_event("clear_products_sort", _params, socket) do
+    socket = assign(socket, :show_sort_filter, false)
+
+    query_params =
+      %{}
+      |> maybe_add_param(:q, socket.assigns.product_search_query)
+      |> maybe_add_param(:platform, socket.assigns.platform_filter)
+
+    {:noreply, push_patch(socket, to: ~p"/products?#{query_params}")}
+  end
+
+  # Legacy event handlers (kept for backwards compatibility, can be removed later)
   @impl true
   def handle_event("platform_filter_changed", %{"platform" => platform}, socket) do
     # Build query params preserving search query, sort, and adding platform filter
@@ -543,18 +617,50 @@ defmodule PavoiWeb.ProductsLive.Index do
   defp maybe_add_param(params, _key, ""), do: params
   defp maybe_add_param(params, key, value), do: Map.put(params, key, value)
 
-  # Check if a sync job is currently active (executing or available)
+  # Check if a sync job is currently active (executing, available, or due scheduled)
   defp sync_job_active?(worker_module) do
-    import Ecto.Query
-
     # Oban stores worker names without the "Elixir." prefix
     worker_name = inspect(worker_module)
+    now = DateTime.utc_now()
+    stale_cutoff = DateTime.add(now, -@sync_job_stale_after_seconds, :second)
 
     Pavoi.Repo.exists?(
       from(j in Oban.Job,
         where: j.worker == ^worker_name,
-        where: j.state in ["executing", "available", "scheduled"]
+        where:
+          j.state == "executing" or
+            (j.state == "available" and j.inserted_at >= ^stale_cutoff) or
+            (j.state == "scheduled" and j.scheduled_at <= ^now and j.scheduled_at >= ^stale_cutoff)
       )
     )
   end
+
+  defp enqueue_sync_job(socket, worker, args, assign_key, success_message) do
+    now = DateTime.utc_now()
+
+    case worker.new(args) |> Oban.insert() do
+      {:ok, job} ->
+        syncing = job_active?(job, now)
+        message = if syncing, do: success_message, else: "Sync already scheduled."
+
+        socket
+        |> assign(assign_key, syncing)
+        |> put_flash(:info, message)
+
+      {:error, changeset} ->
+        socket
+        |> assign(assign_key, false)
+        |> put_flash(:error, "Failed to enqueue sync: #{inspect(changeset.errors)}")
+    end
+  end
+
+  defp job_active?(%Oban.Job{state: "executing"}, _now), do: true
+  defp job_active?(%Oban.Job{state: "available"}, _now), do: true
+
+  defp job_active?(%Oban.Job{state: "scheduled", scheduled_at: scheduled_at}, now)
+       when not is_nil(scheduled_at) do
+    DateTime.compare(scheduled_at, now) in [:lt, :eq]
+  end
+
+  defp job_active?(_job, _now), do: false
 end

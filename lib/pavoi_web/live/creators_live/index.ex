@@ -23,6 +23,8 @@ defmodule PavoiWeb.CreatorsLive.Index do
   import PavoiWeb.CreatorComponents
   import PavoiWeb.ViewHelpers
 
+  @sync_job_stale_after_seconds 30 * 60
+
   # Lark community invite link presets
   @lark_presets %{
     jewelry: %{
@@ -258,73 +260,35 @@ defmodule PavoiWeb.CreatorsLive.Index do
 
   @impl true
   def handle_event("trigger_bigquery_sync", _params, socket) do
-    %{}
-    |> BigQueryOrderSyncWorker.new()
-    |> Oban.insert()
-
-    socket =
-      socket
-      |> assign(:bigquery_syncing, true)
-      |> put_flash(:info, "BigQuery orders sync initiated...")
-
-    {:noreply, socket}
+    {:noreply,
+     enqueue_sync_job(
+       socket,
+       BigQueryOrderSyncWorker,
+       %{"source" => "manual"},
+       :bigquery_syncing,
+       "BigQuery orders sync initiated..."
+     )}
   end
 
   @impl true
   def handle_event("trigger_enrichment_sync", _params, socket) do
-    %{}
-    |> CreatorEnrichmentWorker.new()
-    |> Oban.insert()
-
-    socket =
-      socket
-      |> assign(:enrichment_syncing, true)
-      |> put_flash(:info, "Creator enrichment started...")
-
-    {:noreply, socket}
+    {:noreply,
+     enqueue_sync_job(
+       socket,
+       CreatorEnrichmentWorker,
+       %{"source" => "manual"},
+       :enrichment_syncing,
+       "Creator enrichment started..."
+     )}
   end
 
   @impl true
   def handle_event("refresh_creator_data", %{"id" => id}, socket) do
-    creator = Creators.get_creator!(id)
-
-    case CreatorEnrichmentWorker.enrich_single(creator) do
-      {:ok, updated_creator} ->
-        # Reload creator with full modal data
-        updated_creator = Creators.get_creator_for_modal!(updated_creator.id)
-
-        socket =
-          socket
-          |> assign(:selected_creator, updated_creator)
-          |> assign(:refreshing, false)
-          |> put_flash(:info, "Creator data refreshed")
-
-        {:noreply, socket}
-
-      {:error, :not_found} ->
-        socket =
-          socket
-          |> assign(:refreshing, false)
-          |> put_flash(:error, "Creator not found in TikTok marketplace")
-
-        {:noreply, socket}
-
-      {:error, :no_username} ->
-        socket =
-          socket
-          |> assign(:refreshing, false)
-          |> put_flash(:error, "Creator has no TikTok username")
-
-        {:noreply, socket}
-
-      {:error, reason} ->
-        socket =
-          socket
-          |> assign(:refreshing, false)
-          |> put_flash(:error, "Refresh failed: #{inspect(reason)}")
-
-        {:noreply, socket}
-    end
+    # Phase 1: Set refreshing state immediately and return
+    # The actual refresh happens in handle_info (Phase 2)
+    # This ensures the UI updates before the slow operation starts
+    send(self(), {:refresh_creator_data, id})
+    {:noreply, assign(socket, :refreshing, true)}
   end
 
   # Status filter event handlers
@@ -1010,6 +974,50 @@ defmodule PavoiWeb.CreatorsLive.Index do
     {:noreply, socket}
   end
 
+  # Refresh creator data Phase 2 - see handle_event("refresh_creator_data", ...)
+  @impl true
+  def handle_info({:refresh_creator_data, id}, socket) do
+    creator = Creators.get_creator!(id)
+
+    case CreatorEnrichmentWorker.enrich_single(creator) do
+      {:ok, updated_creator} ->
+        # Reload creator with full modal data
+        updated_creator = Creators.get_creator_for_modal!(updated_creator.id)
+
+        socket =
+          socket
+          |> assign(:selected_creator, updated_creator)
+          |> assign(:refreshing, false)
+          |> put_flash(:info, "Creator data refreshed")
+
+        {:noreply, socket}
+
+      {:error, :not_found} ->
+        socket =
+          socket
+          |> assign(:refreshing, false)
+          |> put_flash(:error, "Creator not found in TikTok marketplace")
+
+        {:noreply, socket}
+
+      {:error, :no_username} ->
+        socket =
+          socket
+          |> assign(:refreshing, false)
+          |> put_flash(:error, "Creator has no TikTok username")
+
+        {:noreply, socket}
+
+      {:error, reason} ->
+        socket =
+          socket
+          |> assign(:refreshing, false)
+          |> put_flash(:error, "Refresh failed: #{inspect(reason)}")
+
+        {:noreply, socket}
+    end
+  end
+
   defp maybe_show_dev_mailbox_flash(socket) do
     if Application.get_env(:pavoi, :dev_routes) do
       put_flash(socket, :info, "Email sent! View it at /dev/mailbox")
@@ -1022,13 +1030,47 @@ defmodule PavoiWeb.CreatorsLive.Index do
     # Oban stores worker names without the "Elixir." prefix
     # inspect() returns "Pavoi.Workers.Foo", to_string() returns "Elixir.Pavoi.Workers.Foo"
     worker_name = inspect(worker)
+    now = DateTime.utc_now()
+    stale_cutoff = DateTime.add(now, -@sync_job_stale_after_seconds, :second)
 
     from(j in Oban.Job,
       where: j.worker == ^worker_name,
-      where: j.state in ["executing", "available", "scheduled"]
+      where:
+        j.state == "executing" or
+          (j.state == "available" and j.inserted_at >= ^stale_cutoff) or
+          (j.state == "scheduled" and j.scheduled_at <= ^now and j.scheduled_at >= ^stale_cutoff)
     )
     |> Pavoi.Repo.exists?()
   end
+
+  defp enqueue_sync_job(socket, worker, args, assign_key, success_message) do
+    now = DateTime.utc_now()
+
+    case worker.new(args) |> Oban.insert() do
+      {:ok, job} ->
+        syncing = job_active?(job, now)
+        message = if syncing, do: success_message, else: "Sync already scheduled."
+
+        socket
+        |> assign(assign_key, syncing)
+        |> put_flash(:info, message)
+
+      {:error, changeset} ->
+        socket
+        |> assign(assign_key, false)
+        |> put_flash(:error, "Failed to enqueue sync: #{inspect(changeset.errors)}")
+    end
+  end
+
+  defp job_active?(%Oban.Job{state: "executing"}, _now), do: true
+  defp job_active?(%Oban.Job{state: "available"}, _now), do: true
+
+  defp job_active?(%Oban.Job{state: "scheduled", scheduled_at: scheduled_at}, now)
+       when not is_nil(scheduled_at) do
+    DateTime.compare(scheduled_at, now) in [:lt, :eq]
+  end
+
+  defp job_active?(_job, _now), do: false
 
   defp apply_params(socket, params) do
     socket
