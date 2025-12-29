@@ -165,8 +165,8 @@
 .creator-table.mode-outreach:not(.has-checkbox) td:nth-child(8) { width: 125px; }  /* Sent (when visible) */
 
 /* =============================================================================
-   UNIFIED MODE - 11 columns
-   Columns: Checkbox, Status, Creator, Email, Tags, Followers, GMV, Avg Views, Samples, Videos, Commission
+   UNIFIED MODE - 12 columns
+   Columns: Checkbox, Status, Creator, Email, Tags, Followers, GMV, Avg Views, Samples, Videos, Commission, Last Sample
    ============================================================================= */
 
 .creator-table.mode-unified th:nth-child(1),
@@ -191,6 +191,8 @@
 .creator-table.mode-unified td:nth-child(10) { width: 140px; } /* Videos */
 .creator-table.mode-unified th:nth-child(11),
 .creator-table.mode-unified td:nth-child(11) { width: 175px; } /* Commission */
+.creator-table.mode-unified th:nth-child(12),
+.creator-table.mode-unified td:nth-child(12) { width: 175px; } /* Last Sample */
 
 /* Center align Status column in unified mode */
 .creator-table.mode-unified th:nth-child(2),

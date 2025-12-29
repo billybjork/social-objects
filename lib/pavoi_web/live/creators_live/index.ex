@@ -1168,6 +1168,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
     creator_ids = Enum.map(result.creators, & &1.id)
     outreach_logs_map = Outreach.get_latest_email_outreach_logs(creator_ids)
     sample_counts_map = Creators.batch_count_samples(creator_ids)
+    last_sample_at_map = Creators.batch_get_last_sample_at(creator_ids)
     tags_map = Creators.batch_list_tags_for_creators(creator_ids, brand_id)
     video_counts_map = Creators.batch_count_videos(creator_ids)
     commission_map = Creators.batch_sum_commission(creator_ids)
@@ -1194,6 +1195,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
 
         creator
         |> Map.put(:sample_count, Map.get(sample_counts_map, creator.id, 0))
+        |> Map.put(:last_sample_at, Map.get(last_sample_at_map, creator.id))
         |> Map.put(:creator_tags, Map.get(tags_map, creator.id, []))
         |> Map.put(:email_outreach_log, Map.get(outreach_logs_map, creator.id))
         |> Map.put(:video_count, Map.get(video_counts_map, creator.id, 0))

@@ -50,6 +50,14 @@ defmodule Pavoi.AI.CommentClassifier do
     "pc" => :positive
   }
 
+  # Fallback: if model puts sentiment code in category field, map to reasonable category
+  # This handles cases where the model returns c="n" instead of c="cc" for complaints
+  @sentiment_to_category_fallback %{
+    "p" => :praise_compliment,
+    "u" => :general,
+    "n" => :concern_complaint
+  }
+
   @doc """
   Classifies all unclassified comments for a stream.
 
@@ -272,6 +280,22 @@ defmodule Pavoi.AI.CommentClassifier do
         if fallback do
           Logger.debug(
             "Using fallback sentiment mapping: s=#{sentiment_code} -> #{fallback}"
+          )
+        end
+
+        fallback
+      end
+
+    # If category is invalid but it's a sentiment code, use fallback mapping
+    category =
+      if category do
+        category
+      else
+        fallback = Map.get(@sentiment_to_category_fallback, category_code)
+
+        if fallback do
+          Logger.debug(
+            "Using fallback category mapping: c=#{category_code} -> #{fallback}"
           )
         end
 

@@ -1222,6 +1222,16 @@ defmodule PavoiWeb.CreatorComponents do
               tooltip="Total commission earned · Manual CSV (may be stale)"
               manual_import={true}
             />
+            <%!-- 12. Last Sample --%>
+            <.sort_header
+              label="Last Sample"
+              field="last_sample"
+              current={@sort_by}
+              dir={@sort_dir}
+              on_sort={@on_sort}
+              class="text-right"
+              tooltip="Most recent sample received · Shop Orders sync"
+            />
           </tr>
         </thead>
         <tbody>
@@ -1316,6 +1326,10 @@ defmodule PavoiWeb.CreatorComponents do
               <td class="text-right">{creator.video_count || 0}</td>
               <%!-- 11. Commission --%>
               <td class="text-right">{format_gmv(creator.total_commission_cents)}</td>
+              <%!-- 12. Last Sample --%>
+              <td class="text-right text-secondary">
+                {format_relative_time(creator.last_sample_at)}
+              </td>
             </tr>
           <% end %>
         </tbody>

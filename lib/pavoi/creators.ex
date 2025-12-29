@@ -289,6 +289,18 @@ defmodule Pavoi.Creators do
     |> order_by([c, sc], [{^sort_dir_atom(dir), coalesce(sc.count, 0)}])
   end
 
+  defp apply_creator_sort(query, "last_sample", dir) do
+    last_sample_dates =
+      from(cs in CreatorSample,
+        group_by: cs.creator_id,
+        select: %{creator_id: cs.creator_id, last_at: max(cs.ordered_at)}
+      )
+
+    query
+    |> join(:left, [c], ls in subquery(last_sample_dates), on: ls.creator_id == c.id)
+    |> order_by([c, ls], [{^sort_dir_atom(dir), ls.last_at}])
+  end
+
   defp apply_creator_sort(query, _, _),
     do: order_by(query, [c], asc: c.tiktok_username)
 
@@ -613,6 +625,24 @@ defmodule Pavoi.Creators do
         where: cs.creator_id in ^creator_ids,
         group_by: cs.creator_id,
         select: {cs.creator_id, count(cs.id)}
+      )
+      |> Repo.all()
+      |> Map.new()
+    end
+  end
+
+  @doc """
+  Batch gets last sample date for multiple creators.
+  Returns a map of creator_id => last_sample_at (DateTime or nil).
+  """
+  def batch_get_last_sample_at(creator_ids) when is_list(creator_ids) do
+    if creator_ids == [] do
+      %{}
+    else
+      from(cs in CreatorSample,
+        where: cs.creator_id in ^creator_ids,
+        group_by: cs.creator_id,
+        select: {cs.creator_id, max(cs.ordered_at)}
       )
       |> Repo.all()
       |> Map.new()
