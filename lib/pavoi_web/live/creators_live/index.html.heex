@@ -67,11 +67,72 @@
         </div>
       <% else %>
         <%!-- Filters (only when no items selected) --%>
-        <.time_filter
-          added_after={@added_after}
-          added_before={@added_before}
-          open={@show_time_filter}
-        />
+        <div class={"time-preset-filter #{if @time_preset != "all", do: "has-filter"}"}>
+          <div class="time-preset-filter__trigger">
+            <%= if @time_preset == "all" do %>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                class="time-preset-filter__svg"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"
+                />
+              </svg>
+            <% else %>
+              <span class="time-preset-filter__active-value">
+                <%= case @time_preset do %>
+                  <% "7d" -> %>7d
+                  <% "30d" -> %>30d
+                  <% "90d" -> %>90d
+                  <% _ -> %>•
+                <% end %>
+              </span>
+            <% end %>
+          </div>
+          <div class="time-preset-filter__content">
+            <span class="filter-label">Added:</span>
+            <div class="preset-buttons">
+              <button
+                type="button"
+                phx-click="set_time_preset"
+                phx-value-preset="7d"
+                class={"preset-btn #{if @time_preset == "7d", do: "active"}"}
+              >
+                7d
+              </button>
+              <button
+                type="button"
+                phx-click="set_time_preset"
+                phx-value-preset="30d"
+                class={"preset-btn #{if @time_preset == "30d", do: "active"}"}
+              >
+                30d
+              </button>
+              <button
+                type="button"
+                phx-click="set_time_preset"
+                phx-value-preset="90d"
+                class={"preset-btn #{if @time_preset == "90d", do: "active"}"}
+              >
+                90d
+              </button>
+              <button
+                type="button"
+                phx-click="set_time_preset"
+                phx-value-preset="all"
+                class={"preset-btn #{if @time_preset == "all", do: "active"}"}
+              >
+                All
+              </button>
+            </div>
+          </div>
+        </div>
         <.tag_filter
           available_tags={@available_tags}
           selected_tag_ids={@filter_tag_ids}

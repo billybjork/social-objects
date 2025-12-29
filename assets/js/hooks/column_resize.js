@@ -66,7 +66,8 @@ export default {
     headers.forEach(th => {
       const columnId = th.dataset.columnId
       if (columnId && saved[columnId]) {
-        th.style.width = `${saved[columnId]}px`
+        // Use !important to override CSS nth-child width rules
+        th.style.setProperty('width', `${saved[columnId]}px`, 'important')
       }
     })
   },
@@ -180,7 +181,8 @@ export default {
     const delta = clientX - startX
     const newWidth = Math.max(MIN_COLUMN_WIDTH, startWidth + delta)
 
-    th.style.width = `${newWidth}px`
+    // Use setProperty with !important to override CSS nth-child rules
+    th.style.setProperty('width', `${newWidth}px`, 'important')
   },
 
   onMouseUp() {

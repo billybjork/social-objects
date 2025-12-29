@@ -125,7 +125,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
       # Time filter state
       |> assign(:added_after, nil)
       |> assign(:added_before, nil)
-      |> assign(:show_time_filter, false)
+      |> assign(:time_preset, "all")
       # Data freshness state
       |> assign(:videos_last_import_at, Settings.get_videos_last_import_at())
 
@@ -767,31 +767,10 @@ defmodule PavoiWeb.CreatorsLive.Index do
     {:noreply, push_patch(socket, to: ~p"/creators?#{params}")}
   end
 
-  # Time filter handlers
   @impl true
-  def handle_event("toggle_time_filter", _params, socket) do
-    {:noreply, assign(socket, :show_time_filter, !socket.assigns.show_time_filter)}
-  end
-
-  @impl true
-  def handle_event("close_time_filter", _params, socket) do
-    {:noreply, assign(socket, :show_time_filter, false)}
-  end
-
-  @impl true
-  def handle_event("apply_time_filter", %{"after" => after_date, "before" => before_date}, socket) do
-    after_val = if after_date == "", do: nil, else: after_date
-    before_val = if before_date == "", do: nil, else: before_date
-
-    socket = assign(socket, :show_time_filter, false)
-    params = build_query_params(socket, added_after: after_val, added_before: before_val, page: 1)
-    {:noreply, push_patch(socket, to: ~p"/creators?#{params}")}
-  end
-
-  @impl true
-  def handle_event("clear_time_filter", _params, socket) do
-    socket = assign(socket, :show_time_filter, false)
-    params = build_query_params(socket, added_after: nil, added_before: nil, page: 1)
+  def handle_event("set_time_preset", %{"preset" => preset}, socket) do
+    {added_after, added_before} = preset_to_dates(preset)
+    params = build_query_params(socket, added_after: added_after, added_before: added_before, page: 1)
     {:noreply, push_patch(socket, to: ~p"/creators?#{params}")}
   end
 
@@ -889,6 +868,12 @@ defmodule PavoiWeb.CreatorsLive.Index do
     send(self(), :load_more_creators)
     {:noreply, assign(socket, :loading_creators, true)}
   end
+
+  # Time preset helpers
+  defp preset_to_dates("7d"), do: {Date.to_iso8601(Date.add(Date.utc_today(), -7)), nil}
+  defp preset_to_dates("30d"), do: {Date.to_iso8601(Date.add(Date.utc_today(), -30)), nil}
+  defp preset_to_dates("90d"), do: {Date.to_iso8601(Date.add(Date.utc_today(), -90)), nil}
+  defp preset_to_dates(_), do: {nil, nil}
 
   defp reload_creator_tags(socket, creator_id) do
     # Update the creator in the list with refreshed tags
@@ -1106,6 +1091,8 @@ defmodule PavoiWeb.CreatorsLive.Index do
   defp job_active?(_job, _now), do: false
 
   defp apply_params(socket, params) do
+    added_after = params["after"]
+
     socket
     |> assign(:search_query, params["q"] || "")
     |> assign(:badge_filter, params["badge"] || "")
@@ -1116,8 +1103,30 @@ defmodule PavoiWeb.CreatorsLive.Index do
     |> assign(:selected_ids, MapSet.new())
     |> assign(:all_selected_pending, false)
     |> assign(:filter_tag_ids, parse_tag_ids(params["tags"]))
-    |> assign(:added_after, params["after"])
+    |> assign(:added_after, added_after)
     |> assign(:added_before, params["before"])
+    |> assign(:time_preset, derive_time_preset(added_after))
+  end
+
+  defp derive_time_preset(nil), do: "all"
+  defp derive_time_preset(""), do: "all"
+
+  defp derive_time_preset(date_string) do
+    case Date.from_iso8601(date_string) do
+      {:ok, date} ->
+        today = Date.utc_today()
+        days_ago = Date.diff(today, date)
+
+        cond do
+          days_ago in 6..8 -> "7d"
+          days_ago in 29..31 -> "30d"
+          days_ago in 89..91 -> "90d"
+          true -> "custom"
+        end
+
+      {:error, _} ->
+        "all"
+    end
   end
 
   defp parse_outreach_status(nil), do: nil

@@ -185,9 +185,9 @@
 .creator-table.mode-unified th:nth-child(2),
 .creator-table.mode-unified td:nth-child(2) { width: 120px; }  /* Status */
 .creator-table.mode-unified th:nth-child(3),
-.creator-table.mode-unified td:nth-child(3) { width: 300px; }  /* Creator */
+.creator-table.mode-unified td:nth-child(3) { width: 260px; }  /* Creator */
 .creator-table.mode-unified th:nth-child(4),
-.creator-table.mode-unified td:nth-child(4) { width: 215px; }  /* Email */
+.creator-table.mode-unified td:nth-child(4) { width: 220px; }  /* Email */
 .creator-table.mode-unified th:nth-child(5),
 .creator-table.mode-unified td:nth-child(5) { width: 170px; }  /* Tags */
 .creator-table.mode-unified th:nth-child(6),
@@ -718,6 +718,153 @@
 
 .filter-tab--active .filter-tab__badge {
   background: rgba(255, 255, 255, 0.25);
+}
+
+/* Time Preset Filter - Compact with hover expand */
+.time-preset-filter {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 30px; /* Fixed height to prevent layout shift */
+}
+
+/* Trigger - always visible (icon when no filter, value when filter active) */
+.time-preset-filter__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-primary);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.time-preset-filter__trigger:hover {
+  border-color: var(--color-text-tertiary);
+  color: var(--color-text-primary);
+}
+
+.time-preset-filter__svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Active filter value shown in trigger */
+.time-preset-filter__active-value {
+  font-size: 11px;
+  font-weight: var(--font-semibold);
+  color: var(--color-primary);
+}
+
+/* Content - hidden by default, shown on hover or when filter active */
+.time-preset-filter__content {
+  position: absolute;
+  right: 0;
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 30px;
+  padding: 0 4px;
+  background: var(--color-surface-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(4px);
+  transition: all 0.15s ease;
+  z-index: 10;
+}
+
+/* Show on hover */
+.time-preset-filter:hover .time-preset-filter__content {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(0);
+}
+
+/* Hide trigger when content visible */
+.time-preset-filter:hover .time-preset-filter__trigger {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.time-preset-filter .filter-label {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  padding-left: var(--space-1);
+}
+
+.preset-buttons {
+  display: flex;
+  gap: 2px;
+  background: var(--color-surface-secondary);
+  border-radius: 4px;
+  padding: 2px;
+}
+
+.preset-btn {
+  padding: 3px 8px;
+  font-size: 11px;
+  border: none;
+  background: transparent;
+  border-radius: 3px;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  font-weight: var(--font-medium);
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.preset-btn:hover {
+  color: var(--color-text-primary);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.preset-btn.active {
+  background: var(--color-surface-primary);
+  color: var(--color-text-primary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.dark .time-preset-filter__trigger {
+  background: var(--color-surface-secondary);
+  border-color: var(--color-border);
+}
+
+.dark .time-preset-filter__content {
+  background: var(--color-surface-secondary);
+  border-color: var(--color-border);
+}
+
+.dark .preset-buttons {
+  background: var(--color-surface-tertiary);
+}
+
+.dark .preset-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.dark .preset-btn.active {
+  background: var(--color-surface-primary);
+}
+
+/* Mobile - always show when filter active, otherwise just icon */
+@media (max-width: 640px) {
+  .time-preset-filter .filter-label {
+    display: none;
+  }
+
+  .preset-btn {
+    padding: 3px 6px;
+    font-size: 10px;
+  }
 }
 
 .bulk-actions__count {
