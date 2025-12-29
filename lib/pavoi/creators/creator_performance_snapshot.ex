@@ -8,7 +8,7 @@ defmodule Pavoi.Creators.CreatorPerformanceSnapshot do
   use Ecto.Schema
   import Ecto.Changeset
 
-  @sources ~w(refunnel tiktok_api manual csv_import)
+  @sources ~w(refunnel tiktok_api tiktok_marketplace manual csv_import)
 
   schema "creator_performance_snapshots" do
     belongs_to :creator, Pavoi.Creators.Creator
@@ -19,6 +19,9 @@ defmodule Pavoi.Creators.CreatorPerformanceSnapshot do
     # Metrics
     field :follower_count, :integer
     field :gmv_cents, :integer
+    field :video_gmv_cents, :integer
+    field :live_gmv_cents, :integer
+    field :avg_video_views, :integer
     field :emv_cents, :integer
     field :total_posts, :integer
     field :total_likes, :integer
@@ -39,6 +42,9 @@ defmodule Pavoi.Creators.CreatorPerformanceSnapshot do
       :source,
       :follower_count,
       :gmv_cents,
+      :video_gmv_cents,
+      :live_gmv_cents,
+      :avg_video_views,
       :emv_cents,
       :total_posts,
       :total_likes,

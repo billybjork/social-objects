@@ -793,21 +793,17 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
     attrs = %{
       creator_id: creator.id,
       snapshot_date: Date.utc_today(),
-      source: "marketplace_api",
-      follower_count: marketplace_data["follower_count"]
+      source: "tiktok_marketplace",
+      follower_count: marketplace_data["follower_count"],
+      avg_video_views: marketplace_data["avg_ec_video_view_count"]
     }
 
-    # Add GMV if available
+    # Add GMV fields if available
     attrs =
-      case marketplace_data["gmv"] do
-        %{"amount" => amount, "currency" => "USD"} when is_binary(amount) ->
-          {gmv_dollars, _} = Float.parse(amount)
-          gmv_cents = round(gmv_dollars * 100)
-          Map.put(attrs, :gmv_cents, gmv_cents)
-
-        _ ->
-          attrs
-      end
+      attrs
+      |> maybe_put_gmv_field(:gmv_cents, marketplace_data["gmv"])
+      |> maybe_put_gmv_field(:video_gmv_cents, marketplace_data["video_gmv"])
+      |> maybe_put_gmv_field(:live_gmv_cents, marketplace_data["live_gmv"])
 
     case Creators.create_performance_snapshot(attrs) do
       {:ok, _snapshot} -> :ok
@@ -815,4 +811,12 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
       {:error, _} -> :ok
     end
   end
+
+  defp maybe_put_gmv_field(attrs, field, %{"amount" => amount, "currency" => "USD"})
+       when is_binary(amount) do
+    {dollars, _} = Float.parse(amount)
+    Map.put(attrs, field, round(dollars * 100))
+  end
+
+  defp maybe_put_gmv_field(attrs, _field, _), do: attrs
 end
