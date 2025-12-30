@@ -803,7 +803,7 @@ defmodule PavoiWeb.CreatorComponents do
       |> assign(:status_type, status_type)
 
     ~H"""
-    <span class={["badge", badge_class_for_status(@status_type)]}>
+    <span class={["badge badge--soft", badge_class_for_status(@status_type)]}>
       {@label}
     </span>
     """
@@ -1035,14 +1035,14 @@ defmodule PavoiWeb.CreatorComponents do
               <%= if @mode == "outreach" do %>
                 <td>
                   <%= if creator.sms_consent do %>
-                    <span class="badge badge--success">Yes</span>
+                    <span class="badge badge--soft badge--success">Yes</span>
                   <% else %>
-                    <span class="badge badge--muted">No</span>
+                    <span class="badge badge--soft badge--muted">No</span>
                   <% end %>
                 </td>
                 <td>
                   <span class={[
-                    "badge",
+                    "badge badge--soft",
                     creator.outreach_status == "pending" && "badge--warning",
                     creator.outreach_status == "sent" && "badge--success",
                     creator.outreach_status == "skipped" && "badge--muted",
