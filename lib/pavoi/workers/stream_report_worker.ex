@@ -54,26 +54,30 @@ defmodule Pavoi.Workers.StreamReportWorker do
   end
 
   defp generate_and_send_report(stream_id) do
-    # Atomically claim this report to prevent races
-    case TiktokLive.mark_report_sent(stream_id) do
-      {:ok, :marked} ->
-        do_generate_and_send(stream_id)
-
-      {:error, :already_sent} ->
-        Logger.info("Report for stream #{stream_id} claimed by another job")
-        {:cancel, :report_already_sent}
-    end
-  end
-
-  defp do_generate_and_send(stream_id) do
     Logger.info("Generating stream report for stream #{stream_id}")
 
+    # Generate report first, validate sentiment, THEN mark as sent
+    # This ensures we can retry if OpenAI fails transiently
     with {:ok, report_data} <- StreamReport.generate(stream_id),
+         :ok <- validate_sentiment_if_needed(report_data),
+         {:ok, :marked} <- TiktokLive.mark_report_sent(stream_id),
          :ok <- persist_gmv_data(stream_id, report_data),
          {:ok, :sent} <- StreamReport.send_to_slack(report_data) do
       Logger.info("Stream report sent successfully for stream #{stream_id}")
       :ok
     else
+      {:error, :sentiment_missing} ->
+        # OpenAI likely failed transiently - retry
+        Logger.warning(
+          "Stream #{stream_id} report missing sentiment analysis (stream has comments), will retry"
+        )
+
+        {:error, :sentiment_generation_failed}
+
+      {:error, :already_sent} ->
+        Logger.info("Report for stream #{stream_id} claimed by another job")
+        {:cancel, :report_already_sent}
+
       {:error, "Slack not configured" <> _} = error ->
         # Slack not configured - log warning but don't retry
         Logger.warning("Skipping stream report - Slack not configured")
@@ -86,6 +90,15 @@ defmodule Pavoi.Workers.StreamReportWorker do
         {:error, reason}
     end
   end
+
+  # Sentiment should exist if stream had comments (excluding flash sales)
+  # If nil when comments exist, OpenAI likely failed - trigger retry
+  defp validate_sentiment_if_needed(%{sentiment_analysis: nil, stats: %{total_comments: n}})
+       when n > 0 do
+    {:error, :sentiment_missing}
+  end
+
+  defp validate_sentiment_if_needed(_report_data), do: :ok
 
   defp clear_report_sent(stream_id) do
     import Ecto.Query

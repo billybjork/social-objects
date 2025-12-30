@@ -276,6 +276,9 @@ defmodule Pavoi.TiktokLive.EventHandler do
     Logger.info("Stream #{state.stream_id} ended")
     broadcast_to_stream(state.stream_id, {:stream_ended})
 
+    # Flush any remaining comments before enqueueing report
+    state = flush_comment_batch(state)
+
     case Pavoi.TiktokLive.mark_stream_ended(state.stream_id) do
       {:ok, :ended} ->
         # Auto-link to session if one was active during the stream
@@ -321,6 +324,9 @@ defmodule Pavoi.TiktokLive.EventHandler do
   defp process_event(%{type: :disconnected} = event, state) do
     Logger.info("Stream #{state.stream_id} disconnected: #{inspect(event[:reason])}")
     broadcast_to_stream(state.stream_id, {:disconnected, event[:reason]})
+
+    # Flush any remaining comments before enqueueing report
+    state = flush_comment_batch(state)
 
     # Mark stream as ended on disconnect (the worker will also handle cleanup)
     case Pavoi.TiktokLive.mark_stream_ended(state.stream_id) do
@@ -552,10 +558,11 @@ defmodule Pavoi.TiktokLive.EventHandler do
   end
 
   defp enqueue_stream_report(stream_id) do
-    Logger.info("Enqueueing stream report for stream #{stream_id}")
+    # Small delay as safety margin after explicit batch flush
+    Logger.info("Enqueueing stream report for stream #{stream_id} (scheduled in 10s)")
 
     %{stream_id: stream_id}
-    |> StreamReportWorker.new()
+    |> StreamReportWorker.new(schedule_in: 10)
     |> Oban.insert()
   end
 end

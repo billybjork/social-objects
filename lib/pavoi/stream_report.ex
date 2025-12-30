@@ -172,6 +172,12 @@ defmodule Pavoi.StreamReport do
       )
 
     all_comments = Repo.all(query)
+
+    Logger.info(
+      "Stream #{stream_id}: found #{length(all_comments)} unique comments " <>
+        "(excluded #{length(flash_sale_texts)} flash sale patterns)"
+    )
+
     sample_comments(all_comments, @max_comments_for_ai)
   end
 
@@ -199,9 +205,14 @@ defmodule Pavoi.StreamReport do
     first ++ middle ++ last
   end
 
-  defp generate_sentiment_analysis([]), do: nil
+  defp generate_sentiment_analysis([]) do
+    Logger.warning("Sentiment analysis skipped: no comments to analyze")
+    nil
+  end
 
   defp generate_sentiment_analysis(comments) do
+    Logger.info("Generating sentiment analysis for #{length(comments)} comments")
+
     # Format each comment with username for AI context
     formatted_comments =
       comments
@@ -212,6 +223,7 @@ defmodule Pavoi.StreamReport do
 
     case OpenAIClient.analyze_stream_comments(formatted_comments) do
       {:ok, analysis} ->
+        Logger.info("Sentiment analysis completed successfully")
         analysis
 
       {:error, reason} ->
