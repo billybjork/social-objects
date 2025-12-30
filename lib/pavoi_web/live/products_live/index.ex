@@ -15,8 +15,6 @@ defmodule PavoiWeb.ProductsLive.Index do
   import PavoiWeb.ProductComponents
   import PavoiWeb.ViewHelpers
 
-  @sync_job_stale_after_seconds 30 * 60
-
   @impl true
   def mount(_params, _session, socket) do
     # Track connection state - products only load after connection to prevent
@@ -35,8 +33,8 @@ defmodule PavoiWeb.ProductsLive.Index do
     tiktok_last_sync_at = Settings.get_tiktok_last_sync_at()
 
     # Check if syncs are currently in progress (survives page reload)
-    shopify_syncing = sync_job_active?(ShopifySyncWorker)
-    tiktok_syncing = sync_job_active?(TiktokSyncWorker)
+    shopify_syncing = sync_job_blocked?(ShopifySyncWorker)
+    tiktok_syncing = sync_job_blocked?(TiktokSyncWorker)
 
     socket =
       socket
@@ -631,35 +629,31 @@ defmodule PavoiWeb.ProductsLive.Index do
   defp maybe_add_param(params, _key, ""), do: params
   defp maybe_add_param(params, key, value), do: Map.put(params, key, value)
 
-  # Check if a sync job is currently active (executing, available, or due scheduled)
-  defp sync_job_active?(worker_module) do
-    # Oban stores worker names without the "Elixir." prefix
+  # Check if there's a job that would block new inserts due to uniqueness constraint
+  # This includes: available, scheduled, or executing jobs
+  defp sync_job_blocked?(worker_module) do
     worker_name = inspect(worker_module)
-    now = DateTime.utc_now()
-    stale_cutoff = DateTime.add(now, -@sync_job_stale_after_seconds, :second)
 
     Pavoi.Repo.exists?(
       from(j in Oban.Job,
         where: j.worker == ^worker_name,
-        where:
-          j.state == "executing" or
-            (j.state == "available" and j.inserted_at >= ^stale_cutoff) or
-            (j.state == "scheduled" and j.scheduled_at <= ^now and j.scheduled_at >= ^stale_cutoff)
+        where: j.state in ["available", "scheduled", "executing"]
       )
     )
   end
 
   defp enqueue_sync_job(socket, worker, args, assign_key, success_message) do
-    now = DateTime.utc_now()
-
     case worker.new(args) |> Oban.insert() do
-      {:ok, job} ->
-        syncing = job_active?(job, now)
-        message = if syncing, do: success_message, else: "Sync already scheduled."
-
+      {:ok, %Oban.Job{conflict?: true}} ->
+        # Uniqueness constraint returned an existing job
         socket
-        |> assign(assign_key, syncing)
-        |> put_flash(:info, message)
+        |> assign(assign_key, true)
+        |> put_flash(:info, "Sync already in progress or scheduled.")
+
+      {:ok, _job} ->
+        socket
+        |> assign(assign_key, true)
+        |> put_flash(:info, success_message)
 
       {:error, changeset} ->
         socket
@@ -667,14 +661,4 @@ defmodule PavoiWeb.ProductsLive.Index do
         |> put_flash(:error, "Failed to enqueue sync: #{inspect(changeset.errors)}")
     end
   end
-
-  defp job_active?(%Oban.Job{state: "executing"}, _now), do: true
-  defp job_active?(%Oban.Job{state: "available"}, _now), do: true
-
-  defp job_active?(%Oban.Job{state: "scheduled", scheduled_at: scheduled_at}, now)
-       when not is_nil(scheduled_at) do
-    DateTime.compare(scheduled_at, now) in [:lt, :eq]
-  end
-
-  defp job_active?(_job, _now), do: false
 end

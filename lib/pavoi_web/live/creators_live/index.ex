@@ -12,6 +12,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
   on_mount {PavoiWeb.NavHooks, :set_current_page}
 
   alias Pavoi.Catalog
+  alias Pavoi.Communications
   alias Pavoi.Creators
   alias Pavoi.Creators.Creator
   alias Pavoi.Outreach
@@ -24,7 +25,6 @@ defmodule PavoiWeb.CreatorsLive.Index do
   import PavoiWeb.CreatorTableComponents
   import PavoiWeb.ViewHelpers
 
-  @sync_job_stale_after_seconds 30 * 60
   @tag_colors ~w(amber blue green red purple gray)
 
   # Lark community invite link presets
@@ -59,9 +59,9 @@ defmodule PavoiWeb.CreatorsLive.Index do
     end
 
     bigquery_last_sync_at = Settings.get_bigquery_last_sync_at()
-    bigquery_syncing = sync_job_active?(BigQueryOrderSyncWorker)
+    bigquery_syncing = sync_job_blocked?(BigQueryOrderSyncWorker)
     enrichment_last_sync_at = Settings.get_enrichment_last_sync_at()
-    enrichment_syncing = sync_job_active?(CreatorEnrichmentWorker)
+    enrichment_syncing = sync_job_blocked?(CreatorEnrichmentWorker)
     features = Application.get_env(:pavoi, :features, [])
 
     # Get the PAVOI brand for tag operations
@@ -106,6 +106,9 @@ defmodule PavoiWeb.CreatorsLive.Index do
       |> assign(:outreach_email_override, Keyword.get(features, :outreach_email_override))
       |> assign(:outreach_email_enabled, Keyword.get(features, :outreach_email_enabled, true))
       |> assign(:show_send_modal, false)
+      # Email template selection
+      |> assign(:available_templates, [])
+      |> assign(:selected_template_id, nil)
       # Sync state
       |> assign(:bigquery_syncing, bigquery_syncing)
       |> assign(:bigquery_last_sync_at, bigquery_last_sync_at)
@@ -370,7 +373,16 @@ defmodule PavoiWeb.CreatorsLive.Index do
   @impl true
   def handle_event("show_send_modal", _params, socket) do
     if MapSet.size(socket.assigns.selected_ids) > 0 do
-      {:noreply, assign(socket, :show_send_modal, true)}
+      templates = Communications.list_email_templates()
+      default_template = Communications.get_default_email_template()
+
+      socket =
+        socket
+        |> assign(:available_templates, templates)
+        |> assign(:selected_template_id, default_template && default_template.id)
+        |> assign(:show_send_modal, true)
+
+      {:noreply, socket}
     else
       {:noreply, put_flash(socket, :error, "Please select at least one creator")}
     end
@@ -396,6 +408,11 @@ defmodule PavoiWeb.CreatorsLive.Index do
   def handle_event("select_lark_preset", %{"preset" => preset_id}, socket) do
     preset_atom = String.to_existing_atom(preset_id)
     {:noreply, assign(socket, :selected_lark_preset, preset_atom)}
+  end
+
+  @impl true
+  def handle_event("select_template", %{"id" => template_id}, socket) do
+    {:noreply, assign(socket, :selected_template_id, String.to_integer(template_id))}
   end
 
   @impl true
@@ -456,47 +473,53 @@ defmodule PavoiWeb.CreatorsLive.Index do
   def handle_event("send_outreach", _params, socket) do
     selected_preset = socket.assigns.selected_lark_preset
     lark_url = socket.assigns.lark_presets[selected_preset].url
+    template_id = socket.assigns.selected_template_id
 
-    if String.trim(lark_url) == "" do
-      {:noreply, put_flash(socket, :error, "Selected Lark group has no URL configured")}
-    else
-      creator_ids = MapSet.to_list(socket.assigns.selected_ids)
-      # Pass the preset name (e.g., "jewelry") instead of the URL
-      # The worker generates a join token URL for emails
-      lark_preset = Atom.to_string(selected_preset)
-      {:ok, count} = CreatorOutreachWorker.enqueue_batch(creator_ids, lark_preset)
+    cond do
+      is_nil(template_id) ->
+        {:noreply, put_flash(socket, :error, "Please select an email template")}
 
-      # Check if this was triggered from single-select (creator modal is open)
-      if socket.assigns.selected_creator do
-        # Single-select: reload creator and stay on modal
-        updated_creator = Creators.get_creator_for_modal!(socket.assigns.selected_creator.id)
+      String.trim(lark_url) == "" ->
+        {:noreply, put_flash(socket, :error, "Selected Lark group has no URL configured")}
 
-        socket =
-          socket
-          |> assign(:show_send_modal, false)
-          |> assign(:selected_ids, MapSet.new())
-          |> assign(:selected_creator, updated_creator)
-          |> assign(:page, 1)
-          |> put_flash(
-            :info,
-            "Queued welcome message for @#{updated_creator.tiktok_username || "creator"}"
-          )
-          |> load_creators()
-          |> load_outreach_stats()
+      true ->
+        creator_ids = MapSet.to_list(socket.assigns.selected_ids)
+        # Pass the preset name (e.g., "jewelry") instead of the URL
+        # The worker generates a join token URL for emails
+        lark_preset = Atom.to_string(selected_preset)
+        {:ok, count} = CreatorOutreachWorker.enqueue_batch(creator_ids, lark_preset, template_id)
 
-        {:noreply, socket}
-      else
-        # Batch select: navigate to sent filter
-        socket =
-          socket
-          |> assign(:show_send_modal, false)
-          |> assign(:selected_ids, MapSet.new())
-          |> assign(:all_selected_pending, false)
-          |> put_flash(:info, "Queued #{count} outreach messages for sending")
-          |> push_patch(to: ~p"/creators?status=sent")
+        # Check if this was triggered from single-select (creator modal is open)
+        if socket.assigns.selected_creator do
+          # Single-select: reload creator and stay on modal
+          updated_creator = Creators.get_creator_for_modal!(socket.assigns.selected_creator.id)
 
-        {:noreply, socket}
-      end
+          socket =
+            socket
+            |> assign(:show_send_modal, false)
+            |> assign(:selected_ids, MapSet.new())
+            |> assign(:selected_creator, updated_creator)
+            |> assign(:page, 1)
+            |> put_flash(
+              :info,
+              "Queued welcome message for @#{updated_creator.tiktok_username || "creator"}"
+            )
+            |> load_creators()
+            |> load_outreach_stats()
+
+          {:noreply, socket}
+        else
+          # Batch select: navigate to sent filter
+          socket =
+            socket
+            |> assign(:show_send_modal, false)
+            |> assign(:selected_ids, MapSet.new())
+            |> assign(:all_selected_pending, false)
+            |> put_flash(:info, "Queued #{count} outreach messages for sending")
+            |> push_patch(to: ~p"/creators?status=sent")
+
+          {:noreply, socket}
+        end
     end
   end
 
@@ -1118,34 +1141,30 @@ defmodule PavoiWeb.CreatorsLive.Index do
     end
   end
 
-  defp sync_job_active?(worker) do
-    # Oban stores worker names without the "Elixir." prefix
-    # inspect() returns "Pavoi.Workers.Foo", to_string() returns "Elixir.Pavoi.Workers.Foo"
+  # Check if there's a job that would block new inserts due to uniqueness constraint
+  # This includes: available, scheduled, or executing jobs
+  defp sync_job_blocked?(worker) do
     worker_name = inspect(worker)
-    now = DateTime.utc_now()
-    stale_cutoff = DateTime.add(now, -@sync_job_stale_after_seconds, :second)
 
     from(j in Oban.Job,
       where: j.worker == ^worker_name,
-      where:
-        j.state == "executing" or
-          (j.state == "available" and j.inserted_at >= ^stale_cutoff) or
-          (j.state == "scheduled" and j.scheduled_at <= ^now and j.scheduled_at >= ^stale_cutoff)
+      where: j.state in ["available", "scheduled", "executing"]
     )
     |> Pavoi.Repo.exists?()
   end
 
   defp enqueue_sync_job(socket, worker, args, assign_key, success_message) do
-    now = DateTime.utc_now()
-
     case worker.new(args) |> Oban.insert() do
-      {:ok, job} ->
-        syncing = job_active?(job, now)
-        message = if syncing, do: success_message, else: "Sync already scheduled."
-
+      {:ok, %Oban.Job{conflict?: true}} ->
+        # Uniqueness constraint returned an existing job
         socket
-        |> assign(assign_key, syncing)
-        |> put_flash(:info, message)
+        |> assign(assign_key, true)
+        |> put_flash(:info, "Sync already in progress or scheduled.")
+
+      {:ok, _job} ->
+        socket
+        |> assign(assign_key, true)
+        |> put_flash(:info, success_message)
 
       {:error, changeset} ->
         socket
@@ -1153,16 +1172,6 @@ defmodule PavoiWeb.CreatorsLive.Index do
         |> put_flash(:error, "Failed to enqueue sync: #{inspect(changeset.errors)}")
     end
   end
-
-  defp job_active?(%Oban.Job{state: "executing"}, _now), do: true
-  defp job_active?(%Oban.Job{state: "available"}, _now), do: true
-
-  defp job_active?(%Oban.Job{state: "scheduled", scheduled_at: scheduled_at}, now)
-       when not is_nil(scheduled_at) do
-    DateTime.compare(scheduled_at, now) in [:lt, :eq]
-  end
-
-  defp job_active?(_job, _now), do: false
 
   defp apply_params(socket, params) do
     delta_period = parse_delta_period(params["period"])
