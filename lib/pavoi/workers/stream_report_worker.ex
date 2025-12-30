@@ -22,6 +22,7 @@ defmodule Pavoi.Workers.StreamReportWorker do
 
   require Logger
 
+  alias Pavoi.AI.CommentClassifier
   alias Pavoi.StreamReport
   alias Pavoi.TiktokLive
 
@@ -55,6 +56,10 @@ defmodule Pavoi.Workers.StreamReportWorker do
 
   defp generate_and_send_report(stream_id) do
     Logger.info("Generating stream report for stream #{stream_id}")
+
+    # Classify comments before generating report
+    # This ensures comment sentiment/category data is available for the report
+    classify_comments(stream_id)
 
     # Generate report first, validate sentiment, THEN mark as sent
     # This ensures we can retry if OpenAI fails transiently
@@ -120,6 +125,30 @@ defmodule Pavoi.Workers.StreamReportWorker do
       {:error, reason} ->
         Logger.warning("Failed to persist GMV for stream #{stream_id}: #{inspect(reason)}")
         # Don't fail the job if GMV persistence fails
+        :ok
+    end
+  end
+
+  defp classify_comments(stream_id) do
+    # Get flash sale texts to pass to classifier
+    flash_sales = StreamReport.detect_flash_sale_comments(stream_id)
+    flash_sale_texts = Enum.map(flash_sales, & &1.text)
+
+    case CommentClassifier.classify_stream_comments(stream_id, flash_sale_texts: flash_sale_texts) do
+      {:ok, result} ->
+        Logger.info(
+          "Classified #{result.classified} comments for stream #{stream_id} " <>
+            "(#{result.flash_sale} flash sales)"
+        )
+
+        :ok
+
+      {:error, reason} ->
+        # Log but don't fail - report can still be sent without classification
+        Logger.warning(
+          "Comment classification failed for stream #{stream_id}: #{inspect(reason)}"
+        )
+
         :ok
     end
   end

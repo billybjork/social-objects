@@ -1100,6 +1100,14 @@ defmodule PavoiWeb.CreatorTableComponents do
                 <% end %>
               </div>
               <div class="creator-modal-header__actions">
+                <%= if @creator.outreach_status == "pending" do %>
+                  <.button variant="outline" size="sm" phx-click="skip_single">
+                    Skip
+                  </.button>
+                  <.button variant="primary" size="sm" phx-click="show_send_modal_single">
+                    Send Welcome
+                  </.button>
+                <% end %>
                 <.button
                   variant="outline"
                   size="sm"

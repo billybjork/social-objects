@@ -378,7 +378,18 @@ defmodule PavoiWeb.CreatorsLive.Index do
 
   @impl true
   def handle_event("close_send_modal", _params, socket) do
-    {:noreply, assign(socket, :show_send_modal, false)}
+    # If modal was opened from single-select (creator detail modal is open),
+    # clear selected_ids to avoid showing batch selection UI
+    socket =
+      if socket.assigns.selected_creator do
+        socket
+        |> assign(:show_send_modal, false)
+        |> assign(:selected_ids, MapSet.new())
+      else
+        assign(socket, :show_send_modal, false)
+      end
+
+    {:noreply, socket}
   end
 
   @impl true
@@ -455,15 +466,37 @@ defmodule PavoiWeb.CreatorsLive.Index do
       lark_preset = Atom.to_string(selected_preset)
       {:ok, count} = CreatorOutreachWorker.enqueue_batch(creator_ids, lark_preset)
 
-      socket =
-        socket
-        |> assign(:show_send_modal, false)
-        |> assign(:selected_ids, MapSet.new())
-        |> assign(:all_selected_pending, false)
-        |> put_flash(:info, "Queued #{count} outreach messages for sending")
-        |> push_patch(to: ~p"/creators?status=sent")
+      # Check if this was triggered from single-select (creator modal is open)
+      if socket.assigns.selected_creator do
+        # Single-select: reload creator and stay on modal
+        updated_creator = Creators.get_creator_for_modal!(socket.assigns.selected_creator.id)
 
-      {:noreply, socket}
+        socket =
+          socket
+          |> assign(:show_send_modal, false)
+          |> assign(:selected_ids, MapSet.new())
+          |> assign(:selected_creator, updated_creator)
+          |> assign(:page, 1)
+          |> put_flash(
+            :info,
+            "Queued welcome message for @#{updated_creator.tiktok_username || "creator"}"
+          )
+          |> load_creators()
+          |> load_outreach_stats()
+
+        {:noreply, socket}
+      else
+        # Batch select: navigate to sent filter
+        socket =
+          socket
+          |> assign(:show_send_modal, false)
+          |> assign(:selected_ids, MapSet.new())
+          |> assign(:all_selected_pending, false)
+          |> put_flash(:info, "Queued #{count} outreach messages for sending")
+          |> push_patch(to: ~p"/creators?status=sent")
+
+        {:noreply, socket}
+      end
     end
   end
 
@@ -485,6 +518,47 @@ defmodule PavoiWeb.CreatorsLive.Index do
       {:noreply, socket}
     else
       {:noreply, put_flash(socket, :error, "Please select at least one creator")}
+    end
+  end
+
+  @impl true
+  def handle_event("skip_single", _params, socket) do
+    creator = socket.assigns.selected_creator
+
+    if creator && creator.outreach_status == "pending" do
+      Outreach.mark_creators_skipped([creator.id])
+
+      # Reload creator with updated outreach_status
+      updated_creator = Creators.get_creator_for_modal!(creator.id)
+
+      socket =
+        socket
+        |> assign(:selected_creator, updated_creator)
+        |> assign(:page, 1)
+        |> put_flash(:info, "Skipped @#{creator.tiktok_username || "creator"}")
+        |> load_creators()
+        |> load_outreach_stats()
+
+      {:noreply, socket}
+    else
+      {:noreply, put_flash(socket, :error, "Creator is not in pending status")}
+    end
+  end
+
+  @impl true
+  def handle_event("show_send_modal_single", _params, socket) do
+    creator = socket.assigns.selected_creator
+
+    if creator && creator.outreach_status == "pending" do
+      # Use selected_ids to pass the single creator to the existing send modal
+      socket =
+        socket
+        |> assign(:selected_ids, MapSet.new([creator.id]))
+        |> assign(:show_send_modal, true)
+
+      {:noreply, socket}
+    else
+      {:noreply, put_flash(socket, :error, "Creator is not in pending status")}
     end
   end
 
