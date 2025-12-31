@@ -655,26 +655,34 @@ defmodule PavoiWeb.TiktokLiveComponents do
   Renders page-level tabs for Streams/Analytics navigation.
   """
   attr :active_tab, :string, default: "streams"
+  slot :actions, doc: "Right-aligned content to display inline with tabs"
 
   def page_tabs(assigns) do
     ~H"""
     <div class="page-tabs">
-      <button
-        type="button"
-        class={["page-tab", @active_tab == "streams" && "page-tab--active"]}
-        phx-click="change_page_tab"
-        phx-value-tab="streams"
-      >
-        Streams
-      </button>
-      <button
-        type="button"
-        class={["page-tab", @active_tab == "analytics" && "page-tab--active"]}
-        phx-click="change_page_tab"
-        phx-value-tab="analytics"
-      >
-        Analytics
-      </button>
+      <div class="page-tabs__tabs">
+        <button
+          type="button"
+          class={["page-tab", @active_tab == "streams" && "page-tab--active"]}
+          phx-click="change_page_tab"
+          phx-value-tab="streams"
+        >
+          Streams
+        </button>
+        <button
+          type="button"
+          class={["page-tab", @active_tab == "analytics" && "page-tab--active"]}
+          phx-click="change_page_tab"
+          phx-value-tab="analytics"
+        >
+          Analytics
+        </button>
+      </div>
+      <%= if @actions != [] do %>
+        <div class="page-tabs__actions">
+          {render_slot(@actions)}
+        </div>
+      <% end %>
     </div>
     """
   end
@@ -709,20 +717,6 @@ defmodule PavoiWeb.TiktokLiveComponents do
 
     ~H"""
     <div class="analytics-tab">
-      <div class="analytics-tab__header">
-        <span class="analytics-tab__header-label">Showing analytics for:</span>
-        <form phx-change="analytics_select_stream">
-          <select name="stream_id" class="filter-select analytics-tab__stream-select">
-            <option value="" selected={is_nil(@stream_id)}>All Streams</option>
-            <%= for stream <- @streams do %>
-              <option value={stream.id} selected={@stream_id == stream.id}>
-                {format_stream_option(stream)}
-              </option>
-            <% end %>
-          </select>
-        </form>
-      </div>
-
       <%!--
         Charts section uses phx-update="ignore" to prevent LiveView from patching it
         when comment filters/search/pagination change. The ID includes the stream_id so

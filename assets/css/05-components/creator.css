@@ -245,6 +245,8 @@
 }
 
 .empty-state__icon {
+  width: 2rem;
+  height: 2rem;
   margin: 0 auto var(--space-3);
   color: var(--color-text-tertiary);
 }
@@ -1646,4 +1648,14 @@
 
 [data-theme="dark"] .sortable-header--manual-import .sortable-header__btn {
   color: var(--color-text-tertiary);
+}
+
+/* =============================================================================
+   BULK ACTIONS (inline with page tabs)
+   ============================================================================= */
+
+.bulk-actions-inline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }

@@ -121,26 +121,34 @@ defmodule PavoiWeb.CreatorTableComponents do
   Renders page-level tabs for Creators/Templates navigation.
   """
   attr :active_tab, :string, default: "creators"
+  slot :actions, doc: "Right-aligned content to display inline with tabs"
 
   def page_tabs(assigns) do
     ~H"""
     <div class="page-tabs">
-      <button
-        type="button"
-        class={["page-tab", @active_tab == "creators" && "page-tab--active"]}
-        phx-click="change_page_tab"
-        phx-value-tab="creators"
-      >
-        Creators
-      </button>
-      <button
-        type="button"
-        class={["page-tab", @active_tab == "templates" && "page-tab--active"]}
-        phx-click="change_page_tab"
-        phx-value-tab="templates"
-      >
-        Templates
-      </button>
+      <div class="page-tabs__tabs">
+        <button
+          type="button"
+          class={["page-tab", @active_tab == "creators" && "page-tab--active"]}
+          phx-click="change_page_tab"
+          phx-value-tab="creators"
+        >
+          Creators
+        </button>
+        <button
+          type="button"
+          class={["page-tab", @active_tab == "templates" && "page-tab--active"]}
+          phx-click="change_page_tab"
+          phx-value-tab="templates"
+        >
+          Templates
+        </button>
+      </div>
+      <%= if @actions != [] do %>
+        <div class="page-tabs__actions">
+          {render_slot(@actions)}
+        </div>
+      <% end %>
     </div>
     """
   end

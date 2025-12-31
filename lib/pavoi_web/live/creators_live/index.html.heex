@@ -7,7 +7,38 @@
 />
 
 <div class="container container--xl region creators-index">
-  <.page_tabs active_tab={@page_tab} />
+  <.page_tabs active_tab={@page_tab}>
+    <:actions>
+      <%= case @page_tab do %>
+        <% "creators" -> %>
+          <%= if MapSet.size(@selected_ids) > 0 do %>
+            <div class="bulk-actions-inline">
+              <.button variant="outline" size="sm" phx-click="deselect_all">
+                Clear
+              </.button>
+              <.button variant="primary" size="sm" phx-click="show_batch_tag_picker">
+                Add Tags
+              </.button>
+              <%= if @pending_selected_count > 0 do %>
+                <.button variant="outline" size="sm" phx-click="skip_selected">
+                  Skip ({@pending_selected_count})
+                </.button>
+                <.button variant="primary" size="sm" phx-click="show_send_modal">
+                  Send Email ({@pending_selected_count})
+                </.button>
+              <% end %>
+            </div>
+          <% end %>
+        <% "templates" -> %>
+          <button type="button" class="button button--sm button--primary" phx-click="new_template">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-4">
+              <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
+            </svg>
+            New Template
+          </button>
+      <% end %>
+    </:actions>
+  </.page_tabs>
 
   <%= case @page_tab do %>
     <% "creators" -> %>
@@ -51,103 +82,82 @@
         </div>
 
         <div class="page-header__right">
-          <%= if MapSet.size(@selected_ids) > 0 do %>
-            <%!-- Unified Bulk Actions --%>
-            <div class="bulk-actions-inline">
-              <.button variant="outline" size="sm" phx-click="deselect_all">
-                Clear
-              </.button>
-              <.button variant="primary" size="sm" phx-click="show_batch_tag_picker">
-                Add Tags
-              </.button>
-              <%!-- Skip and Send Email shown when ANY selected are pending --%>
-              <%= if @pending_selected_count > 0 do %>
-                <.button variant="outline" size="sm" phx-click="skip_selected">
-                  Skip ({@pending_selected_count})
-                </.button>
-                <.button variant="primary" size="sm" phx-click="show_send_modal">
-                  Send Email ({@pending_selected_count})
-                </.button>
+          <%!-- Filters --%>
+          <div class={"time-preset-filter #{if @time_preset != "all", do: "has-filter"}"}>
+            <div class="time-preset-filter__trigger">
+              <%= if @time_preset == "all" do %>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke-width="1.5"
+                  stroke="currentColor"
+                  class="time-preset-filter__svg"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"
+                  />
+                </svg>
+              <% else %>
+                <span class="time-preset-filter__active-value">
+                  <%= case @time_preset do %>
+                    <% "7d" -> %>
+                      7d
+                    <% "30d" -> %>
+                      30d
+                    <% "90d" -> %>
+                      90d
+                    <% _ -> %>
+                      •
+                  <% end %>
+                </span>
               <% end %>
             </div>
-          <% else %>
-            <%!-- Filters (only when no items selected) --%>
-            <div class={"time-preset-filter #{if @time_preset != "all", do: "has-filter"}"}>
-              <div class="time-preset-filter__trigger">
-                <%= if @time_preset == "all" do %>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke-width="1.5"
-                    stroke="currentColor"
-                    class="time-preset-filter__svg"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"
-                    />
-                  </svg>
-                <% else %>
-                  <span class="time-preset-filter__active-value">
-                    <%= case @time_preset do %>
-                      <% "7d" -> %>
-                        7d
-                      <% "30d" -> %>
-                        30d
-                      <% "90d" -> %>
-                        90d
-                      <% _ -> %>
-                        •
-                    <% end %>
-                  </span>
-                <% end %>
-              </div>
-              <div class="time-preset-filter__content">
-                <span class="filter-label">Period:</span>
-                <div class="preset-buttons">
-                  <button
-                    type="button"
-                    phx-click="set_time_preset"
-                    phx-value-preset="7d"
-                    class={"preset-btn #{if @time_preset == "7d", do: "active"}"}
-                  >
-                    7d
-                  </button>
-                  <button
-                    type="button"
-                    phx-click="set_time_preset"
-                    phx-value-preset="30d"
-                    class={"preset-btn #{if @time_preset == "30d", do: "active"}"}
-                  >
-                    30d
-                  </button>
-                  <button
-                    type="button"
-                    phx-click="set_time_preset"
-                    phx-value-preset="90d"
-                    class={"preset-btn #{if @time_preset == "90d", do: "active"}"}
-                  >
-                    90d
-                  </button>
-                  <button
-                    type="button"
-                    phx-click="set_time_preset"
-                    phx-value-preset="all"
-                    class={"preset-btn #{if @time_preset == "all", do: "active"}"}
-                  >
-                    All
-                  </button>
-                </div>
+            <div class="time-preset-filter__content">
+              <span class="filter-label">Period:</span>
+              <div class="preset-buttons">
+                <button
+                  type="button"
+                  phx-click="set_time_preset"
+                  phx-value-preset="7d"
+                  class={"preset-btn #{if @time_preset == "7d", do: "active"}"}
+                >
+                  7d
+                </button>
+                <button
+                  type="button"
+                  phx-click="set_time_preset"
+                  phx-value-preset="30d"
+                  class={"preset-btn #{if @time_preset == "30d", do: "active"}"}
+                >
+                  30d
+                </button>
+                <button
+                  type="button"
+                  phx-click="set_time_preset"
+                  phx-value-preset="90d"
+                  class={"preset-btn #{if @time_preset == "90d", do: "active"}"}
+                >
+                  90d
+                </button>
+                <button
+                  type="button"
+                  phx-click="set_time_preset"
+                  phx-value-preset="all"
+                  class={"preset-btn #{if @time_preset == "all", do: "active"}"}
+                >
+                  All
+                </button>
               </div>
             </div>
-            <.tag_filter
-              available_tags={@available_tags}
-              selected_tag_ids={@filter_tag_ids}
-              open={@show_tag_filter}
-            />
-          <% end %>
+          </div>
+          <.tag_filter
+            available_tags={@available_tags}
+            selected_tag_ids={@filter_tag_ids}
+            open={@show_tag_filter}
+          />
         </div>
       </div>
 
@@ -187,17 +197,6 @@
         </div>
       <% end %>
     <% "templates" -> %>
-      <div class="page-header">
-        <div class="page-header__left">
-          <span class="creators-count">{length(@templates)} templates</span>
-        </div>
-        <div class="page-header__right">
-          <.button variant="primary" size="sm" phx-click="new_template">
-            New Template
-          </.button>
-        </div>
-      </div>
-
       <%= if Enum.empty?(@templates) do %>
         <div class="empty-state">
           <svg
@@ -222,94 +221,74 @@
       <% else %>
         <div class="template-list">
           <%= for template <- @templates do %>
-            <div class={"template-card #{if not template.is_active, do: "template-card--inactive"}"}>
-              <div class="template-card__header">
-                <div class="template-card__title-row">
-                  <h3 class="template-card__title">{template.name}</h3>
-                  <%= if template.is_default do %>
-                    <span class="badge badge--success">Default</span>
-                  <% end %>
-                  <%= if not template.is_active do %>
-                    <span class="badge badge--warning">Inactive</span>
-                  <% end %>
-                </div>
+            <div
+              class={"template-card #{if not template.is_active, do: "template-card--inactive"}"}
+              phx-click="preview_template"
+              phx-value-id={template.id}
+            >
+              <div class="template-card__preview">
+                <iframe
+                  srcdoc={template.html_body}
+                  class="template-card__preview-frame"
+                  sandbox="allow-same-origin"
+                  title={"Preview of #{template.name}"}
+                />
               </div>
-
-              <div class="template-card__subject">
-                <strong>Subject:</strong> {template.subject}
-              </div>
-
-              <div class="template-card__actions">
-                <button
-                  type="button"
-                  phx-click="preview_template"
-                  phx-value-id={template.id}
-                  class="button button--ghost button--sm"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    class="size-4"
-                  >
-                    <path d="M10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
-                    <path
-                      fill-rule="evenodd"
-                      d="M.664 10.59a1.651 1.651 0 0 1 0-1.186A10.004 10.004 0 0 1 10 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0 1 10 17c-4.257 0-7.893-2.66-9.336-6.41ZM14 10a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z"
-                      clip-rule="evenodd"
-                    />
-                  </svg>
-                  Preview
-                </button>
-                <button
-                  type="button"
-                  phx-click="edit_template"
-                  phx-value-id={template.id}
-                  class="button button--ghost button--sm"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    class="size-4"
-                  >
-                    <path d="m5.433 13.917 1.262-3.155A4 4 0 0 1 7.58 9.42l6.92-6.918a2.121 2.121 0 0 1 3 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 0 1-.65-.65Z" />
-                    <path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0 0 10 3H4.75A2.75 2.75 0 0 0 2 5.75v9.5A2.75 2.75 0 0 0 4.75 18h9.5A2.75 2.75 0 0 0 17 15.25V10a.75.75 0 0 0-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5Z" />
-                  </svg>
-                  Edit
-                </button>
-                <%= if template.is_active and not template.is_default do %>
-                  <button
-                    type="button"
-                    phx-click="set_default_template"
-                    phx-value-id={template.id}
-                    class="button button--ghost button--sm"
-                  >
-                    Set Default
-                  </button>
-                <% end %>
-                <%= if not template.is_default do %>
-                  <button
-                    type="button"
-                    phx-click="delete_template"
-                    phx-value-id={template.id}
-                    data-confirm="Are you sure you want to delete this template?"
-                    class="button button--ghost button--sm button--danger"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                      class="size-4"
+              <div class="template-card__info">
+                <div class="template-card__header">
+                  <div class="template-card__title-row">
+                    <h3 class="template-card__title">{template.name}</h3>
+                    <%= if template.is_default do %>
+                      <span class="badge badge--success">Default</span>
+                    <% end %>
+                    <%= if not template.is_active do %>
+                      <span class="badge badge--warning">Inactive</span>
+                    <% end %>
+                  </div>
+                  <div class="template-card__actions" phx-click="stop_propagation">
+                    <button
+                      type="button"
+                      phx-click="edit_template"
+                      phx-value-id={template.id}
+                      class="button button--ghost button--sm"
                     >
-                      <path
-                        fill-rule="evenodd"
-                        d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 1 0 .23 1.482l.149-.022.841 10.518A2.75 2.75 0 0 0 7.596 19h4.807a2.75 2.75 0 0 0 2.742-2.53l.841-10.519.149.023a.75.75 0 0 0 .23-1.482A41.03 41.03 0 0 0 14 4.193V3.75A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4ZM8.58 7.72a.75.75 0 0 0-1.5.06l.3 7.5a.75.75 0 1 0 1.5-.06l-.3-7.5Zm4.34.06a.75.75 0 1 0-1.5-.06l-.3 7.5a.75.75 0 1 0 1.5.06l.3-7.5Z"
-                        clip-rule="evenodd"
-                      />
-                    </svg>
-                  </button>
-                <% end %>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        class="size-4"
+                      >
+                        <path d="m5.433 13.917 1.262-3.155A4 4 0 0 1 7.58 9.42l6.92-6.918a2.121 2.121 0 0 1 3 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 0 1-.65-.65Z" />
+                        <path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0 0 10 3H4.75A2.75 2.75 0 0 0 2 5.75v9.5A2.75 2.75 0 0 0 4.75 18h9.5A2.75 2.75 0 0 0 17 15.25V10a.75.75 0 0 0-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5Z" />
+                      </svg>
+                      Edit
+                    </button>
+                    <%= if template.is_active and not template.is_default do %>
+                      <button
+                        type="button"
+                        phx-click="set_default_template"
+                        phx-value-id={template.id}
+                        class="button button--ghost button--sm"
+                      >
+                        Set Default
+                      </button>
+                    <% end %>
+                    <%= if not template.is_default do %>
+                      <button
+                        type="button"
+                        phx-click="delete_template"
+                        phx-value-id={template.id}
+                        data-confirm="Are you sure you want to delete this template?"
+                        class="button button--ghost button--sm button--danger"
+                      >
+                        Delete
+                      </button>
+                    <% end %>
+                  </div>
+                </div>
+                <div class="template-card__subject">
+                  <strong>Subject:</strong> {template.subject}
+                </div>
               </div>
             </div>
           <% end %>
@@ -592,36 +571,70 @@
 
 <style>
   .template-list {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: var(--space-4);
     margin-bottom: var(--space-8);
   }
 
   .template-card {
+    display: flex;
+    flex-direction: column;
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
-    padding: var(--space-4);
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .template-card:hover {
+    border-color: var(--color-border-strong);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   }
 
   .template-card--inactive {
     opacity: 0.6;
   }
 
+  .template-card__preview {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    background: white;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .template-card__preview-frame {
+    width: 200%;
+    height: 200%;
+    border: none;
+    transform: scale(0.5);
+    transform-origin: top left;
+    pointer-events: none;
+  }
+
+  .template-card__info {
+    padding: var(--space-3);
+  }
+
   .template-card__header {
-    margin-bottom: var(--space-3);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
   }
 
   .template-card__title-row {
     display: flex;
     align-items: center;
     gap: var(--space-2);
-    margin-bottom: var(--space-1);
+    flex-wrap: wrap;
   }
 
   .template-card__title {
-    font-size: var(--text-lg);
+    font-size: var(--text-base);
     font-weight: var(--font-semibold);
     margin: 0;
   }
@@ -629,13 +642,15 @@
   .template-card__subject {
     font-size: var(--text-sm);
     color: var(--color-text-secondary);
-    margin-bottom: var(--space-3);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .template-card__actions {
     display: flex;
-    gap: var(--space-2);
-    flex-wrap: wrap;
+    gap: var(--space-1);
+    flex-shrink: 0;
   }
 
   .preview-subject {

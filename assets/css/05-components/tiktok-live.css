@@ -1060,11 +1060,34 @@
    PAGE TABS (Streams / Analytics)
    ============================================================================= */
 
+/* Reduce top padding for pages with page-tabs to bring closer to nav */
+.tiktok-live-index.region,
+.creators-index.region {
+  padding-top: var(--space-4);
+}
+
 .page-tabs {
   display: flex;
-  gap: var(--space-1);
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
   margin-bottom: var(--space-4);
   border-bottom: 2px solid var(--color-border-secondary);
+  /* Fixed height to prevent shift when actions appear/disappear */
+  min-height: 52px;
+}
+
+.page-tabs__tabs {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.page-tabs__actions {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--space-2);
+  /* Ensure consistent height even when empty */
+  min-height: 32px;
 }
 
 .page-tab {
@@ -1087,6 +1110,19 @@
 .page-tab--active {
   color: var(--color-primary);
   border-bottom-color: var(--color-primary);
+}
+
+/* Analytics stream selector (in page tabs actions) */
+.analytics-stream-selector {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.analytics-stream-selector__label {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
 }
 
 /* =============================================================================
@@ -1475,8 +1511,27 @@
 
 @media (max-width: 640px) {
   .page-tabs {
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .page-tabs__tabs {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+  }
+
+  .page-tabs__actions {
+    width: 100%;
+    margin-bottom: var(--space-2);
+  }
+
+  .page-tabs__actions .capture-form {
+    width: 100%;
+  }
+
+  .analytics-stream-selector {
+    width: 100%;
+    flex-wrap: wrap;
   }
 
   .page-tab {

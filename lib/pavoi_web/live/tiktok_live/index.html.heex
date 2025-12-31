@@ -6,7 +6,53 @@
 />
 
 <div class="container container--xl region tiktok-live-index">
-  <.page_tabs active_tab={@page_tab} />
+  <.page_tabs active_tab={@page_tab}>
+    <:actions>
+      <%= case @page_tab do %>
+        <% "streams" -> %>
+          <%= if @dev_mode do %>
+            <form phx-submit="start_capture" class="capture-form">
+              <input
+                type="text"
+                name="unique_id"
+                placeholder="@username"
+                class="input input--sm"
+                value={@capture_input}
+                disabled={@capture_loading}
+              />
+              <button
+                type="submit"
+                class="button button--sm button--primary"
+                disabled={@capture_loading}
+              >
+                <%= if @capture_loading do %>
+                  Connecting...
+                <% else %>
+                  Capture
+                <% end %>
+              </button>
+              <%= if @capture_error do %>
+                <span class="capture-error">{@capture_error}</span>
+              <% end %>
+            </form>
+          <% end %>
+        <% "analytics" -> %>
+          <div class="analytics-stream-selector">
+            <span class="analytics-stream-selector__label">Showing analytics for:</span>
+            <form phx-change="analytics_select_stream">
+              <select name="stream_id" class="filter-select">
+                <option value="" selected={is_nil(@analytics_stream_id)}>All Streams</option>
+                <%= for stream <- @all_streams_for_select do %>
+                  <option value={stream.id} selected={@analytics_stream_id == stream.id}>
+                    @{stream.unique_id} - {Calendar.strftime(stream.started_at, "%b %d")}
+                  </option>
+                <% end %>
+              </select>
+            </form>
+          </div>
+      <% end %>
+    </:actions>
+  </.page_tabs>
 
   <%= case @page_tab do %>
     <% "streams" -> %>
@@ -39,33 +85,6 @@
             </select>
           </form>
         </div>
-
-        <%= if @dev_mode do %>
-          <form phx-submit="start_capture" class="capture-form">
-            <input
-              type="text"
-              name="unique_id"
-              placeholder="@username"
-              class="input input--sm"
-              value={@capture_input}
-              disabled={@capture_loading}
-            />
-            <button
-              type="submit"
-              class="button button--sm button--primary"
-              disabled={@capture_loading}
-            >
-              <%= if @capture_loading do %>
-                Connecting...
-              <% else %>
-                Capture
-              <% end %>
-            </button>
-            <%= if @capture_error do %>
-              <span class="capture-error">{@capture_error}</span>
-            <% end %>
-          </form>
-        <% end %>
       </div>
 
       <%= if Enum.empty?(@live_streams) do %>
