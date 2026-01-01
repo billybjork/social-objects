@@ -421,7 +421,7 @@ defmodule PavoiWeb.CoreComponents do
     ~H"""
     <nav id="global-nav" class="navbar">
       <div class="navbar__start">
-        <.link href={~p"/sessions"} class="navbar__brand">
+        <.link href={~p"/"} class="navbar__brand">
           <img src={~p"/images/logo-light.svg"} class="navbar__logo navbar__logo--light" alt="Pavoi" />
           <img src={~p"/images/logo-dark.svg"} class="navbar__logo navbar__logo--dark" alt="Pavoi" />
         </.link>

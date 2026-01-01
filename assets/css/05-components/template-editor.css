@@ -1,0 +1,123 @@
+/**
+ * Template Editor - Minimal overrides for GrapesJS
+ * Let GrapesJS handle its own layout - we just provide sizing and theme colors.
+ */
+
+/* ============================================
+   Page Layout
+   ============================================ */
+.template-editor-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--color-surface);
+}
+
+/* The form wraps everything - needs to flex too */
+.template-editor-page > form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.template-editor-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+  flex-shrink: 0;
+}
+
+.template-editor-back {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  font-size: var(--text-sm);
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+}
+
+.template-editor-back:hover {
+  background: var(--color-surface-secondary);
+  color: var(--color-text);
+}
+
+.template-editor-fields {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+  flex: 1;
+}
+
+.template-editor-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.template-editor-field label {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-medium);
+}
+
+.template-editor-field .input {
+  padding: var(--space-2) var(--space-3);
+  min-width: 150px;
+}
+
+.template-editor-field--grow {
+  flex: 1;
+  min-width: 200px;
+}
+
+.template-editor-field--grow .input {
+  width: 100%;
+}
+
+.template-editor-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+/* ============================================
+   GrapesJS Container
+   Use position:absolute so GrapesJS can use 100% height
+   (percentage heights don't work with flex-based parents)
+   ============================================ */
+.template-editor-container {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.template-editor-container .gjs-editor {
+  position: absolute;
+  inset: 0;
+}
+
+/* ============================================
+   Theme Colors Only
+   ============================================ */
+.template-editor-container .gjs-one-bg {
+  background-color: #373d49;
+}
+
+.template-editor-container .gjs-two-color {
+  color: #c5c8ce;
+}
+
+.template-editor-container .gjs-three-bg {
+  background-color: #2c303a;
+}
+
+.template-editor-container .gjs-four-color,
+.template-editor-container .gjs-four-color-h:hover {
+  color: #71c5e8;
+}

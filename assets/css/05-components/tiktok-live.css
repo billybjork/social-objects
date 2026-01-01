@@ -119,24 +119,22 @@
    ============================================================================= */
 
 .stream-thumbnail {
-  width: auto;
-  height: auto;
-  max-height: 80px;
+  width: 45px;
+  height: 80px;
   border-radius: var(--radius-sm);
   overflow: hidden;
   flex-shrink: 0;
 }
 
 .stream-thumbnail__image {
-  width: auto;
-  height: auto;
-  max-height: 80px;
-  object-fit: contain;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .stream-thumbnail__placeholder {
-  width: 45px;
-  height: 80px;
+  width: 100%;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -371,7 +369,6 @@
   position: relative;
   width: 100%;
   height: 100%;
-  max-height: none; /* Override global 80px limit */
 }
 
 .stream-modal-header__thumbnail .stream-thumbnail__image {
@@ -380,7 +377,6 @@
   left: 0;
   width: 100%;
   height: 100%;
-  max-height: none; /* Override global 80px limit */
   object-fit: contain;
 }
 

@@ -1,13 +1,31 @@
 defmodule PavoiWeb.Router do
   use PavoiWeb, :router
 
+  # Custom CSP that allows GrapesJS template editor to function
+  # The editor needs 'unsafe-inline' and 'unsafe-eval' for its canvas iframe
+  # Also allows cdnjs.cloudflare.com for Font Awesome (used by newsletter plugin)
+  @csp_header %{
+    "content-security-policy" =>
+      "default-src 'self'; " <>
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data:; " <>
+        "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; " <>
+        "style-src-elem 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; " <>
+        "img-src 'self' data: blob: https:; " <>
+        "font-src 'self' data: https://cdnjs.cloudflare.com; " <>
+        "frame-src 'self' blob: data:; " <>
+        "child-src 'self' blob: data:; " <>
+        "connect-src 'self' ws: wss:; " <>
+        "frame-ancestors 'self'; " <>
+        "base-uri 'self';"
+  }
+
   pipeline :browser do
     plug :accepts, ["html"]
     plug :fetch_session
     plug :fetch_live_flash
     plug :put_root_layout, html: {PavoiWeb.Layouts, :root}
     plug :protect_from_forgery
-    plug :put_secure_browser_headers
+    plug :put_secure_browser_headers, @csp_header
   end
 
   pipeline :api do
@@ -66,8 +84,8 @@ defmodule PavoiWeb.Router do
   scope "/", PavoiWeb do
     pipe_through [:browser, :protected]
 
-    # Redirect root to sessions manager
-    get "/", Redirector, :redirect_to_sessions
+    # Redirect root to readme/documentation page
+    get "/", Redirector, :redirect_to_readme
 
     # Product management
     live "/products", ProductsLive.Index
@@ -80,8 +98,15 @@ defmodule PavoiWeb.Router do
     # Creator CRM (includes outreach mode via ?view=outreach)
     live "/creators", CreatorsLive.Index
 
+    # Email template editor (full-page GrapesJS)
+    live "/templates/new", TemplateEditorLive, :new
+    live "/templates/:id/edit", TemplateEditorLive, :edit
+
     # TikTok Live stream data browser
     live "/streams", TiktokLive.Index
+
+    # Documentation/directory page
+    live "/readme", ReadmeLive.Index
   end
 
   # Other scopes may use custom stacks.

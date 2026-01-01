@@ -37,6 +37,7 @@
 @import "./04-pages/creators-index.css";
 @import "./04-pages/join.css";
 @import "./04-pages/login.css";
+@import "./04-pages/readme.css";
 
 /* Components Layer - UI components */
 @import "./05-components/button.css";
@@ -56,6 +57,8 @@
 @import "./05-components/creator.css";
 @import "./05-components/tiktok-live.css";
 @import "./05-components/filter-dropdown.css";
+@import "./05-components/template-card.css";
+@import "./05-components/template-editor.css";
 
 /* Utilities Layer - Utility classes */
 @import "./06-utilities/utilities.css";

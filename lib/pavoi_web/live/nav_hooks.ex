@@ -16,8 +16,10 @@ defmodule PavoiWeb.NavHooks do
   defp get_current_page(PavoiWeb.ProductsLive.Index), do: :products
   defp get_current_page(PavoiWeb.CreatorsLive.Index), do: :creators
   defp get_current_page(PavoiWeb.TiktokLive.Index), do: :streams
-  # Controller and host views return nil so navbar doesn't show
+  defp get_current_page(PavoiWeb.ReadmeLive.Index), do: :readme
+  # Full-page views return nil so navbar doesn't show
   defp get_current_page(PavoiWeb.SessionHostLive), do: nil
   defp get_current_page(PavoiWeb.SessionControllerLive), do: nil
+  defp get_current_page(PavoiWeb.TemplateEditorLive), do: nil
   defp get_current_page(_), do: nil
 end

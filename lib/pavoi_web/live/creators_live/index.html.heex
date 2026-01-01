@@ -30,12 +30,17 @@
             </div>
           <% end %>
         <% "templates" -> %>
-          <button type="button" class="button button--sm button--primary" phx-click="new_template">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-4">
+          <.link navigate={~p"/templates/new"} class="button button--sm button--primary">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              class="size-4"
+            >
               <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
             </svg>
             New Template
-          </button>
+          </.link>
       <% end %>
     </:actions>
   </.page_tabs>
@@ -246,10 +251,8 @@
                     <% end %>
                   </div>
                   <div class="template-card__actions" phx-click="stop_propagation">
-                    <button
-                      type="button"
-                      phx-click="edit_template"
-                      phx-value-id={template.id}
+                    <.link
+                      navigate={~p"/templates/#{template.id}/edit"}
                       class="button button--ghost button--sm"
                     >
                       <svg
@@ -262,7 +265,7 @@
                         <path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0 0 10 3H4.75A2.75 2.75 0 0 0 2 5.75v9.5A2.75 2.75 0 0 0 4.75 18h9.5A2.75 2.75 0 0 0 17 15.25V10a.75.75 0 0 0-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5Z" />
                       </svg>
                       Edit
-                    </button>
+                    </.link>
                     <%= if template.is_active and not template.is_default do %>
                       <button
                         type="button"
@@ -447,315 +450,3 @@
     </div>
   </.modal>
 <% end %>
-
-<%!-- Template Edit/New Modal --%>
-<%= if @editing_template do %>
-  <.modal
-    id="edit-template-modal"
-    show={true}
-    on_cancel={JS.push("close_template_form")}
-    modal_class="modal__box--xl modal__box--tall"
-  >
-    <.form
-      for={@template_form}
-      phx-change="validate_template"
-      phx-submit="save_template"
-      class="template-modal-form"
-    >
-      <div class="modal__header">
-        <h2 class="modal__title">
-          <%= if is_nil(@editing_template.id) do %>
-            New Template
-          <% else %>
-            Edit Template
-          <% end %>
-        </h2>
-      </div>
-
-      <div class="modal__body modal__body--scrollable">
-        <div class="form-group">
-          <label class="label" for="email_template_name">Template Name</label>
-          <input
-            type="text"
-            id="email_template_name"
-            name="email_template[name]"
-            value={@template_form[:name].value}
-            class="input"
-            placeholder="Welcome Email"
-            disabled={not is_nil(@editing_template.id)}
-          />
-          <span :for={{msg, _opts} <- @template_form[:name].errors} class="form-error">
-            {msg}
-          </span>
-          <%= if not is_nil(@editing_template.id) do %>
-            <small class="form-hint">Name cannot be changed after creation.</small>
-          <% end %>
-        </div>
-
-        <div class="form-group">
-          <label class="label" for="email_template_subject">Subject Line</label>
-          <input
-            type="text"
-            id="email_template_subject"
-            name="email_template[subject]"
-            value={@template_form[:subject].value}
-            class="input"
-            placeholder="You're invited to..."
-          />
-          <span :for={{msg, _opts} <- @template_form[:subject].errors} class="form-error">
-            {msg}
-          </span>
-        </div>
-
-        <div class="form-group">
-          <label class="label" for="email_template_lark_preset">Lark Community</label>
-          <select
-            id="email_template_lark_preset"
-            name="email_template[lark_preset]"
-            class="input"
-          >
-            <option value="jewelry" selected={@template_form[:lark_preset].value == "jewelry"}>
-              Jewelry
-            </option>
-            <option value="active" selected={@template_form[:lark_preset].value == "active"}>
-              Active
-            </option>
-            <option
-              value="top_creators"
-              selected={@template_form[:lark_preset].value == "top_creators"}
-            >
-              Top Creators
-            </option>
-          </select>
-          <small class="form-hint">
-            Which Lark community to redirect to after SMS consent.
-          </small>
-        </div>
-
-        <div class="form-group template-editor-layout">
-          <div class="template-editor-source">
-            <label class="label">HTML Source</label>
-            <textarea
-              id="email_template_html_body"
-              name="email_template[html_body]"
-              class="input template-source-textarea"
-              phx-debounce="300"
-            >{@template_form[:html_body].value}</textarea>
-            <span :for={{msg, _opts} <- @template_form[:html_body].errors} class="form-error">
-              {msg}
-            </span>
-          </div>
-          <div class="template-editor-preview">
-            <label class="label">Preview</label>
-            <iframe
-              srcdoc={@template_form[:html_body].value || "<p>Start typing to see preview...</p>"}
-              class="template-preview-frame"
-              sandbox="allow-same-origin"
-              title="Email preview"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div class="modal__footer modal__footer--sticky">
-        <button type="button" phx-click="close_template_form" class="button button--ghost">
-          Cancel
-        </button>
-        <button type="submit" class="button button--primary">
-          Save Template
-        </button>
-      </div>
-    </.form>
-  </.modal>
-<% end %>
-
-<style>
-  .template-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: var(--space-4);
-    margin-bottom: var(--space-8);
-  }
-
-  .template-card {
-    display: flex;
-    flex-direction: column;
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
-    overflow: hidden;
-    cursor: pointer;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
-  }
-
-  .template-card:hover {
-    border-color: var(--color-border-strong);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  }
-
-  .template-card--inactive {
-    opacity: 0.6;
-  }
-
-  .template-card__preview {
-    position: relative;
-    aspect-ratio: 1 / 1;
-    overflow: hidden;
-    background: white;
-    border-bottom: 1px solid var(--color-border);
-  }
-
-  .template-card__preview-frame {
-    width: 200%;
-    height: 200%;
-    border: none;
-    transform: scale(0.5);
-    transform-origin: top left;
-    pointer-events: none;
-  }
-
-  .template-card__info {
-    padding: var(--space-3);
-  }
-
-  .template-card__header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: var(--space-2);
-    margin-bottom: var(--space-2);
-  }
-
-  .template-card__title-row {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    flex-wrap: wrap;
-  }
-
-  .template-card__title {
-    font-size: var(--text-base);
-    font-weight: var(--font-semibold);
-    margin: 0;
-  }
-
-  .template-card__subject {
-    font-size: var(--text-sm);
-    color: var(--color-text-secondary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .template-card__actions {
-    display: flex;
-    gap: var(--space-1);
-    flex-shrink: 0;
-  }
-
-  .preview-subject {
-    margin-bottom: var(--space-4);
-    padding: var(--space-3);
-    background: var(--color-surface-secondary);
-    border-radius: var(--radius-md);
-  }
-
-  .preview-email {
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    overflow: hidden;
-  }
-
-  .preview-email__frame {
-    width: 100%;
-    height: 500px;
-    border: none;
-    background: white;
-  }
-
-  /* Template editor layout */
-  .template-editor-layout {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-4);
-  }
-
-  .template-source-textarea {
-    min-height: 400px;
-    font-family: var(--font-mono);
-    font-size: var(--text-sm);
-    line-height: 1.5;
-    resize: vertical;
-    white-space: pre;
-  }
-
-  .template-preview-frame {
-    width: 100%;
-    height: 400px;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    background: white;
-  }
-
-  /* Modal size variants */
-  .modal__box--lg {
-    max-width: 700px;
-  }
-
-  .modal__box--xl {
-    max-width: 900px;
-  }
-
-  /* Tall modal with sticky footer */
-  .modal__box--tall {
-    max-height: 90vh;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .template-modal-form {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
-  }
-
-  .modal__body--scrollable {
-    flex: 1;
-    overflow-y: auto;
-    padding: var(--space-4);
-  }
-
-  .modal__footer--sticky {
-    flex-shrink: 0;
-    display: flex;
-    justify-content: flex-end;
-    gap: var(--space-3);
-    padding: var(--space-4);
-    border-top: 1px solid var(--color-border);
-    background: var(--color-surface);
-  }
-
-  .button--danger {
-    color: var(--color-error);
-  }
-
-  .button--danger:hover {
-    background: var(--color-error);
-    color: white;
-  }
-
-  .form-error {
-    display: block;
-    color: var(--color-error);
-    font-size: var(--text-sm);
-    margin-top: var(--space-1);
-  }
-
-  .form-hint {
-    display: block;
-    font-size: var(--text-xs);
-    color: var(--color-text-secondary);
-    margin-top: var(--space-1);
-  }
-</style>

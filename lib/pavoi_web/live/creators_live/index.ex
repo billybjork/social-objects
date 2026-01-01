@@ -13,7 +13,6 @@ defmodule PavoiWeb.CreatorsLive.Index do
 
   alias Pavoi.Catalog
   alias Pavoi.Communications
-  alias Pavoi.Communications.EmailTemplate
   alias Pavoi.Communications.TemplateRenderer
   alias Pavoi.Creators
   alias Pavoi.Creators.Creator
@@ -111,8 +110,6 @@ defmodule PavoiWeb.CreatorsLive.Index do
       |> assign(:page_tab, "creators")
       # Email template management (for Templates tab)
       |> assign(:templates, [])
-      |> assign(:editing_template, nil)
-      |> assign(:template_form, nil)
       |> assign(:preview_template, nil)
       |> assign(:preview_subject, nil)
       |> assign(:preview_html, nil)
@@ -854,79 +851,6 @@ defmodule PavoiWeb.CreatorsLive.Index do
     {:noreply, socket}
   end
 
-  @impl true
-  def handle_event("new_template", _params, socket) do
-    template = %EmailTemplate{}
-    changeset = Communications.change_email_template(template)
-
-    socket =
-      socket
-      |> assign(:editing_template, template)
-      |> assign(:template_form, to_form(changeset))
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_event("edit_template", %{"id" => id}, socket) do
-    template = Communications.get_email_template!(id)
-    changeset = Communications.change_email_template(template)
-
-    socket =
-      socket
-      |> assign(:editing_template, template)
-      |> assign(:template_form, to_form(changeset))
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_event("close_template_form", _params, socket) do
-    socket =
-      socket
-      |> assign(:editing_template, nil)
-      |> assign(:template_form, nil)
-
-    {:noreply, socket}
-  end
-
-  @impl true
-  def handle_event("validate_template", %{"email_template" => params}, socket) do
-    changeset =
-      socket.assigns.editing_template
-      |> Communications.change_email_template(params)
-      |> Map.put(:action, :validate)
-
-    {:noreply, assign(socket, :template_form, to_form(changeset))}
-  end
-
-  @impl true
-  def handle_event("save_template", %{"email_template" => params}, socket) do
-    result =
-      if socket.assigns.editing_template.id do
-        Communications.update_email_template(socket.assigns.editing_template, params)
-      else
-        Communications.create_email_template(params)
-      end
-
-    case result do
-      {:ok, _template} ->
-        templates = Communications.list_all_email_templates()
-
-        socket =
-          socket
-          |> assign(:templates, templates)
-          |> assign(:editing_template, nil)
-          |> assign(:template_form, nil)
-          |> put_flash(:info, "Template saved successfully")
-
-        {:noreply, socket}
-
-      {:error, changeset} ->
-        {:noreply, assign(socket, :template_form, to_form(changeset))}
-    end
-  end
-
   # =============================================================================
   # INFINITE SCROLL IMPLEMENTATION
   # =============================================================================
@@ -975,7 +899,9 @@ defmodule PavoiWeb.CreatorsLive.Index do
   defp get_pending_creator_ids(socket) do
     pending_ids =
       socket.assigns.creators
-      |> Enum.filter(&(MapSet.member?(socket.assigns.selected_ids, &1.id) && &1.outreach_status == "pending"))
+      |> Enum.filter(
+        &(MapSet.member?(socket.assigns.selected_ids, &1.id) && &1.outreach_status == "pending")
+      )
       |> Enum.map(& &1.id)
 
     case pending_ids do
@@ -1268,7 +1194,6 @@ defmodule PavoiWeb.CreatorsLive.Index do
   defp derive_time_preset_from_delta(7), do: "7d"
   defp derive_time_preset_from_delta(30), do: "30d"
   defp derive_time_preset_from_delta(90), do: "90d"
-  defp derive_time_preset_from_delta(_), do: "all"
 
   defp parse_outreach_status(nil), do: nil
   defp parse_outreach_status(""), do: nil

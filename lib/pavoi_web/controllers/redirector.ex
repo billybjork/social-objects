@@ -4,7 +4,7 @@ defmodule PavoiWeb.Redirector do
   """
   use PavoiWeb, :controller
 
-  def redirect_to_sessions(conn, _params) do
-    redirect(conn, to: ~p"/sessions")
+  def redirect_to_readme(conn, _params) do
+    redirect(conn, to: ~p"/readme")
   end
 end

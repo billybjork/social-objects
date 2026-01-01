@@ -20,6 +20,7 @@ import TagOverflow from "./hooks/tag_overflow"
 import ImageLightbox from "./hooks/image_lightbox"
 import SentimentChart from "./hooks/sentiment_chart"
 import CategoryChart from "./hooks/category_chart"
+import TemplateEditor from "./hooks/template_editor"
 
 const Hooks = {
   SessionHostKeyboard,
@@ -42,6 +43,7 @@ const Hooks = {
   ImageLightbox,
   SentimentChart,
   CategoryChart,
+  TemplateEditor,
 }
 
 export default Hooks

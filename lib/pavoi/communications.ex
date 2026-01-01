@@ -4,8 +4,9 @@ defmodule Pavoi.Communications do
   """
 
   import Ecto.Query, warn: false
-  alias Pavoi.Repo
+
   alias Pavoi.Communications.EmailTemplate
+  alias Pavoi.Repo
 
   ## Email Templates
 
