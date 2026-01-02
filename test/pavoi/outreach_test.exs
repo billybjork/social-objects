@@ -106,7 +106,7 @@ defmodule Pavoi.OutreachTest do
 
   describe "unsubscribe tokens" do
     test "generates and verifies valid token" do
-      creator_id = 12345
+      creator_id = 12_345
 
       token = Outreach.generate_unsubscribe_token(creator_id)
       assert is_binary(token)

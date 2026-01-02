@@ -99,11 +99,12 @@ defmodule PavoiWeb.SendgridWebhookController do
   end
 
   # SendGrid message ID appears in sg_message_id field
-  # Format is typically: "abc123.xyz789" or with domain "abc123.xyz789@sendgrid.net"
+  # Format varies: "abc123" or "abc123.recvd-xxx" or "abc123.filter-xxx" or "abc123@sendgrid.net"
+  # We store just the base ID (before any dot or @), so extract that for matching
   defp extract_message_id(event) do
     case Map.get(event, "sg_message_id") do
       nil -> nil
-      id -> String.replace(id, ~r/\.filter.*$/, "")
+      id -> id |> String.split(~r/[.@]/, parts: 2) |> List.first()
     end
   end
 
