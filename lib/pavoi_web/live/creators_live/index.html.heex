@@ -302,9 +302,23 @@
       <h2 class="modal__title">Send Email</h2>
     </div>
     <div class="modal__body">
-      <p class="text-secondary mb-4">
-        Send email to <strong>{MapSet.size(@selected_ids)}</strong> creators.
-      </p>
+      <%!-- Confirmation Summary --%>
+      <div class="confirmation-summary mb-4 p-4 bg-surface-secondary rounded-lg">
+        <div class="flex items-center gap-3 mb-2">
+          <span class="text-2xl font-semibold">{@sendable_selected_count}</span>
+          <span class="text-secondary">
+            email{if @sendable_selected_count != 1, do: "s"} will be sent
+          </span>
+        </div>
+        <%= if @sendable_selected_count < MapSet.size(@selected_ids) do %>
+          <p class="text-sm text-secondary">
+            <span class="text-warning-600">
+              {MapSet.size(@selected_ids) - @sendable_selected_count}
+            </span>
+            creator{if MapSet.size(@selected_ids) - @sendable_selected_count != 1, do: "s"} skipped (no email or opted out)
+          </p>
+        <% end %>
+      </div>
 
       <%= unless @outreach_email_enabled do %>
         <div class="alert-box alert-box--warning">
@@ -367,9 +381,9 @@
       <.button
         variant="primary"
         phx-click="send_outreach"
-        disabled={is_nil(@selected_template_id)}
+        disabled={is_nil(@selected_template_id) || @sendable_selected_count == 0}
       >
-        Send Email
+        Confirm Send ({@sendable_selected_count})
       </.button>
     </div>
   </.modal>

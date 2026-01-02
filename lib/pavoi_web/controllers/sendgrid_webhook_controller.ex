@@ -8,10 +8,16 @@ defmodule PavoiWeb.SendgridWebhookController do
 
   Configure the webhook URL in SendGrid: Settings > Mail Settings > Event Notification
   URL: https://your-domain.com/webhooks/sendgrid
+
+  ## Signature Verification
+
+  When `SENDGRID_WEBHOOK_VERIFICATION_KEY` is set, incoming requests are
+  verified using SendGrid's ECDSA signature. Invalid signatures return 403.
   """
   use PavoiWeb, :controller
 
   alias Pavoi.Outreach
+  alias PavoiWeb.Plugs.SendgridSignature
 
   require Logger
 
@@ -20,8 +26,20 @@ defmodule PavoiWeb.SendgridWebhookController do
 
   SendGrid sends an array of events in the request body.
   We process each event and always return 200 to acknowledge receipt.
+  Returns 403 if signature verification fails.
   """
   def handle(conn, _params) do
+    case SendgridSignature.verify(conn) do
+      :ok ->
+        process_webhook(conn)
+
+      {:error, reason} ->
+        Logger.warning("[SendGrid Webhook] Rejected: #{reason}")
+        send_resp(conn, 403, "Forbidden")
+    end
+  end
+
+  defp process_webhook(conn) do
     # Phoenix wraps JSON arrays in "_json" key
     events =
       case conn.body_params do

@@ -142,7 +142,7 @@ defmodule Pavoi.Creators.Creator do
     |> validate_inclusion(:tiktok_badge_level, @badge_levels,
       message: "must be a valid badge level"
     )
-    |> validate_format(:email, ~r/@/, message: "must be a valid email")
+    |> validate_format(:email, ~r/^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: "must be a valid email")
     |> unique_constraint(:tiktok_username)
   end
 

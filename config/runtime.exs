@@ -36,6 +36,8 @@ if config_env() == :dev do
     sendgrid_api_key: System.get_env("SENDGRID_API_KEY"),
     sendgrid_from_email: System.get_env("SENDGRID_FROM_EMAIL"),
     sendgrid_from_name: System.get_env("SENDGRID_FROM_NAME", "Pavoi"),
+    # SendGrid webhook signature verification (optional - if set, webhook requests are verified)
+    sendgrid_webhook_verification_key: System.get_env("SENDGRID_WEBHOOK_VERIFICATION_KEY"),
     # Twilio configuration for creator outreach SMS
     twilio_account_sid: System.get_env("TWILIO_ACCOUNT_SID"),
     twilio_auth_token: System.get_env("TWILIO_AUTH_TOKEN"),
@@ -117,6 +119,8 @@ if config_env() == :prod do
     sendgrid_api_key: System.get_env("SENDGRID_API_KEY"),
     sendgrid_from_email: System.get_env("SENDGRID_FROM_EMAIL"),
     sendgrid_from_name: System.get_env("SENDGRID_FROM_NAME", "Pavoi"),
+    # SendGrid webhook signature verification (optional - if set, webhook requests are verified)
+    sendgrid_webhook_verification_key: System.get_env("SENDGRID_WEBHOOK_VERIFICATION_KEY"),
     # Twilio configuration for creator outreach SMS
     twilio_account_sid: System.get_env("TWILIO_ACCOUNT_SID"),
     twilio_auth_token: System.get_env("TWILIO_AUTH_TOKEN"),
