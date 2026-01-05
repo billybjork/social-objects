@@ -503,6 +503,40 @@ defmodule PavoiWeb.CoreComponents do
               <% end %>
             </form>
           <% end %>
+          <%= if @current_page == :product_sets do %>
+            <div class="navbar__sync-group">
+              <.button
+                variant="primary"
+                size="sm"
+                phx-click="trigger_shopify_sync"
+                class={@syncing && "button--disabled"}
+                disabled={@syncing}
+              >
+                {if @syncing, do: "Syncing...", else: "Sync Shopify"}
+              </.button>
+              <div class="navbar__sync-meta">
+                {if @last_sync_at,
+                  do: format_relative_time(@last_sync_at),
+                  else: "Never synced"}
+              </div>
+            </div>
+            <div class="navbar__sync-group">
+              <.button
+                variant="primary"
+                size="sm"
+                phx-click="trigger_tiktok_sync"
+                class={@tiktok_syncing && "button--disabled"}
+                disabled={@tiktok_syncing}
+              >
+                {if @tiktok_syncing, do: "Syncing...", else: "Sync TikTok"}
+              </.button>
+              <div class="navbar__sync-meta">
+                {if @tiktok_last_sync_at,
+                  do: format_relative_time(@tiktok_last_sync_at),
+                  else: "Never synced"}
+              </div>
+            </div>
+          <% end %>
           <%= if @current_page == :creators do %>
             <div class="navbar__sync-group">
               <.button

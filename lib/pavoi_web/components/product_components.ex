@@ -848,4 +848,55 @@ defmodule PavoiWeb.ProductComponents do
 
     defp format_price_for_display(_), do: "N/A"
   end
+
+  # ============================================================================
+  # Product Sets Page Tabs
+  # ============================================================================
+
+  @doc """
+  Renders page-level tabs for the Product Sets page (Sets vs Products).
+
+  ## Assigns
+  - `active_tab` - The currently active tab ("sets" or "products")
+  - `actions` slot - Optional right-aligned content
+
+  ## Example
+      <.product_sets_page_tabs active_tab={@page_tab}>
+        <:actions>
+          <.button>New Product Set</.button>
+        </:actions>
+      </.product_sets_page_tabs>
+  """
+  attr :active_tab, :string, required: true
+  slot :actions, doc: "Right-aligned content to display inline with tabs"
+
+  def product_sets_page_tabs(assigns) do
+    ~H"""
+    <div class="page-tabs">
+      <div class="page-tabs__tabs">
+        <button
+          type="button"
+          class={["page-tab", @active_tab == "sets" && "page-tab--active"]}
+          phx-click="change_page_tab"
+          phx-value-tab="sets"
+        >
+          Sets
+        </button>
+        <button
+          type="button"
+          class={["page-tab", @active_tab == "products" && "page-tab--active"]}
+          phx-click="change_page_tab"
+          phx-value-tab="products"
+        >
+          Products
+        </button>
+      </div>
+      <%= if @actions != [] do %>
+        <div class="page-tabs__actions">
+          {render_slot(@actions)}
+        </div>
+      <% end %>
+    </div>
+    """
+  end
 end

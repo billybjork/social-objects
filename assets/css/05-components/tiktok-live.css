@@ -1031,7 +1031,8 @@
 
 /* Reduce top padding for pages with page-tabs to bring closer to nav */
 .tiktok-live-index.region,
-.creators-index.region {
+.creators-index.region,
+.product-sets-index.region {
   padding-top: var(--space-4);
 }
 

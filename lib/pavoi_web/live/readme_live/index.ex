@@ -160,7 +160,6 @@ defmodule PavoiWeb.ReadmeLive.Index do
               <li>Delivery tracking via SendGrid webhooks</li>
             </:features>
           </.page_card>
-
         </div>
       </section>
 

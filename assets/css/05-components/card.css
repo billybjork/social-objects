@@ -394,6 +394,11 @@
   min-width: 0; /* Allow text truncation */
   text-decoration: none;
   color: inherit;
+  cursor: pointer;
+}
+
+.product-set-card__product-link:hover {
+  opacity: 0.8;
 }
 
 /* Show products when expanded - using transitions instead of animations */

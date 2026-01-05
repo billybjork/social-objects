@@ -66,7 +66,10 @@ defmodule PavoiWeb.ProductSetsLive.Index do
   alias Pavoi.Catalog.Product
   alias Pavoi.ProductSets
   alias Pavoi.ProductSets.{ProductSet, ProductSetProduct}
+  alias Pavoi.Settings
   alias Pavoi.Storage
+  alias Pavoi.Workers.ShopifySyncWorker
+  alias Pavoi.Workers.TiktokSyncWorker
 
   import PavoiWeb.AIComponents
   import PavoiWeb.ProductComponents
@@ -78,13 +81,23 @@ defmodule PavoiWeb.ProductSetsLive.Index do
     if connected?(socket) do
       Phoenix.PubSub.subscribe(Pavoi.PubSub, "product_sets:list")
       Phoenix.PubSub.subscribe(Pavoi.PubSub, "shopify:sync")
+      Phoenix.PubSub.subscribe(Pavoi.PubSub, "tiktok:sync")
       Phoenix.PubSub.subscribe(Pavoi.PubSub, "ai:talking_points")
     end
 
     brands = Catalog.list_brands()
+    last_sync_at = Settings.get_shopify_last_sync_at()
+    tiktok_last_sync_at = Settings.get_tiktok_last_sync_at()
+
+    # Check if syncs are currently in progress
+    shopify_syncing = sync_job_active?(ShopifySyncWorker)
+    tiktok_syncing = sync_job_active?(TiktokSyncWorker)
 
     socket =
       socket
+      # Page tab state (sets vs products)
+      |> assign(:page_tab, "sets")
+      # Product Sets tab state
       |> assign(:product_set_page, 1)
       |> assign(:product_sets_has_more, false)
       |> assign(:loading_product_sets, false)
@@ -150,6 +163,21 @@ defmodule PavoiWeb.ProductSetsLive.Index do
         max_file_size: 5_000_000,
         external: &presign_notes_image/2
       )
+      # Products tab state (for browsing all products)
+      |> assign(:last_sync_at, last_sync_at)
+      |> assign(:syncing, shopify_syncing)
+      |> assign(:tiktok_last_sync_at, tiktok_last_sync_at)
+      |> assign(:tiktok_syncing, tiktok_syncing)
+      |> assign(:platform_filter, "")
+      |> assign(:browse_product_search_query, "")
+      |> assign(:browse_product_sort_by, "")
+      |> assign(:browse_product_page, 1)
+      |> assign(:browse_products_total_count, 0)
+      |> assign(:browse_products_has_more, false)
+      |> assign(:loading_browse_products, false)
+      |> assign(:browse_search_touched, false)
+      |> assign(:generating_product_id, nil)
+      |> stream(:browse_products, [])
 
     {:ok, socket}
   end
@@ -158,6 +186,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
   def handle_params(params, _uri, socket) do
     socket =
       socket
+      |> apply_page_tab(params)
       |> apply_url_params(params)
 
     {:noreply, socket}
@@ -179,6 +208,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
   def handle_info({:sync_started}, socket) do
     socket =
       socket
+      |> assign(:syncing, true)
       |> put_flash(:info, "Syncing product catalog from Shopify...")
 
     {:noreply, socket}
@@ -188,10 +218,15 @@ defmodule PavoiWeb.ProductSetsLive.Index do
   def handle_info({:sync_completed, counts}, socket) do
     # Reload sessions to pick up any product changes
     # Reset pagination to page 1 and reload
+    last_sync_at = Settings.get_shopify_last_sync_at()
+
     socket =
       socket
+      |> assign(:syncing, false)
+      |> assign(:last_sync_at, last_sync_at)
       |> assign(:product_set_page, 1)
       |> load_product_sets()
+      |> maybe_reload_browse_products()
       |> put_flash(
         :info,
         "Shopify sync complete: #{counts.products} products, #{counts.brands} brands, #{counts.images} images"
@@ -210,6 +245,46 @@ defmodule PavoiWeb.ProductSetsLive.Index do
 
     socket =
       socket
+      |> assign(:syncing, false)
+      |> put_flash(:error, message)
+
+    {:noreply, socket}
+  end
+
+  # TikTok sync event handlers
+  @impl true
+  def handle_info({:tiktok_sync_started}, socket) do
+    socket =
+      socket
+      |> assign(:tiktok_syncing, true)
+      |> put_flash(:info, "Syncing product catalog from TikTok Shop...")
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:tiktok_sync_completed, _counts}, socket) do
+    tiktok_last_sync_at = Settings.get_tiktok_last_sync_at()
+
+    socket =
+      socket
+      |> assign(:tiktok_syncing, false)
+      |> assign(:tiktok_last_sync_at, tiktok_last_sync_at)
+      |> assign(:product_set_page, 1)
+      |> load_product_sets()
+      |> maybe_reload_browse_products()
+      |> put_flash(:info, "TikTok sync completed successfully")
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:tiktok_sync_failed, reason}, socket) do
+    message = "TikTok sync failed: #{inspect(reason)}"
+
+    socket =
+      socket
+      |> assign(:tiktok_syncing, false)
       |> put_flash(:error, message)
 
     {:noreply, socket}
@@ -308,8 +383,8 @@ defmodule PavoiWeb.ProductSetsLive.Index do
   end
 
   @impl true
-  def handle_event("keydown", %{"key" => "Escape"}, socket) do
-    # Only close expanded sessions if no modal is currently open
+  def handle_event("escape_pressed", _params, socket) do
+    # Only close expanded product sets if no modal is currently open
     # If a modal is open, let the modal's own Escape handler close it first
     modal_open? =
       socket.assigns.show_new_product_set_modal or
@@ -319,7 +394,7 @@ defmodule PavoiWeb.ProductSetsLive.Index do
     if modal_open? do
       {:noreply, socket}
     else
-      # Close expanded session on Escape by removing query param
+      # Close expanded product set on Escape by removing query param
       {:noreply, push_patch(socket, to: ~p"/product-sets")}
     end
   end
@@ -985,6 +1060,20 @@ defmodule PavoiWeb.ProductSetsLive.Index do
       |> assign(:current_image_index, 0)
       |> assign(:product_edit_form, to_form(Product.changeset(%Product{}, %{})))
 
+    # If on products tab, push_patch to update URL (remove ?p= param)
+    socket =
+      if socket.assigns.page_tab == "products" do
+        query_params =
+          %{pt: "products"}
+          |> maybe_add_param(:q, socket.assigns.browse_product_search_query)
+          |> maybe_add_param(:sort, socket.assigns.browse_product_sort_by)
+          |> maybe_add_param(:platform, socket.assigns.platform_filter)
+
+        push_patch(socket, to: ~p"/product-sets?#{query_params}")
+      else
+        socket
+      end
+
     {:noreply, socket}
   end
 
@@ -1325,6 +1414,122 @@ defmodule PavoiWeb.ProductSetsLive.Index do
     else
       {:noreply, socket}
     end
+  end
+
+  # =============================================================================
+  # PAGE TAB NAVIGATION
+  # =============================================================================
+
+  @impl true
+  def handle_event("change_page_tab", %{"tab" => tab}, socket) do
+    params = build_tab_query_params(socket, page_tab: tab)
+    {:noreply, push_patch(socket, to: ~p"/product-sets?#{params}")}
+  end
+
+  # =============================================================================
+  # PRODUCTS TAB EVENT HANDLERS (Browse all products)
+  # =============================================================================
+
+  @impl true
+  def handle_event("browse_search_products", %{"value" => query}, socket) do
+    socket = assign(socket, :browse_search_touched, true)
+
+    query_params =
+      %{pt: "products"}
+      |> maybe_add_param(:q, query)
+      |> maybe_add_param(:sort, socket.assigns.browse_product_sort_by)
+      |> maybe_add_param(:platform, socket.assigns.platform_filter)
+
+    {:noreply, push_patch(socket, to: ~p"/product-sets?#{query_params}")}
+  end
+
+  @impl true
+  def handle_event("browse_sort_changed", %{"sort" => sort_by}, socket) do
+    query_params =
+      %{pt: "products"}
+      |> maybe_add_param(:q, socket.assigns.browse_product_search_query)
+      |> maybe_add_param(:sort, sort_by)
+      |> maybe_add_param(:platform, socket.assigns.platform_filter)
+
+    {:noreply, push_patch(socket, to: ~p"/product-sets?#{query_params}")}
+  end
+
+  @impl true
+  def handle_event("browse_platform_filter_changed", %{"platform" => platform}, socket) do
+    query_params =
+      %{pt: "products"}
+      |> maybe_add_param(:q, socket.assigns.browse_product_search_query)
+      |> maybe_add_param(:sort, socket.assigns.browse_product_sort_by)
+      |> maybe_add_param(:platform, platform)
+
+    {:noreply, push_patch(socket, to: ~p"/product-sets?#{query_params}")}
+  end
+
+  @impl true
+  def handle_event("browse_load_more_products", _params, socket) do
+    socket =
+      socket
+      |> assign(:loading_browse_products, true)
+      |> load_products_for_browse(append: true)
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("browse_show_edit_product_modal", %{"product-id" => product_id}, socket) do
+    query_params =
+      %{pt: "products", p: product_id}
+      |> maybe_add_param(:q, socket.assigns.browse_product_search_query)
+      |> maybe_add_param(:sort, socket.assigns.browse_product_sort_by)
+      |> maybe_add_param(:platform, socket.assigns.platform_filter)
+
+    {:noreply, push_patch(socket, to: ~p"/product-sets?#{query_params}")}
+  end
+
+  @impl true
+  def handle_event("browse_close_edit_product_modal", _params, socket) do
+    query_params =
+      %{pt: "products"}
+      |> maybe_add_param(:q, socket.assigns.browse_product_search_query)
+      |> maybe_add_param(:sort, socket.assigns.browse_product_sort_by)
+      |> maybe_add_param(:platform, socket.assigns.platform_filter)
+
+    socket =
+      socket
+      |> assign(:editing_product, nil)
+      |> assign(:product_edit_form, to_form(Product.changeset(%Product{}, %{})))
+      |> assign(:current_image_index, 0)
+      |> push_patch(to: ~p"/product-sets?#{query_params}")
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("trigger_shopify_sync", _params, socket) do
+    %{}
+    |> ShopifySyncWorker.new()
+    |> Oban.insert()
+
+    socket =
+      socket
+      |> assign(:syncing, true)
+      |> put_flash(:info, "Shopify sync initiated...")
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("trigger_tiktok_sync", _params, socket) do
+    %{}
+    |> TiktokSyncWorker.new()
+    |> Oban.insert()
+
+    socket =
+      socket
+      |> assign(:tiktok_syncing, true)
+      |> put_flash(:info, "TikTok sync initiated...")
+
+    {:noreply, socket}
   end
 
   # Presign function for external S3 uploads
@@ -1872,4 +2077,200 @@ defmodule PavoiWeb.ProductSetsLive.Index do
     |> assign(:product_set_page, 1)
     |> load_product_sets()
   end
+
+  # =============================================================================
+  # PRODUCTS TAB HELPER FUNCTIONS
+  # =============================================================================
+
+  defp apply_page_tab(socket, params) do
+    page_tab = params["pt"] || "sets"
+    old_page_tab = socket.assigns.page_tab
+
+    socket
+    |> assign(:page_tab, page_tab)
+    |> maybe_load_products_tab(page_tab, old_page_tab, params)
+  end
+
+  defp maybe_load_products_tab(socket, "products", old_page_tab, params) do
+    # Apply browse product search params
+    search_query = params["q"] || ""
+    sort_by = params["sort"] || ""
+    platform_filter = params["platform"] || ""
+    product_id = params["p"]
+
+    # Reload products if switching to products tab or params changed
+    should_load =
+      old_page_tab != "products" ||
+        socket.assigns.browse_product_search_query != search_query ||
+        socket.assigns.browse_product_sort_by != sort_by ||
+        socket.assigns.platform_filter != platform_filter ||
+        socket.assigns.browse_products_total_count == 0
+
+    socket =
+      socket
+      |> assign(:browse_product_search_query, search_query)
+      |> assign(:browse_product_sort_by, sort_by)
+      |> assign(:platform_filter, platform_filter)
+
+    socket =
+      if should_load do
+        socket
+        |> assign(:browse_product_page, 1)
+        |> assign(:loading_browse_products, true)
+        |> load_products_for_browse()
+      else
+        socket
+      end
+
+    # Handle product modal from URL
+    maybe_open_browse_product_modal(socket, product_id)
+  end
+
+  defp maybe_load_products_tab(socket, _tab, _old_tab, _params), do: socket
+
+  defp maybe_open_browse_product_modal(socket, nil) do
+    # No product in URL, close modal if it's open
+    if socket.assigns.editing_product && socket.assigns.page_tab == "products" do
+      socket
+      |> assign(:editing_product, nil)
+      |> assign(:product_edit_form, to_form(Product.changeset(%Product{}, %{})))
+    else
+      socket
+    end
+  end
+
+  defp maybe_open_browse_product_modal(socket, product_id_str) do
+    try do
+      product_id = String.to_integer(product_id_str)
+      product = Catalog.get_product_with_images!(product_id)
+
+      changes = %{
+        "original_price_cents" => format_cents_to_dollars(product.original_price_cents),
+        "sale_price_cents" => format_cents_to_dollars(product.sale_price_cents)
+      }
+
+      changeset = Product.changeset(product, changes)
+
+      socket
+      |> assign(:editing_product, product)
+      |> assign(:product_edit_form, to_form(changeset))
+      |> assign(:current_image_index, 0)
+    rescue
+      Ecto.NoResultsError -> socket
+      ArgumentError -> socket
+    end
+  end
+
+  defp load_products_for_browse(socket, opts \\ [append: false]) do
+    append = Keyword.get(opts, :append, false)
+    search_query = socket.assigns.browse_product_search_query
+    sort_by = socket.assigns.browse_product_sort_by
+    platform_filter = socket.assigns.platform_filter
+    page = if append, do: socket.assigns.browse_product_page + 1, else: 1
+
+    try do
+      result =
+        Catalog.search_products_paginated(
+          search_query: search_query,
+          sort_by: sort_by,
+          platform_filter: platform_filter,
+          page: page,
+          per_page: 20
+        )
+
+      # Add stream_index to each product for staggered animations
+      products_with_index =
+        result.products
+        |> Enum.with_index(0)
+        |> Enum.map(fn {product, index} ->
+          Map.put(product, :stream_index, index)
+        end)
+
+      socket
+      |> assign(:loading_browse_products, false)
+      |> stream(:browse_products, products_with_index,
+        reset: !append,
+        at: if(append, do: -1, else: 0)
+      )
+      |> assign(:browse_products_total_count, result.total)
+      |> assign(:browse_product_page, result.page)
+      |> assign(:browse_products_has_more, result.has_more)
+    rescue
+      _e ->
+        socket
+        |> assign(:loading_browse_products, false)
+        |> put_flash(:error, "Failed to load products")
+    end
+  end
+
+  defp maybe_reload_browse_products(socket) do
+    if socket.assigns.page_tab == "products" do
+      socket
+      |> assign(:browse_product_page, 1)
+      |> assign(:loading_browse_products, true)
+      |> load_products_for_browse()
+    else
+      socket
+    end
+  end
+
+  # Check if a sync job is currently active (executing or available)
+  defp sync_job_active?(worker_module) do
+    import Ecto.Query
+
+    worker_name = inspect(worker_module)
+
+    Pavoi.Repo.exists?(
+      from(j in Oban.Job,
+        where: j.worker == ^worker_name,
+        where: j.state in ["executing", "available", "scheduled"]
+      )
+    )
+  end
+
+  # Helper to build query params for tab navigation
+  defp build_tab_query_params(socket, overrides) do
+    base = %{pt: socket.assigns.page_tab}
+
+    base =
+      case socket.assigns.page_tab do
+        "products" ->
+          base
+          |> maybe_add_param(:q, socket.assigns.browse_product_search_query)
+          |> maybe_add_param(:sort, socket.assigns.browse_product_sort_by)
+          |> maybe_add_param(:platform, socket.assigns.platform_filter)
+
+        "sets" ->
+          base
+          |> maybe_add_param(:q, socket.assigns.product_set_search_query)
+          |> maybe_add_param(:s, socket.assigns.expanded_product_set_id)
+
+        _ ->
+          base
+      end
+
+    Enum.reduce(overrides, base, fn {key, value}, acc ->
+      case key do
+        :page_tab -> Map.put(acc, :pt, value)
+        _ -> Map.put(acc, key, value)
+      end
+    end)
+    |> reject_default_tab_values()
+  end
+
+  defp reject_default_tab_values(params) do
+    params
+    |> Enum.reject(fn
+      {_, ""} -> true
+      {_, nil} -> true
+      {:pt, "sets"} -> true
+      _ -> false
+    end)
+    |> Map.new()
+  end
+
+  # Helper to build query params, only including non-empty values
+  defp maybe_add_param(params, _key, ""), do: params
+  defp maybe_add_param(params, _key, nil), do: params
+  defp maybe_add_param(params, key, value), do: Map.put(params, key, value)
 end
