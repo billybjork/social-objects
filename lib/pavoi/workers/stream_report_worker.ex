@@ -70,12 +70,26 @@ defmodule Pavoi.Workers.StreamReportWorker do
     if live_check_enabled?() do
       case TiktokLive.fetch_room_info(stream.unique_id) do
         {:ok, %{is_live: true, room_id: room_id}} when room_id == stream.room_id ->
+          # Confirmed still live with same room - snooze
           Logger.warning("Stream #{stream.id} still live in room #{room_id}, delaying report")
 
           {:snooze, @live_check_retry_seconds}
 
+        {:ok, %{is_live: true, room_id: room_id}} when is_binary(room_id) ->
+          # Different room_id - new stream started, safe to report old one
+          Logger.info(
+            "Stream #{stream.id} live check: is_live=true but different room_id (#{room_id} vs #{stream.room_id}), proceeding with report"
+          )
+
+          enforce_grace_period(stream)
+
         {:ok, %{is_live: true}} ->
-          :ok
+          # Live but no room_id extracted - be conservative, retry
+          Logger.warning(
+            "Stream #{stream.id} live check: is_live=true but no room_id extracted, retrying"
+          )
+
+          {:snooze, @live_check_retry_seconds}
 
         {:ok, %{is_live: false}} ->
           enforce_grace_period(stream)

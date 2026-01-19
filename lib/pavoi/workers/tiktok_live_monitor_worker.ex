@@ -75,8 +75,21 @@ defmodule Pavoi.Workers.TiktokLiveMonitorWorker do
         # This handles app restarts/deployments during a live broadcast
         case get_resumable_stream(room_id) do
           nil ->
-            # Start new capture
-            start_capture(unique_id, room_id, room_info)
+            # NEW: Check if there's ANY recent stream for this room_id that might still be
+            # part of the same broadcast (handles long gaps from disconnects/reconnects)
+            case get_any_recent_stream_for_room(room_id) do
+              nil ->
+                # Start new capture
+                start_capture(unique_id, room_id, room_info)
+
+              stream ->
+                # Resume the existing stream regardless of ended_at
+                Logger.info(
+                  "Found recent stream #{stream.id} for room #{room_id}, resuming instead of creating new"
+                )
+
+                resume_capture(stream, unique_id)
+            end
 
           stream ->
             # Resume the existing stream
@@ -184,6 +197,23 @@ defmodule Pavoi.Workers.TiktokLiveMonitorWorker do
       where: s.room_id == ^room_id and s.status == :ended,
       where: s.ended_at > ^cutoff,
       order_by: [desc: s.ended_at],
+      limit: 1
+    )
+    |> Repo.one()
+  end
+
+  # Find ANY stream with the same room_id that started within the last 6 hours
+  # This is a broader check than get_resumable_stream and handles the case where
+  # a stream was marked ended > 10 minutes ago but the TikTok broadcast is still
+  # ongoing (e.g., after a long disconnect/reconnect gap)
+  defp get_any_recent_stream_for_room(room_id) do
+    import Ecto.Query
+
+    cutoff = DateTime.utc_now() |> DateTime.add(-6, :hour)
+
+    from(s in Stream,
+      where: s.room_id == ^room_id and s.started_at > ^cutoff,
+      order_by: [desc: s.started_at],
       limit: 1
     )
     |> Repo.one()

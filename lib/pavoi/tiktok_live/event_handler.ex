@@ -136,6 +136,21 @@ defmodule Pavoi.TiktokLive.EventHandler do
   end
 
   @impl GenServer
+  def handle_info(:terminate_after_end, state) do
+    Logger.info("EventHandler for stream #{state.stream_id} stopping after stream ended")
+
+    # Final flush and cleanup
+    state = flush_comment_batch(state)
+    state = save_stats_snapshot(state)
+
+    # Cancel timers
+    cancel_timer(state.flush_timer_ref)
+    cancel_timer(state.stats_timer_ref)
+
+    {:stop, :normal, state}
+  end
+
+  @impl GenServer
   def handle_info(_msg, state) do
     {:noreply, state}
   end
@@ -300,6 +315,9 @@ defmodule Pavoi.TiktokLive.EventHandler do
         Logger.debug("Stream #{state.stream_id} already ended, skipping report enqueue")
     end
 
+    # Schedule self-termination after a brief delay to allow cleanup
+    Process.send_after(self(), :terminate_after_end, 100)
+
     state
   end
 
@@ -349,6 +367,9 @@ defmodule Pavoi.TiktokLive.EventHandler do
       {:error, :already_ended} ->
         Logger.debug("Stream #{state.stream_id} already ended, skipping report enqueue")
     end
+
+    # Schedule self-termination after a brief delay to allow cleanup
+    Process.send_after(self(), :terminate_after_end, 100)
 
     state
   end
