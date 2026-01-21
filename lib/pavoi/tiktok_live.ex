@@ -31,8 +31,8 @@ defmodule Pavoi.TiktokLive do
 
   require Logger
 
-  alias Pavoi.Repo
   alias Pavoi.ProductSets.ProductSetProduct
+  alias Pavoi.Repo
   alias Pavoi.TiktokLive.{Client, Comment, ProductSetStream, Stream, StreamStat}
   alias Pavoi.Workers.{TiktokLiveMonitorWorker, TiktokLiveStreamWorker}
 

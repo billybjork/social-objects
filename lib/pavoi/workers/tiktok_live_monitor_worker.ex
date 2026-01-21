@@ -71,30 +71,7 @@ defmodule Pavoi.Workers.TiktokLiveMonitorWorker do
     # Check if we're already capturing this stream
     case get_active_stream(room_id) do
       nil ->
-        # Check if there's a recently-ended stream for the same room we can resume
-        # This handles app restarts/deployments during a live broadcast
-        case get_resumable_stream(room_id) do
-          nil ->
-            # NEW: Check if there's ANY recent stream for this room_id that might still be
-            # part of the same broadcast (handles long gaps from disconnects/reconnects)
-            case get_any_recent_stream_for_room(room_id) do
-              nil ->
-                # Start new capture
-                start_capture(unique_id, room_id, room_info)
-
-              stream ->
-                # Resume the existing stream regardless of ended_at
-                Logger.info(
-                  "Found recent stream #{stream.id} for room #{room_id}, resuming instead of creating new"
-                )
-
-                resume_capture(stream, unique_id)
-            end
-
-          stream ->
-            # Resume the existing stream
-            resume_capture(stream, unique_id)
-        end
+        handle_no_active_stream(unique_id, room_id, room_info)
 
       stream ->
         # Check if the capture is actually healthy (receiving events)
@@ -104,6 +81,30 @@ defmodule Pavoi.Workers.TiktokLiveMonitorWorker do
           Logger.warning("Stream #{stream.id} capture appears stale, restarting worker")
           restart_stale_capture(stream, unique_id)
         end
+    end
+  end
+
+  defp handle_no_active_stream(unique_id, room_id, room_info) do
+    # Check if there's a recently-ended stream for the same room we can resume
+    # This handles app restarts/deployments during a live broadcast
+    case get_resumable_stream(room_id) do
+      nil ->
+        # Check if there's ANY recent stream for this room_id that might still be
+        # part of the same broadcast (handles long gaps from disconnects/reconnects)
+        case get_any_recent_stream_for_room(room_id) do
+          nil ->
+            start_capture(unique_id, room_id, room_info)
+
+          stream ->
+            Logger.info(
+              "Found recent stream #{stream.id} for room #{room_id}, resuming instead of creating new"
+            )
+
+            resume_capture(stream, unique_id)
+        end
+
+      stream ->
+        resume_capture(stream, unique_id)
     end
   end
 

@@ -78,6 +78,7 @@ defmodule PavoiWeb.Router do
 
     get "/unsubscribe/:token", UnsubscribeController, :unsubscribe
     live "/join/:token", JoinLive, :index
+    live "/share/:token", PublicProductSetLive, :index
   end
 
   # Main application routes (protected in production)

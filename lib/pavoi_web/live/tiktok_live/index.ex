@@ -12,8 +12,8 @@ defmodule PavoiWeb.TiktokLive.Index do
 
   on_mount {PavoiWeb.NavHooks, :set_current_page}
 
-  alias Pavoi.Repo
   alias Pavoi.ProductSets
+  alias Pavoi.Repo
   alias Pavoi.Settings
   alias Pavoi.TiktokLive, as: TiktokLiveContext
   alias Pavoi.Workers.StreamReportWorker

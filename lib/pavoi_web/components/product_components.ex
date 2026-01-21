@@ -232,6 +232,7 @@ defmodule PavoiWeb.ProductComponents do
   attr :brands, :list, required: true, doc: "List of available brands"
   attr :current_image_index, :integer, default: 0, doc: "Current image index for carousel"
   attr :generating, :boolean, default: false, doc: "Whether talking points are being generated"
+  attr :public_view, :boolean, default: false, doc: "Whether this is a read-only public view"
 
   def product_edit_modal(assigns) do
     ~H"""
@@ -335,33 +336,41 @@ defmodule PavoiWeb.ProductComponents do
               <strong style="font-weight: var(--font-semibold); color: var(--color-text-primary);">
                 Talking Points
               </strong>
-              <button
-                type="button"
-                class={["button button--sm button--ghost", @generating && "button--disabled"]}
-                phx-click="generate_product_talking_points"
-                phx-value-product-id={@editing_product.id}
-                disabled={@generating}
-                style="display: flex; align-items: center; gap: var(--space-1);"
-              >
-                <%= if @generating do %>
-                  <.icon name="hero-arrow-path" class="size-4 animate-spin" /> Generating...
-                <% else %>
-                  ✨ Generate
-                <% end %>
-              </button>
+              <%= unless @public_view do %>
+                <button
+                  type="button"
+                  class={["button button--sm button--ghost", @generating && "button--disabled"]}
+                  phx-click="generate_product_talking_points"
+                  phx-value-product-id={@editing_product.id}
+                  disabled={@generating}
+                  style="display: flex; align-items: center; gap: var(--space-1);"
+                >
+                  <%= if @generating do %>
+                    <.icon name="hero-arrow-path" class="size-4 animate-spin" /> Generating...
+                  <% else %>
+                    ✨ Generate
+                  <% end %>
+                </button>
+              <% end %>
             </div>
-            <.form
-              id="edit-product-form"
-              for={@product_edit_form}
-              phx-change="validate_product"
-              phx-submit="save_product"
-            >
-              <.input
-                field={@product_edit_form[:talking_points_md]}
-                type="textarea"
-                placeholder="Key features and highlights for the livestream..."
-              />
-            </.form>
+            <%= if @public_view do %>
+              <div style="white-space: pre-wrap; color: var(--color-text-secondary); line-height: 1.6; padding: var(--space-3); background: var(--color-bg-secondary); border-radius: var(--radius-md); min-height: 80px;">
+                <%= @editing_product.talking_points_md || "No talking points available." %>
+              </div>
+            <% else %>
+              <.form
+                id="edit-product-form"
+                for={@product_edit_form}
+                phx-change="validate_product"
+                phx-submit="save_product"
+              >
+                <.input
+                  field={@product_edit_form[:talking_points_md]}
+                  type="textarea"
+                  placeholder="Key features and highlights for the livestream..."
+                />
+              </.form>
+            <% end %>
           </div>
 
           <%= if @editing_product.product_variants && length(@editing_product.product_variants) > 0 do %>
@@ -370,24 +379,37 @@ defmodule PavoiWeb.ProductComponents do
         </div>
 
         <div class="modal__footer">
-          <.button
-            type="button"
-            variant="outline"
-            phx-click={
-              JS.push("close_edit_product_modal")
-              |> PavoiWeb.CoreComponents.hide_modal("edit-product-modal")
-            }
-          >
-            Cancel
-          </.button>
-          <.button
-            type="submit"
-            form="edit-product-form"
-            variant="primary"
-            phx-disable-with="Saving..."
-          >
-            Save Changes
-          </.button>
+          <%= if @public_view do %>
+            <.button
+              type="button"
+              variant="primary"
+              phx-click={
+                JS.push("close_product_modal")
+                |> PavoiWeb.CoreComponents.hide_modal("edit-product-modal")
+              }
+            >
+              Close
+            </.button>
+          <% else %>
+            <.button
+              type="button"
+              variant="outline"
+              phx-click={
+                JS.push("close_edit_product_modal")
+                |> PavoiWeb.CoreComponents.hide_modal("edit-product-modal")
+              }
+            >
+              Cancel
+            </.button>
+            <.button
+              type="submit"
+              form="edit-product-form"
+              variant="primary"
+              phx-disable-with="Saving..."
+            >
+              Save Changes
+            </.button>
+          <% end %>
         </div>
       </.modal>
     <% end %>

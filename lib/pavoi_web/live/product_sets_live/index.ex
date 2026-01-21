@@ -157,6 +157,9 @@ defmodule PavoiWeb.ProductSetsLive.Index do
       |> assign(:current_generation, nil)
       |> assign(:current_product_name, nil)
       |> assign(:show_generation_modal, false)
+      |> assign(:share_product_set_id, nil)
+      |> assign(:share_url, nil)
+      |> assign(:share_url_copied, false)
       |> allow_upload(:notes_image,
         accept: ~w(.jpg .jpeg .png .webp .gif),
         max_entries: 1,
@@ -1387,6 +1390,41 @@ defmodule PavoiWeb.ProductSetsLive.Index do
   end
 
   @impl true
+  def handle_event("show_share_modal", %{"product-set-id" => product_set_id}, socket) do
+    product_set_id = normalize_id(product_set_id)
+    token = ProductSets.generate_share_token(product_set_id)
+    share_url = url(~p"/share/#{token}")
+
+    socket =
+      socket
+      |> assign(:share_product_set_id, product_set_id)
+      |> assign(:share_url, share_url)
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("close_share_modal", _params, socket) do
+    socket =
+      socket
+      |> assign(:share_product_set_id, nil)
+      |> assign(:share_url, nil)
+      |> assign(:share_url_copied, false)
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("copy_share_url", _params, socket) do
+    socket =
+      socket
+      |> push_event("copy", %{text: socket.assigns.share_url})
+      |> assign(:share_url_copied, true)
+
+    {:noreply, socket}
+  end
+
+  @impl true
   def handle_event("cancel_notes_image_upload", %{"ref" => ref}, socket) do
     {:noreply, cancel_upload(socket, :notes_image, ref)}
   end
@@ -2140,25 +2178,23 @@ defmodule PavoiWeb.ProductSetsLive.Index do
   end
 
   defp maybe_open_browse_product_modal(socket, product_id_str) do
-    try do
-      product_id = String.to_integer(product_id_str)
-      product = Catalog.get_product_with_images!(product_id)
+    product_id = String.to_integer(product_id_str)
+    product = Catalog.get_product_with_images!(product_id)
 
-      changes = %{
-        "original_price_cents" => format_cents_to_dollars(product.original_price_cents),
-        "sale_price_cents" => format_cents_to_dollars(product.sale_price_cents)
-      }
+    changes = %{
+      "original_price_cents" => format_cents_to_dollars(product.original_price_cents),
+      "sale_price_cents" => format_cents_to_dollars(product.sale_price_cents)
+    }
 
-      changeset = Product.changeset(product, changes)
+    changeset = Product.changeset(product, changes)
 
-      socket
-      |> assign(:editing_product, product)
-      |> assign(:product_edit_form, to_form(changeset))
-      |> assign(:current_image_index, 0)
-    rescue
-      Ecto.NoResultsError -> socket
-      ArgumentError -> socket
-    end
+    socket
+    |> assign(:editing_product, product)
+    |> assign(:product_edit_form, to_form(changeset))
+    |> assign(:current_image_index, 0)
+  rescue
+    Ecto.NoResultsError -> socket
+    ArgumentError -> socket
   end
 
   defp load_products_for_browse(socket, opts \\ [append: false]) do

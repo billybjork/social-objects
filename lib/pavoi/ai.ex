@@ -8,8 +8,8 @@ defmodule Pavoi.AI do
 
   alias Pavoi.AI.TalkingPointsGeneration
   alias Pavoi.Catalog
-  alias Pavoi.Repo
   alias Pavoi.ProductSets
+  alias Pavoi.Repo
   alias Pavoi.Workers.TalkingPointsWorker
 
   @doc """

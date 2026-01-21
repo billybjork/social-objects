@@ -1,0 +1,77 @@
+/**
+ * Public Product Set Page
+ *
+ * Read-only public view for shared product sets.
+ * Minimal header with product set name and brand.
+ */
+
+.public-product-set {
+  min-height: 100vh;
+  background: var(--color-bg-primary);
+}
+
+.public-product-set__header {
+  text-align: center;
+  padding: var(--space-8) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+}
+
+.public-product-set__title {
+  font-size: var(--text-2xl);
+  font-weight: var(--font-bold);
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.public-product-set__brand {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  margin: var(--space-2) 0 0 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.public-product-set__content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4);
+}
+
+/* Error state */
+.public-product-set--error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+.public-product-set__error-container {
+  text-align: center;
+  padding: var(--space-8);
+  max-width: 400px;
+}
+
+.public-product-set__error-container h1 {
+  font-size: var(--text-2xl);
+  font-weight: var(--font-bold);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--space-4) 0;
+}
+
+.public-product-set__error-container p {
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+/* Share URL container (used in share modal) */
+.share-url-container {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.share-url-container__input {
+  flex: 1;
+  font-family: monospace;
+  font-size: var(--text-sm);
+}

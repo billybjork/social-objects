@@ -895,4 +895,46 @@ defmodule Pavoi.ProductSets do
   defp generate_message_id do
     "msg_#{:crypto.strong_rand_bytes(8) |> Base.url_encode64(padding: false)}"
   end
+
+  ## Public Sharing
+
+  @doc """
+  Generates a signed token for sharing a product set publicly.
+  The token expires after 90 days.
+  """
+  def generate_share_token(product_set_id) do
+    Phoenix.Token.sign(PavoiWeb.Endpoint, "product_set_share", product_set_id)
+  end
+
+  @doc """
+  Verifies a share token and returns the product set ID.
+  Returns {:ok, product_set_id} or {:error, reason}.
+  """
+  def verify_share_token(token) do
+    # 90 days in seconds
+    max_age = 90 * 24 * 60 * 60
+    Phoenix.Token.verify(PavoiWeb.Endpoint, "product_set_share", token, max_age: max_age)
+  end
+
+  @doc """
+  Gets a product set with products and images preloaded for public display.
+  Raises `Ecto.NoResultsError` if the ProductSet does not exist.
+  """
+  def get_product_set_for_public!(id) do
+    ordered_images = from(pi in ProductImage, order_by: [asc: pi.position])
+    ordered_variants = from(pv in ProductVariant, order_by: [asc: pv.position])
+
+    ProductSet
+    |> preload([
+      :brand,
+      product_set_products: [
+        product: [
+          :brand,
+          product_images: ^ordered_images,
+          product_variants: ^ordered_variants
+        ]
+      ]
+    ])
+    |> Repo.get!(id)
+  end
 end

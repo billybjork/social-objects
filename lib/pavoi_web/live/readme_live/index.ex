@@ -14,8 +14,8 @@ defmodule PavoiWeb.ReadmeLive.Index do
   alias Pavoi.Communications.{Email, Slack}
   alias Pavoi.Creators
   alias Pavoi.Outreach.OutreachLog
-  alias Pavoi.Repo
   alias Pavoi.ProductSets.ProductSet
+  alias Pavoi.Repo
   alias Pavoi.Settings
   alias Pavoi.TiktokLive
   alias Pavoi.TiktokLive.{BridgeHealthMonitor, Stream}
@@ -124,6 +124,7 @@ defmodule PavoiWeb.ReadmeLive.Index do
               <li>Host view for displaying products during streams</li>
               <li>Mobile controller for navigation and messaging</li>
               <li>AI-generated talking points for each product</li>
+              <li>Share public URLs with hosts (read-only, 90-day expiry)</li>
             </:features>
           </.page_card>
 
