@@ -280,6 +280,31 @@
   font-weight: var(--font-semibold);
 }
 
+/* Image container for position overlay */
+.product-card-browse__image-container {
+  position: relative;
+  width: 100%;
+}
+
+/* Position badge overlay */
+.product-card-browse__position {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  min-width: 32px;
+  height: 32px;
+  padding: 0 var(--space-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  font-size: var(--text-lg);
+  font-weight: var(--font-bold);
+  border-radius: var(--radius-sm);
+  z-index: 2;
+}
+
 /* ============================================================================
    SHARED STYLES
    ============================================================================ */
@@ -416,10 +441,23 @@ infinite-scroll-trigger {
   .product-card-browse__pricing {
     font-size: var(--text-xs);
   }
+
+  /* Smaller position badge on mobile */
+  .product-card-browse__position {
+    min-width: 28px;
+    height: 28px;
+    font-size: var(--text-base);
+  }
 }
 
 /* Responsive adjustments */
 @media (min-width: 640px) {
+  /* Larger position badge on desktop */
+  .product-card-browse__position {
+    min-width: 36px;
+    height: 36px;
+    font-size: var(--text-xl);
+  }
   .product-grid--select .product-grid__header {
     flex-direction: row;
     align-items: center;

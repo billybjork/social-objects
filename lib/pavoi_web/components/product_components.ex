@@ -805,7 +805,13 @@ defmodule PavoiWeb.ProductComponents do
           "0.3s"
         end
 
-      assigns = assign(assigns, :animation_delay, animation_delay)
+      # Position can be passed directly or via the product map
+      position = Map.get(assigns, :position) || Map.get(assigns.product, :position)
+
+      assigns =
+        assigns
+        |> assign(:animation_delay, animation_delay)
+        |> assign(:position, position)
 
       ~H"""
       <div
@@ -820,19 +826,24 @@ defmodule PavoiWeb.ProductComponents do
         tabindex="0"
         aria-label={"Open #{@product.name}"}
       >
-        <%= if @product.product_images && length(@product.product_images) > 0 do %>
-          <ImageComponents.image_carousel
-            id_prefix={"product-#{@product.id}"}
-            images={@product.product_images}
-            current_index={@current_image_index}
-            mode={:compact}
-            target={@myself}
-          />
-        <% else %>
-          <div class="product-card-browse__image-placeholder">
-            No Image
-          </div>
-        <% end %>
+        <div class="product-card-browse__image-container">
+          <%= if @position do %>
+            <span class="product-card-browse__position">{@position}</span>
+          <% end %>
+          <%= if @product.product_images && length(@product.product_images) > 0 do %>
+            <ImageComponents.image_carousel
+              id_prefix={"product-#{@product.id}"}
+              images={@product.product_images}
+              current_index={@current_image_index}
+              mode={:compact}
+              target={@myself}
+            />
+          <% else %>
+            <div class="product-card-browse__image-placeholder">
+              No Image
+            </div>
+          <% end %>
+        </div>
 
         <div class="product-card-browse__info">
           <p class="product-card-browse__name">{@product.name}</p>

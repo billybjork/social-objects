@@ -30,6 +30,7 @@ defmodule PavoiWeb.PublicProductSetLive do
               |> add_primary_image()
               |> Map.put(:selected, false)
               |> Map.put(:stream_index, index)
+              |> Map.put(:position, psp.position)
             end)
 
           {:ok,
