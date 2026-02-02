@@ -61,10 +61,35 @@ defmodule Pavoi.Workers.StreamReportWorker do
 
         {:cancel, :report_already_sent}
 
+      # Guard 3: Skip reports for "false start" streams
+      # (very short duration with minimal comments indicates a false end signal from TikTok)
+      false_start_stream?(stream) ->
+        Logger.info(
+          "Skipping report for stream #{stream.id} - appears to be false start " <>
+            "(#{stream_duration_seconds(stream)}s, #{stream.total_comments} comments)"
+        )
+
+        {:cancel, :false_start}
+
       true ->
         verify_stream_ended(stream)
     end
   end
+
+  # A "false start" is a stream that ended very quickly with minimal engagement
+  # This typically happens when TikTok sends a premature stream_ended event
+  # and then the broadcast resumes with a new room_id
+  defp false_start_stream?(stream) do
+    duration = stream_duration_seconds(stream)
+    duration < 120 and stream.total_comments < 10
+  end
+
+  defp stream_duration_seconds(%{started_at: started_at, ended_at: ended_at})
+       when not is_nil(started_at) and not is_nil(ended_at) do
+    DateTime.diff(ended_at, started_at)
+  end
+
+  defp stream_duration_seconds(_), do: 0
 
   defp verify_stream_ended(stream) do
     if live_check_enabled?() do
