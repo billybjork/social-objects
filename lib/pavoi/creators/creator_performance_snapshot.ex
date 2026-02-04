@@ -30,6 +30,11 @@ defmodule Pavoi.Creators.CreatorPerformanceSnapshot do
     field :total_impressions, :integer
     field :engagement_count, :integer
 
+    # Delta tracking for cumulative GMV calculation
+    field :gmv_delta_cents, :integer
+    field :video_gmv_delta_cents, :integer
+    field :live_gmv_delta_cents, :integer
+
     timestamps()
   end
 
@@ -51,7 +56,10 @@ defmodule Pavoi.Creators.CreatorPerformanceSnapshot do
       :total_comments,
       :total_shares,
       :total_impressions,
-      :engagement_count
+      :engagement_count,
+      :gmv_delta_cents,
+      :video_gmv_delta_cents,
+      :live_gmv_delta_cents
     ])
     |> validate_required([:creator_id, :snapshot_date])
     |> validate_inclusion(:source, @sources)

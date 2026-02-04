@@ -852,6 +852,42 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
   end
 
   defp enrich_creator(creator) do
+    # Prefer user_id-based enrichment (more reliable, handles username changes)
+    # Fall back to username search if no user_id available
+    if creator.tiktok_user_id && creator.tiktok_user_id != "" do
+      enrich_creator_by_user_id(creator)
+    else
+      enrich_creator_by_username(creator)
+    end
+  end
+
+  # Enrich using stable user_id - can detect handle changes
+  defp enrich_creator_by_user_id(creator) do
+    case TiktokShop.get_marketplace_creator(creator.tiktok_user_id) do
+      {:ok, marketplace_data} ->
+        # Check if handle changed
+        current_username = marketplace_data["username"]
+        handle_change = detect_handle_change(creator, current_username)
+        update_creator_from_marketplace(creator, marketplace_data, handle_change)
+
+      {:error, reason} ->
+        if rate_limited_reason?(reason) do
+          :ok
+        else
+          Logger.warning(
+            "Marketplace fetch failed for user_id #{creator.tiktok_user_id}: #{inspect(reason)}"
+          )
+
+          # Fall back to username search if user_id lookup fails
+          enrich_creator_by_username(creator)
+        end
+
+        {:error, reason}
+    end
+  end
+
+  # Enrich using username search (original method)
+  defp enrich_creator_by_username(creator) do
     username = creator.tiktok_username
 
     case TiktokShop.search_marketplace_creators(keyword: username) do
@@ -863,7 +899,7 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
             {:error, :not_found}
 
           marketplace_creator ->
-            update_creator_from_marketplace(creator, marketplace_creator)
+            update_creator_from_marketplace(creator, marketplace_creator, nil)
         end
 
       {:error, reason} ->
@@ -877,6 +913,29 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
     end
   end
 
+  # Detect if the creator's TikTok handle has changed
+  defp detect_handle_change(_creator, nil), do: nil
+  defp detect_handle_change(_creator, ""), do: nil
+
+  defp detect_handle_change(creator, current_username) do
+    stored_username = creator.tiktok_username
+    normalized_current = String.downcase(String.trim(current_username))
+    normalized_stored = if stored_username, do: String.downcase(String.trim(stored_username)), else: nil
+
+    if normalized_stored && normalized_current != normalized_stored do
+      Logger.info(
+        "[HandleChange] Creator #{creator.id} changed handle: @#{stored_username} -> @#{current_username}"
+      )
+
+      %{
+        old_username: stored_username,
+        new_username: current_username
+      }
+    else
+      nil
+    end
+  end
+
   defp find_exact_match(creators, username) do
     normalized_username = String.downcase(username)
 
@@ -886,9 +945,18 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
     end)
   end
 
-  defp update_creator_from_marketplace(creator, marketplace_data) do
+  defp update_creator_from_marketplace(creator, marketplace_data, handle_change) do
     # Extract metrics from marketplace response
     avatar_url = get_in(marketplace_data, ["avatar", "url"])
+
+    # Parse current GMV values from API
+    current_gmv = parse_gmv_cents(marketplace_data["gmv"])
+    current_video_gmv = parse_gmv_cents(marketplace_data["video_gmv"])
+    current_live_gmv = parse_gmv_cents(marketplace_data["live_gmv"])
+
+    # Calculate cumulative GMV and deltas
+    {cumulative_attrs, deltas} =
+      calculate_cumulative_gmv(creator, current_gmv, current_video_gmv, current_live_gmv)
 
     attrs =
       %{
@@ -902,14 +970,17 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
       |> maybe_put_gmv(marketplace_data)
       |> maybe_put_video_gmv(marketplace_data)
       |> maybe_put_avg_views(marketplace_data)
+      |> maybe_put_handle_change(creator, handle_change)
+      |> Map.merge(cumulative_attrs)
 
     case Creators.update_creator(creator, attrs) do
       {:ok, updated_creator} ->
         # Also create a performance snapshot for historical tracking
-        create_enrichment_snapshot(updated_creator, marketplace_data)
+        create_enrichment_snapshot(updated_creator, marketplace_data, deltas)
 
+        username_display = updated_creator.tiktok_username || creator.tiktok_username
         Logger.debug(
-          "Enriched @#{creator.tiktok_username}: #{attrs[:follower_count]} followers, $#{(attrs[:total_gmv_cents] || 0) / 100} GMV"
+          "Enriched @#{username_display}: #{attrs[:follower_count]} followers, $#{(attrs[:total_gmv_cents] || 0) / 100} GMV (cumulative: $#{(attrs[:cumulative_gmv_cents] || 0) / 100})"
         )
 
         {:ok, updated_creator}
@@ -921,6 +992,84 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
 
         {:error, :update_failed}
     end
+  end
+
+  # Calculate cumulative GMV using delta accumulation
+  # Returns {cumulative_attrs, deltas} where:
+  # - cumulative_attrs: map of cumulative fields to update on creator
+  # - deltas: map of delta values to store on snapshot
+  defp calculate_cumulative_gmv(creator, current_gmv, current_video_gmv, current_live_gmv) do
+    if is_nil(creator.gmv_tracking_started_at) do
+      build_baseline_gmv(current_gmv, current_video_gmv, current_live_gmv)
+    else
+      build_delta_gmv(creator, current_gmv, current_video_gmv, current_live_gmv)
+    end
+  end
+
+  # First enrichment - establish baseline
+  defp build_baseline_gmv(current_gmv, current_video_gmv, current_live_gmv) do
+    gmv = current_gmv || 0
+    video_gmv = current_video_gmv || 0
+    live_gmv = current_live_gmv || 0
+
+    {
+      %{
+        gmv_tracking_started_at: Date.utc_today(),
+        cumulative_gmv_cents: gmv,
+        cumulative_video_gmv_cents: video_gmv,
+        cumulative_live_gmv_cents: live_gmv
+      },
+      %{gmv_delta_cents: gmv, video_gmv_delta_cents: video_gmv, live_gmv_delta_cents: live_gmv}
+    }
+  end
+
+  # Subsequent enrichment - calculate deltas (delta = max(0, current - previous) to handle rolloff)
+  defp build_delta_gmv(creator, current_gmv, current_video_gmv, current_live_gmv) do
+    gmv_delta = calculate_delta(current_gmv, creator.total_gmv_cents)
+    video_gmv_delta = calculate_delta(current_video_gmv, creator.video_gmv_cents)
+    live_gmv_delta = calculate_delta(current_live_gmv, creator.live_gmv_cents)
+
+    {
+      %{
+        cumulative_gmv_cents: (creator.cumulative_gmv_cents || 0) + gmv_delta,
+        cumulative_video_gmv_cents: (creator.cumulative_video_gmv_cents || 0) + video_gmv_delta,
+        cumulative_live_gmv_cents: (creator.cumulative_live_gmv_cents || 0) + live_gmv_delta
+      },
+      %{gmv_delta_cents: gmv_delta, video_gmv_delta_cents: video_gmv_delta, live_gmv_delta_cents: live_gmv_delta}
+    }
+  end
+
+  # Calculate delta with floor at 0 (when rolloff exceeds new sales, delta = 0)
+  defp calculate_delta(nil, _previous), do: 0
+  defp calculate_delta(_current, nil), do: 0
+  defp calculate_delta(current, previous), do: max(0, current - previous)
+
+  # Parse GMV from API response format
+  defp parse_gmv_cents(%{"amount" => amount, "currency" => "USD"}) when is_binary(amount) do
+    {dollars, _} = Float.parse(amount)
+    round(dollars * 100)
+  end
+
+  defp parse_gmv_cents(_), do: nil
+
+  # Apply handle change: update username and preserve old one in history
+  defp maybe_put_handle_change(attrs, _creator, nil), do: attrs
+
+  defp maybe_put_handle_change(attrs, creator, %{old_username: old_username, new_username: new_username}) do
+    # Get existing previous usernames, add the old one if not already present
+    previous = creator.previous_tiktok_usernames || []
+    normalized_old = String.downcase(String.trim(old_username))
+
+    updated_previous =
+      if normalized_old in Enum.map(previous, &String.downcase/1) do
+        previous
+      else
+        previous ++ [old_username]
+      end
+
+    attrs
+    |> Map.put(:tiktok_username, new_username)
+    |> Map.put(:previous_tiktok_usernames, updated_previous)
   end
 
   defp maybe_put_avatar_storage_key(attrs, creator, avatar_url) do
@@ -970,7 +1119,7 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
     Pavoi.Storage.store_creator_avatar(avatar_url, creator.id)
   end
 
-  defp create_enrichment_snapshot(creator, marketplace_data) do
+  defp create_enrichment_snapshot(creator, marketplace_data, deltas) do
     # Create a performance snapshot for historical tracking
     attrs = %{
       creator_id: creator.id,
@@ -986,6 +1135,9 @@ defmodule Pavoi.Workers.CreatorEnrichmentWorker do
       |> maybe_put_gmv_field(:gmv_cents, marketplace_data["gmv"])
       |> maybe_put_gmv_field(:video_gmv_cents, marketplace_data["video_gmv"])
       |> maybe_put_gmv_field(:live_gmv_cents, marketplace_data["live_gmv"])
+
+    # Add delta fields for audit trail
+    attrs = Map.merge(attrs, deltas)
 
     case Creators.create_performance_snapshot(attrs) do
       {:ok, _snapshot} -> :ok

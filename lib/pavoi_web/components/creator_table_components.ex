@@ -163,13 +163,15 @@ defmodule PavoiWeb.CreatorTableComponents do
   attr :sort_dir, :string, default: "asc"
   attr :on_sort, :string, default: nil
   attr :selected_ids, :any, default: nil
+  attr :select_all_matching, :boolean, default: false
   attr :total_count, :integer, default: 0
   attr :delta_period, :integer, default: nil
 
   def unified_creator_table(assigns) do
     all_selected =
-      assigns.selected_ids && MapSet.size(assigns.selected_ids) == assigns.total_count &&
-        assigns.total_count > 0
+      assigns.select_all_matching ||
+        (assigns.selected_ids && MapSet.size(assigns.selected_ids) == assigns.total_count &&
+           assigns.total_count > 0)
 
     # Whether time filter is active (shows deltas for GMV/Followers)
     time_filter_active = assigns.delta_period != nil
@@ -240,14 +242,14 @@ defmodule PavoiWeb.CreatorTableComponents do
               tooltip="TikTok follower count · Creator Profiles sync"
               time_filtered={@time_filter_active}
             />
-            <%!-- 7. Total GMV --%>
+            <%!-- 7. Cumulative GMV --%>
             <.sort_header
-              label="GMV"
-              field="gmv"
+              label="Cumulative GMV"
+              field="cumulative_gmv"
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
-              tooltip="Total gross merchandise value · Creator Profiles sync"
+              tooltip="Total sales since tracking started. Accumulates net new sales from TikTok's 90-day rolling window."
               time_filtered={@time_filter_active}
             />
             <%!-- 8. Avg Views --%>
@@ -306,14 +308,14 @@ defmodule PavoiWeb.CreatorTableComponents do
               phx-value-id={creator.id}
               class={[
                 @on_row_click && "cursor-pointer hover:bg-hover",
-                @selected_ids && MapSet.member?(@selected_ids, creator.id) && "row--selected"
+                (@select_all_matching || (@selected_ids && MapSet.member?(@selected_ids, creator.id))) && "row--selected"
               ]}
             >
               <%!-- 1. Checkbox --%>
               <td data-column-id="checkbox" class="col-checkbox" phx-click="stop_propagation">
                 <input
                   type="checkbox"
-                  checked={@selected_ids && MapSet.member?(@selected_ids, creator.id)}
+                  checked={@select_all_matching || (@selected_ids && MapSet.member?(@selected_ids, creator.id))}
                   phx-click="toggle_selection"
                   phx-value-id={creator.id}
                 />
@@ -372,21 +374,24 @@ defmodule PavoiWeb.CreatorTableComponents do
                   {format_number(creator.follower_count)}
                 <% end %>
               </td>
-              <%!-- 7. Total GMV --%>
+              <%!-- 7. Cumulative GMV --%>
               <td
-                data-column-id="gmv"
+                data-column-id="cumulative_gmv"
                 class={["text-right", @time_filter_active && "col-time-filtered"]}
               >
                 <%= if @delta_period && creator.snapshot_delta do %>
                   <.metric_with_delta
-                    current={creator.total_gmv_cents}
+                    current={creator.cumulative_gmv_cents}
                     delta={creator.snapshot_delta.gmv_delta}
                     start_date={creator.snapshot_delta.start_date}
                     has_complete_data={creator.snapshot_delta.has_complete_data}
                     format={:gmv}
                   />
                 <% else %>
-                  {format_gmv(creator.total_gmv_cents)}
+                  <.cumulative_gmv_cell
+                    value={creator.cumulative_gmv_cents}
+                    tracking_started_at={creator.gmv_tracking_started_at}
+                  />
                 <% end %>
               </td>
               <%!-- 8. Avg Views --%>
@@ -412,6 +417,45 @@ defmodule PavoiWeb.CreatorTableComponents do
     </div>
     """
   end
+
+  @doc """
+  Renders cumulative GMV with tracking start date indicator.
+  """
+  attr :value, :integer, default: nil
+  attr :tracking_started_at, :any, default: nil
+
+  def cumulative_gmv_cell(assigns) do
+    ~H"""
+    <div class="cumulative-gmv-cell">
+      <span class="cumulative-gmv-cell__value">{format_gmv(@value)}</span>
+      <%= if @tracking_started_at do %>
+        <span class="cumulative-gmv-cell__since">
+          since {format_short_date(@tracking_started_at)}
+        </span>
+      <% end %>
+    </div>
+    """
+  end
+
+  defp format_short_date(nil), do: ""
+
+  defp format_short_date(%Date{} = date) do
+    # Format as "Jan '26"
+    month = Calendar.strftime(date, "%b")
+    year = date.year |> Integer.to_string() |> String.slice(-2, 2)
+    "#{month} '#{year}"
+  end
+
+  defp format_short_date(_), do: ""
+
+  defp format_tracking_date(nil), do: ""
+
+  defp format_tracking_date(%Date{} = date) do
+    # Format as "Jan 5, 2026" for modal display
+    Calendar.strftime(date, "%b %-d, %Y")
+  end
+
+  defp format_tracking_date(_), do: ""
 
   @doc """
   Renders a sortable table header with optional tooltip and time-filter highlighting.
@@ -851,13 +895,20 @@ defmodule PavoiWeb.CreatorTableComponents do
               <span class="creator-modal-stat__label">Followers</span>
               <span class="creator-modal-stat__value">{format_number(@creator.follower_count)}</span>
             </div>
-            <div class="creator-modal-stat">
-              <span class="creator-modal-stat__label">Total GMV</span>
-              <span class="creator-modal-stat__value">{format_gmv(@creator.total_gmv_cents)}</span>
+            <div class="creator-modal-stat creator-modal-stat--primary">
+              <span class="creator-modal-stat__label">
+                Cumulative GMV
+                <%= if @creator.gmv_tracking_started_at do %>
+                  <span class="creator-modal-stat__since">
+                    since {format_tracking_date(@creator.gmv_tracking_started_at)}
+                  </span>
+                <% end %>
+              </span>
+              <span class="creator-modal-stat__value">{format_gmv(@creator.cumulative_gmv_cents)}</span>
             </div>
             <div class="creator-modal-stat">
-              <span class="creator-modal-stat__label">Video GMV</span>
-              <span class="creator-modal-stat__value">{format_gmv(@creator.video_gmv_cents)}</span>
+              <span class="creator-modal-stat__label">90-Day GMV</span>
+              <span class="creator-modal-stat__value">{format_gmv(@creator.total_gmv_cents)}</span>
             </div>
             <div class="creator-modal-stat">
               <span class="creator-modal-stat__label">Avg Views</span>

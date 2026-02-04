@@ -16,6 +16,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
   alias Pavoi.Communications.TemplateRenderer
   alias Pavoi.Creators
   alias Pavoi.Creators.Creator
+  alias Pavoi.Creators.CsvExporter
   alias Pavoi.Outreach
   alias Pavoi.Settings
   alias Pavoi.Workers.BigQueryOrderSyncWorker
@@ -53,7 +54,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
       |> assign(:creators, [])
       |> assign(:search_query, "")
       |> assign(:badge_filter, "")
-      |> assign(:sort_by, "gmv")
+      |> assign(:sort_by, "cumulative_gmv")
       |> assign(:sort_dir, "desc")
       |> assign(:page, 1)
       |> assign(:per_page, 50)
@@ -74,6 +75,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
       # Unified creators state (merged CRM + Outreach)
       |> assign(:outreach_status, nil)
       |> assign(:selected_ids, MapSet.new())
+      |> assign(:select_all_matching, false)
       |> assign(:show_status_filter, false)
       |> assign(:sendable_selected_count, 0)
       |> assign(:outreach_stats, %{pending: 0, sent: 0, skipped: 0})
@@ -100,6 +102,11 @@ defmodule PavoiWeb.CreatorsLive.Index do
       |> assign(:show_batch_tag_picker, false)
       |> assign(:picker_selected_tag_ids, [])
       |> assign(:batch_selected_tag_ids, [])
+      # Batch select state
+      |> assign(:show_batch_select_modal, false)
+      |> assign(:batch_select_input, "")
+      |> assign(:batch_select_results, nil)
+      |> assign(:batch_select_preview_ids, MapSet.new())
       # Time filter state (delta period in days: nil, 7, 30, 90)
       |> assign(:delta_period, nil)
       |> assign(:time_preset, "all")
@@ -325,6 +332,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
     socket =
       socket
       |> assign(:selected_ids, selected)
+      |> assign(:select_all_matching, false)
       |> compute_sendable_selected_count()
 
     {:noreply, socket}
@@ -337,6 +345,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
     socket =
       socket
       |> assign(:selected_ids, all_ids)
+      |> assign(:select_all_matching, false)
       |> compute_sendable_selected_count()
 
     {:noreply, socket}
@@ -347,14 +356,28 @@ defmodule PavoiWeb.CreatorsLive.Index do
     socket =
       socket
       |> assign(:selected_ids, MapSet.new())
+      |> assign(:select_all_matching, false)
       |> assign(:sendable_selected_count, 0)
 
     {:noreply, socket}
   end
 
   @impl true
+  def handle_event("select_all_matching", _params, socket) do
+    # Mark that all matching creators are selected (virtual selection)
+    # The actual IDs will be fetched when needed for operations
+    socket =
+      socket
+      |> assign(:select_all_matching, true)
+      |> assign(:selected_ids, MapSet.new())
+      |> compute_sendable_selected_count()
+
+    {:noreply, socket}
+  end
+
+  @impl true
   def handle_event("show_send_modal", _params, socket) do
-    if MapSet.size(socket.assigns.selected_ids) > 0 do
+    if has_selection?(socket) do
       templates = Communications.list_email_templates()
       default_template = Communications.get_default_email_template()
 
@@ -680,7 +703,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
   # Batch tag handlers
   @impl true
   def handle_event("show_batch_tag_picker", _params, socket) do
-    if MapSet.size(socket.assigns.selected_ids) > 0 do
+    if has_selection?(socket) do
       socket =
         socket
         |> assign(:show_batch_tag_picker, true)
@@ -719,7 +742,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
 
   @impl true
   def handle_event("apply_batch_tags", _params, socket) do
-    creator_ids = MapSet.to_list(socket.assigns.selected_ids)
+    creator_ids = get_selected_creator_ids(socket)
     tag_ids = socket.assigns.batch_selected_tag_ids
     {:ok, count} = Creators.batch_assign_tags(creator_ids, tag_ids)
 
@@ -728,9 +751,114 @@ defmodule PavoiWeb.CreatorsLive.Index do
       |> assign(:show_batch_tag_picker, false)
       |> assign(:batch_selected_tag_ids, [])
       |> assign(:selected_ids, MapSet.new())
+      |> assign(:select_all_matching, false)
       |> assign(:page, 1)
       |> load_creators()
       |> put_flash(:info, "Added #{count} tag assignments to #{length(creator_ids)} creators")
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("export_csv", _params, socket) do
+    if has_selection?(socket) do
+      selected_creators = get_selected_creators(socket)
+
+      csv_content = CsvExporter.generate(selected_creators)
+      filename = CsvExporter.filename()
+
+      socket =
+        socket
+        |> push_event("download_csv", %{content: csv_content, filename: filename})
+        |> put_flash(:info, "Exported #{length(selected_creators)} creators to CSV")
+
+      {:noreply, socket}
+    else
+      {:noreply, put_flash(socket, :error, "Please select at least one creator to export")}
+    end
+  end
+
+  # =============================================================================
+  # BATCH SELECT EVENT HANDLERS
+  # =============================================================================
+
+  @impl true
+  def handle_event("show_batch_select_modal", _params, socket) do
+    socket =
+      socket
+      |> assign(:show_batch_select_modal, true)
+      |> assign(:batch_select_input, "")
+      |> assign(:batch_select_results, nil)
+      |> assign(:batch_select_preview_ids, MapSet.new())
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("close_batch_select_modal", _params, socket) do
+    socket =
+      socket
+      |> assign(:show_batch_select_modal, false)
+      |> assign(:batch_select_input, "")
+      |> assign(:batch_select_results, nil)
+      |> assign(:batch_select_preview_ids, MapSet.new())
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("batch_select_input_change", %{"value" => value}, socket) do
+    {:noreply, assign(socket, :batch_select_input, value)}
+  end
+
+  @impl true
+  def handle_event("batch_select_parse", _params, socket) do
+    input = socket.assigns.batch_select_input
+
+    {found_creators, not_found_handles} = Creators.find_creators_by_handles(input)
+
+    # Pre-select all found creators
+    preview_ids = found_creators |> Enum.map(& &1.id) |> MapSet.new()
+
+    socket =
+      socket
+      |> assign(:batch_select_results, %{found: found_creators, not_found: not_found_handles})
+      |> assign(:batch_select_preview_ids, preview_ids)
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("batch_select_toggle", %{"id" => id}, socket) do
+    id = String.to_integer(id)
+    preview_ids = socket.assigns.batch_select_preview_ids
+
+    preview_ids =
+      if MapSet.member?(preview_ids, id) do
+        MapSet.delete(preview_ids, id)
+      else
+        MapSet.put(preview_ids, id)
+      end
+
+    {:noreply, assign(socket, :batch_select_preview_ids, preview_ids)}
+  end
+
+  @impl true
+  def handle_event("batch_select_confirm", _params, socket) do
+    new_ids = socket.assigns.batch_select_preview_ids
+
+    # Merge with existing selection
+    selected_ids = MapSet.union(socket.assigns.selected_ids, new_ids)
+
+    socket =
+      socket
+      |> assign(:selected_ids, selected_ids)
+      |> assign(:select_all_matching, false)
+      |> assign(:show_batch_select_modal, false)
+      |> assign(:batch_select_input, "")
+      |> assign(:batch_select_results, nil)
+      |> assign(:batch_select_preview_ids, MapSet.new())
+      |> compute_sendable_selected_count()
 
     {:noreply, socket}
   end
@@ -871,13 +999,9 @@ defmodule PavoiWeb.CreatorsLive.Index do
 
   defp get_sendable_creator_ids(socket) do
     sendable_ids =
-      socket.assigns.creators
-      |> Enum.filter(fn creator ->
-        MapSet.member?(socket.assigns.selected_ids, creator.id) and
-          creator.email != nil and
-          creator.email != "" and
-          not creator.email_opted_out
-      end)
+      socket
+      |> get_selected_creators()
+      |> Enum.filter(&sendable?/1)
       |> Enum.map(& &1.id)
 
     case sendable_ids do
@@ -894,6 +1018,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
       socket
       |> assign(:show_send_modal, false)
       |> assign(:selected_ids, MapSet.new())
+      |> assign(:select_all_matching, false)
       |> assign(:selected_creator, updated_creator)
       |> assign(:page, 1)
       |> put_flash(:info, "Queued email for @#{updated_creator.tiktok_username || "creator"}")
@@ -904,6 +1029,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
       socket
       |> assign(:show_send_modal, false)
       |> assign(:selected_ids, MapSet.new())
+      |> assign(:select_all_matching, false)
       |> assign(:sendable_selected_count, 0)
       |> put_flash(:info, "Queued #{count} emails for sending")
       |> push_patch(to: ~p"/creators?status=contacted")
@@ -1029,6 +1155,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
       socket
       |> assign(:page, socket.assigns.page + 1)
       |> load_creators()
+      |> maybe_recompute_sendable_count()
 
     {:noreply, socket}
   end
@@ -1124,23 +1251,25 @@ defmodule PavoiWeb.CreatorsLive.Index do
     template_type = params["tt"] || "email"
 
     # Preserve selection when only switching tabs (not changing filters/search/page)
-    {selected_ids, sendable_count} =
+    {selected_ids, select_all_matching, sendable_count} =
       if new_page_tab != old_page_tab do
         # Switching tabs - preserve selection
-        {socket.assigns.selected_ids, socket.assigns.sendable_selected_count}
+        {socket.assigns.selected_ids, socket.assigns.select_all_matching,
+         socket.assigns.sendable_selected_count}
       else
         # Normal navigation - clear selection
-        {MapSet.new(), 0}
+        {MapSet.new(), false, 0}
       end
 
     socket
     |> assign(:search_query, params["q"] || "")
     |> assign(:badge_filter, params["badge"] || "")
-    |> assign(:sort_by, params["sort"] || "gmv")
+    |> assign(:sort_by, params["sort"] || "cumulative_gmv")
     |> assign(:sort_dir, params["dir"] || "desc")
     |> assign(:page, parse_page(params["page"]))
     |> assign(:outreach_status, parse_outreach_status(params["status"]))
     |> assign(:selected_ids, selected_ids)
+    |> assign(:select_all_matching, select_all_matching)
     |> assign(:sendable_selected_count, sendable_count)
     |> assign(:filter_tag_ids, parse_tag_ids(params["tags"]))
     |> assign(:delta_period, delta_period)
@@ -1175,7 +1304,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
   defp parse_outreach_status("all"), do: nil
 
   defp parse_outreach_status(status)
-       when status in ["never_contacted", "contacted", "opted_out"],
+       when status in ["never_contacted", "contacted", "opted_out", "sampled"],
        do: status
 
   defp parse_outreach_status(_), do: nil
@@ -1285,7 +1414,11 @@ defmodule PavoiWeb.CreatorsLive.Index do
   # Always load outreach stats for the status filter dropdown
   defp load_outreach_stats(socket) do
     stats = Outreach.get_outreach_stats()
+    sampled_count = Creators.count_sampled_creators()
     sent_today = Outreach.count_sent_today()
+
+    # Merge sampled count into stats
+    stats = Map.put(stats, :sampled, sampled_count)
 
     socket
     |> assign(:outreach_stats, stats)
@@ -1356,7 +1489,7 @@ defmodule PavoiWeb.CreatorsLive.Index do
   defp default_value?({_k, ""}), do: true
   defp default_value?({_k, nil}), do: true
   defp default_value?({:page, 1}), do: true
-  defp default_value?({:sort, "gmv"}), do: true
+  defp default_value?({:sort, "cumulative_gmv"}), do: true
   defp default_value?({:sort, nil}), do: true
   defp default_value?({:dir, "desc"}), do: true
   defp default_value?({:tab, "contact"}), do: true
@@ -1369,22 +1502,65 @@ defmodule PavoiWeb.CreatorsLive.Index do
   # A creator is sendable if they have an email and haven't opted out
   defp compute_sendable_selected_count(socket) do
     selected_ids = socket.assigns.selected_ids
+    select_all_matching = socket.assigns.select_all_matching
     creators = socket.assigns.creators
 
     count =
-      if MapSet.size(selected_ids) == 0 do
-        0
-      else
-        selected_creators = Enum.filter(creators, &MapSet.member?(selected_ids, &1.id))
+      cond do
+        select_all_matching ->
+          # When "select all matching" is active, count all loaded sendable creators
+          # Note: This is approximate since not all creators may be loaded
+          Enum.count(creators, &sendable?/1)
 
-        Enum.count(selected_creators, fn creator ->
-          creator.email != nil and
-            creator.email != "" and
-            not creator.email_opted_out
-        end)
+        MapSet.size(selected_ids) == 0 ->
+          0
+
+        true ->
+          creators
+          |> Enum.filter(&MapSet.member?(selected_ids, &1.id))
+          |> Enum.count(&sendable?/1)
       end
 
     assign(socket, :sendable_selected_count, count)
+  end
+
+  # Recompute sendable count if there's an active selection
+  defp maybe_recompute_sendable_count(socket) do
+    if has_selection?(socket) do
+      compute_sendable_selected_count(socket)
+    else
+      socket
+    end
+  end
+
+  defp sendable?(creator) do
+    creator.email != nil and creator.email != "" and not creator.email_opted_out
+  end
+
+  # Returns true if there's an active selection (either explicit IDs or "select all matching")
+  defp has_selection?(socket) do
+    socket.assigns.select_all_matching or MapSet.size(socket.assigns.selected_ids) > 0
+  end
+
+  # Returns list of selected creator structs
+  # When select_all_matching is true, returns all loaded creators (which match the filters)
+  defp get_selected_creators(socket) do
+    if socket.assigns.select_all_matching do
+      socket.assigns.creators
+    else
+      selected_ids = socket.assigns.selected_ids
+      Enum.filter(socket.assigns.creators, &MapSet.member?(selected_ids, &1.id))
+    end
+  end
+
+  # Returns list of selected creator IDs
+  # When select_all_matching is true, returns IDs of all loaded creators
+  defp get_selected_creator_ids(socket) do
+    if socket.assigns.select_all_matching do
+      Enum.map(socket.assigns.creators, & &1.id)
+    else
+      MapSet.to_list(socket.assigns.selected_ids)
+    end
   end
 
   defp maybe_load_selected_creator(socket, params) do

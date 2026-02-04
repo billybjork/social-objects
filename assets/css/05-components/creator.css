@@ -867,11 +867,9 @@
 .tag-filter__trigger {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  padding: 0 var(--space-3);
+  gap: var(--space-1);
+  padding: 0 var(--space-2) 0 var(--space-4);
   height: 36px;
-  min-width: 115px;
   background-color: var(--color-surface-primary);
   border: 1px solid var(--color-border-primary);
   border-radius: var(--radius-md);
@@ -880,6 +878,7 @@
   cursor: pointer;
   transition: all 0.15s ease;
   appearance: none;
+  white-space: nowrap;
 }
 
 .tag-filter__trigger:hover {

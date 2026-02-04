@@ -24,6 +24,7 @@ defmodule Pavoi.Creators.Creator do
     field :tiktok_username, :string
     field :tiktok_user_id, :string
     field :tiktok_profile_url, :string
+    field :previous_tiktok_usernames, {:array, :string}, default: []
 
     # Contact Info
     field :email, :string
@@ -56,6 +57,12 @@ defmodule Pavoi.Creators.Creator do
     field :avg_video_views, :integer
     field :video_count, :integer, default: 0
     field :live_count, :integer, default: 0
+
+    # Cumulative GMV tracking (accumulates deltas to handle 90-day rolling window)
+    field :cumulative_gmv_cents, :integer, default: 0
+    field :cumulative_video_gmv_cents, :integer, default: 0
+    field :cumulative_live_gmv_cents, :integer, default: 0
+    field :gmv_tracking_started_at, :date
 
     # TikTok identity from marketplace API
     field :tiktok_nickname, :string
@@ -100,6 +107,7 @@ defmodule Pavoi.Creators.Creator do
       :tiktok_username,
       :tiktok_user_id,
       :tiktok_profile_url,
+      :previous_tiktok_usernames,
       :tiktok_nickname,
       :tiktok_avatar_url,
       :tiktok_avatar_storage_key,
@@ -135,7 +143,11 @@ defmodule Pavoi.Creators.Creator do
       :sms_consent_user_agent,
       :email_opted_out,
       :email_opted_out_at,
-      :email_opted_out_reason
+      :email_opted_out_reason,
+      :cumulative_gmv_cents,
+      :cumulative_video_gmv_cents,
+      :cumulative_live_gmv_cents,
+      :gmv_tracking_started_at
     ])
     |> validate_required([])
     |> normalize_username()

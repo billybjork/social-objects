@@ -21,6 +21,7 @@ import ImageLightbox from "./hooks/image_lightbox"
 import SentimentChart from "./hooks/sentiment_chart"
 import CategoryChart from "./hooks/category_chart"
 import TemplateEditor from "./hooks/template_editor"
+import CsvDownload from "./hooks/csv_download"
 
 // Lazy-loaded VoiceControl hook wrapper
 // Only loads the full voice_control.js when hook actually mounts (feature flag enabled)
@@ -65,6 +66,7 @@ const Hooks = {
   SentimentChart,
   CategoryChart,
   TemplateEditor,
+  CsvDownload,
 }
 
 export default Hooks

@@ -151,6 +151,14 @@ defmodule Pavoi.Creators do
     where(query, [c], c.email_opted_out == true)
   end
 
+  defp apply_outreach_status_filter(query, "sampled") do
+    # Creators who have received at least one sample
+    sampled_creator_ids =
+      from(cs in CreatorSample, select: cs.creator_id, distinct: true)
+
+    from(c in query, where: c.id in subquery(sampled_creator_ids))
+  end
+
   defp apply_outreach_status_filter(query, _), do: query
 
   defp apply_added_after_filter(query, nil), do: query
@@ -219,6 +227,13 @@ defmodule Pavoi.Creators do
 
   defp apply_unified_sort(query, "avg_views", "desc"),
     do: order_by(query, [c], desc_nulls_last: c.avg_video_views)
+
+  # Cumulative GMV sorting
+  defp apply_unified_sort(query, "cumulative_gmv", "asc"),
+    do: order_by(query, [c], asc_nulls_last: c.cumulative_gmv_cents)
+
+  defp apply_unified_sort(query, "cumulative_gmv", "desc"),
+    do: order_by(query, [c], desc_nulls_last: c.cumulative_gmv_cents)
 
   # Delegate to existing sort handlers for CRM columns
   defp apply_unified_sort(query, sort_by, sort_dir),
@@ -312,7 +327,7 @@ defmodule Pavoi.Creators do
 
     query
     |> join(:left, [c], ls in subquery(last_sample_dates), on: ls.creator_id == c.id)
-    |> order_by([c, ls], [{^sort_dir_atom(dir), ls.last_at}])
+    |> order_by([c, ls], [{^sort_dir_nulls_last(dir), ls.last_at}])
   end
 
   defp apply_creator_sort(query, _, _),
@@ -320,6 +335,9 @@ defmodule Pavoi.Creators do
 
   defp sort_dir_atom("desc"), do: :desc
   defp sort_dir_atom(_), do: :asc
+
+  defp sort_dir_nulls_last("desc"), do: :desc_nulls_last
+  defp sort_dir_nulls_last(_), do: :asc_nulls_last
 
   defp apply_creator_search_filter(query, ""), do: query
 
@@ -625,6 +643,14 @@ defmodule Pavoi.Creators do
   def count_samples_for_creator(creator_id) do
     from(cs in CreatorSample, where: cs.creator_id == ^creator_id)
     |> Repo.aggregate(:count)
+  end
+
+  @doc """
+  Counts unique creators who have received at least one sample.
+  """
+  def count_sampled_creators do
+    from(cs in CreatorSample, select: count(cs.creator_id, :distinct))
+    |> Repo.one()
   end
 
   @doc """
@@ -976,6 +1002,103 @@ defmodule Pavoi.Creators do
   ## BigQuery Sync Helpers
 
   @doc """
+  Finds creators by a list of TikTok handles in various formats.
+
+  Handles are normalized (stripped of @, extracted from URLs, lowercased).
+  Searches both current `tiktok_username` and `previous_tiktok_usernames`.
+
+  ## Input formats supported
+    - Plain: `johnsmith123`
+    - With @: `@johnsmith123`
+    - TikTok URLs: `https://www.tiktok.com/@johnsmith123`
+    - Separators: comma, space, tab, newline
+
+  ## Returns
+    `{found_creators, not_found_handles}` tuple where:
+    - `found_creators` is a list of Creator structs
+    - `not_found_handles` is a list of normalized handles that weren't found
+  """
+  def find_creators_by_handles(input) when is_binary(input) do
+    handles =
+      input
+      |> String.split(~r/[\s,]+/)
+      |> Enum.map(&normalize_handle/1)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.uniq()
+
+    if handles == [] do
+      {[], []}
+    else
+      find_creators_by_normalized_handles(handles)
+    end
+  end
+
+  def find_creators_by_handles(_), do: {[], []}
+
+  defp normalize_handle(raw) do
+    raw = String.trim(raw)
+
+    # Extract username from TikTok URL if present
+    username =
+      case Regex.run(~r{tiktok\.com/@?([^/?]+)}, raw) do
+        [_, username] -> username
+        nil -> raw
+      end
+
+    # Strip leading @ and lowercase
+    username
+    |> String.trim_leading("@")
+    |> String.downcase()
+    |> case do
+      "" -> nil
+      normalized -> normalized
+    end
+  end
+
+  defp find_creators_by_normalized_handles(handles) do
+    # First query: find by current username
+    found_by_username =
+      from(c in Creator,
+        where: c.tiktok_username in ^handles
+      )
+      |> Repo.all()
+
+    found_usernames = Enum.map(found_by_username, &String.downcase(&1.tiktok_username))
+    remaining_handles = handles -- found_usernames
+
+    # Second query: find by previous usernames for remaining handles
+    found_by_previous =
+      if remaining_handles == [] do
+        []
+      else
+        from(c in Creator,
+          where:
+            fragment(
+              "EXISTS (SELECT 1 FROM unnest(?) AS prev WHERE LOWER(prev) = ANY(?))",
+              c.previous_tiktok_usernames,
+              ^remaining_handles
+            )
+        )
+        |> Repo.all()
+      end
+
+    # Calculate which handles from remaining were found via previous usernames
+    found_previous_handles =
+      Enum.flat_map(found_by_previous, fn creator ->
+        (creator.previous_tiktok_usernames || [])
+        |> Enum.map(&String.downcase/1)
+        |> Enum.filter(&(&1 in remaining_handles))
+      end)
+
+    not_found_handles = remaining_handles -- found_previous_handles
+
+    # Combine results, removing duplicates (same creator found via both paths)
+    all_found = (found_by_username ++ found_by_previous) |> Enum.uniq_by(& &1.id)
+
+    {all_found, not_found_handles}
+  end
+
+  @doc """
   Gets a creator by their TikTok user ID.
   Returns nil if not found or if user_id is nil/empty.
   """
@@ -985,6 +1108,45 @@ defmodule Pavoi.Creators do
   def get_creator_by_tiktok_user_id(user_id) when is_binary(user_id) do
     from(c in Creator, where: c.tiktok_user_id == ^user_id, limit: 1)
     |> Repo.one()
+  end
+
+  @doc """
+  Gets a creator by a previous TikTok username.
+
+  Searches the `previous_tiktok_usernames` array for creators who used to have
+  this handle before changing it. Useful for:
+  - Preventing duplicates when adding a creator by their old handle
+  - Finding the correct creator record when given an outdated handle
+
+  Returns nil if not found or if username is nil/empty.
+  """
+  def get_creator_by_previous_username(nil), do: nil
+  def get_creator_by_previous_username(""), do: nil
+
+  def get_creator_by_previous_username(username) when is_binary(username) do
+    normalized = String.downcase(String.trim(username))
+
+    from(c in Creator,
+      where: ^normalized in fragment("SELECT LOWER(unnest(?))", c.previous_tiktok_usernames),
+      limit: 1
+    )
+    |> Repo.one()
+  end
+
+  @doc """
+  Finds a creator by username, checking both current and previous handles.
+
+  First checks current `tiktok_username`, then falls back to `previous_tiktok_usernames`.
+  This is the recommended function to use when you have a username and want to
+  find the creator regardless of whether they've changed their handle.
+
+  Returns nil if not found.
+  """
+  def get_creator_by_any_username(nil), do: nil
+  def get_creator_by_any_username(""), do: nil
+
+  def get_creator_by_any_username(username) when is_binary(username) do
+    get_creator_by_username(username) || get_creator_by_previous_username(username)
   end
 
   @doc """

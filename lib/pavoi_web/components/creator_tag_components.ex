@@ -222,7 +222,13 @@ defmodule PavoiWeb.CreatorTagComponents do
         type="button"
         class={["tag-filter__trigger", @selected_count > 0 && "tag-filter__trigger--active"]}
       >
-        <.icon name="hero-tag" class="size-4" />
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-4">
+          <path
+            fill-rule="evenodd"
+            d="M4.5 2A2.5 2.5 0 0 0 2 4.5v3.879a2.5 2.5 0 0 0 .732 1.767l7.5 7.5a2.5 2.5 0 0 0 3.536 0l3.878-3.878a2.5 2.5 0 0 0 0-3.536l-7.5-7.5A2.5 2.5 0 0 0 8.38 2H4.5ZM5 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"
+            clip-rule="evenodd"
+          />
+        </svg>
         <span>
           <%= if @selected_count > 0 do %>
             Tags ({@selected_count})
@@ -322,6 +328,107 @@ defmodule PavoiWeb.CreatorTagComponents do
         >
           Apply Tags ({length(@selected_tag_ids)})
         </.button>
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders a batch select modal for selecting creators by TikTok handles.
+
+  Two-phase design:
+  - Phase 1 (input): Textarea for pasting handles
+  - Phase 2 (results): Preview matched creators with checkboxes
+  """
+  attr :input, :string, default: ""
+  attr :results, :map, default: nil
+  attr :preview_ids, :any, default: nil
+
+  def batch_select_modal(assigns) do
+    preview_ids = assigns.preview_ids || MapSet.new()
+    assigns = assign(assigns, :preview_ids, preview_ids)
+
+    ~H"""
+    <div class="batch-select-modal">
+      <div class="modal__header">
+        <h2 class="modal__title">Batch Select by TikTok Handle</h2>
+      </div>
+      <div class="modal__body">
+        <%= if is_nil(@results) do %>
+          <%!-- Phase 1: Input --%>
+          <p class="text-secondary batch-select-modal__description">
+            Paste TikTok handles below. Supports usernames, @handles, and TikTok profile URLs.
+            Separate with commas, spaces, or newlines.
+          </p>
+          <textarea
+            id="batch-select-textarea"
+            class="batch-select-modal__textarea"
+            placeholder={"@user1\nuser2\nhttps://tiktok.com/@user3"}
+            phx-keyup="batch_select_input_change"
+            phx-debounce="100"
+          ><%= @input %></textarea>
+        <% else %>
+          <%!-- Phase 2: Results --%>
+          <div class="batch-select-modal__summary">
+            <span class="batch-select-modal__found">
+              <span class="batch-select-modal__count">{length(@results.found)}</span> Found
+            </span>
+            <%= if @results.not_found != [] do %>
+              <span class="batch-select-modal__not-found">
+                <span class="batch-select-modal__count">{length(@results.not_found)}</span> Not Found
+              </span>
+            <% end %>
+          </div>
+
+          <%= if @results.found != [] do %>
+            <div class="batch-select-modal__list">
+              <%= for creator <- @results.found do %>
+                <label class="batch-select-modal__item">
+                  <input
+                    type="checkbox"
+                    checked={MapSet.member?(@preview_ids, creator.id)}
+                    phx-click="batch_select_toggle"
+                    phx-value-id={creator.id}
+                  />
+                  <span class="batch-select-modal__username">@{creator.tiktok_username}</span>
+                  <%= if creator.first_name || creator.last_name do %>
+                    <span class="batch-select-modal__name">
+                      {creator.first_name} {creator.last_name}
+                    </span>
+                  <% end %>
+                </label>
+              <% end %>
+            </div>
+          <% end %>
+
+          <%= if @results.not_found != [] do %>
+            <div class="batch-select-modal__not-found-list">
+              <p class="batch-select-modal__not-found-label">Not found:</p>
+              <div class="batch-select-modal__not-found-handles">
+                <%= for handle <- @results.not_found do %>
+                  <span class="batch-select-modal__not-found-handle">@{handle}</span>
+                <% end %>
+              </div>
+            </div>
+          <% end %>
+        <% end %>
+      </div>
+      <div class="modal__footer">
+        <%= if is_nil(@results) do %>
+          <.button variant="outline" phx-click="close_batch_select_modal">Cancel</.button>
+          <.button variant="primary" phx-click="batch_select_parse" disabled={@input == ""}>
+            Find Creators
+          </.button>
+        <% else %>
+          <.button variant="outline" phx-click="close_batch_select_modal">Cancel</.button>
+          <.button
+            variant="primary"
+            phx-click="batch_select_confirm"
+            disabled={MapSet.size(@preview_ids) == 0}
+          >
+            Select {MapSet.size(@preview_ids)} Creator{if MapSet.size(@preview_ids) != 1, do: "s"}
+          </.button>
+        <% end %>
       </div>
     </div>
     """
