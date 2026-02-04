@@ -1032,30 +1032,33 @@ defmodule PavoiWeb.TiktokLiveComponents do
   attr :sentiment, :map, default: nil
 
   def stream_sentiment_indicator(assigns) do
+    total =
+      if assigns[:sentiment],
+        do: assigns.sentiment.positive_percent + assigns.sentiment.negative_percent,
+        else: 0
+
+    relative_positive =
+      if total > 0, do: Float.round(assigns.sentiment.positive_percent / total * 100, 1), else: 0
+
+    relative_negative = if total > 0, do: Float.round(100 - relative_positive, 1), else: 0
+
+    assigns =
+      assign(assigns, relative_positive: relative_positive, relative_negative: relative_negative)
+
     ~H"""
     <%= if @sentiment && (@sentiment.positive_percent > 0 || @sentiment.negative_percent > 0) do %>
       <div
         class="stream-sentiment-mini"
         title={"#{@sentiment.positive_percent}% positive, #{@sentiment.negative_percent}% negative"}
       >
-        <div class="stream-sentiment-mini__positive" style={"width: #{@sentiment.positive_percent}%"}>
-        </div>
-        <div
-          class="stream-sentiment-mini__neutral"
-          style={"width: #{100 - @sentiment.positive_percent - @sentiment.negative_percent}%"}
-        >
-        </div>
-        <div class="stream-sentiment-mini__negative" style={"width: #{@sentiment.negative_percent}%"}>
-        </div>
+        <div class="stream-sentiment-mini__positive" style={"width: #{@relative_positive}%"}></div>
+        <div class="stream-sentiment-mini__negative" style={"width: #{@relative_negative}%"}></div>
       </div>
     <% else %>
       <div class="stream-sentiment-mini stream-sentiment-mini--empty"></div>
     <% end %>
     """
   end
-
-  # Chart data building functions moved to LiveView for stable rendering
-  # (see lib/pavoi_web/live/tiktok_live/index.ex - build_sentiment_chart_json/1, build_category_chart_json/1)
 
   defp format_stream_option(nil), do: "Unknown"
 

@@ -646,9 +646,7 @@
 }
 
 @media (max-width: 480px) {
-  /* Hide thumbnail, duration, and viewers columns on very small screens */
-  .streams-table th[data-column-id="thumbnail"],
-  .streams-table td[data-column-id="thumbnail"],
+  /* Hide duration and viewers columns on very small screens */
   .streams-table th[data-column-id="duration"],
   .streams-table td[data-column-id="duration"],
   .streams-table th[data-column-id="viewers"],
@@ -1420,11 +1418,6 @@
 
 .stream-sentiment-mini__negative {
   background: rgb(239, 68, 68);
-  height: 100%;
-}
-
-.stream-sentiment-mini__neutral {
-  background: var(--color-text-tertiary);
   height: 100%;
 }
 

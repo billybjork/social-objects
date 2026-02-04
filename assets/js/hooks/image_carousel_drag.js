@@ -9,6 +9,7 @@ export default {
     this.startX = 0
     this.currentX = 0
     this.threshold = 50 // Minimum drag distance (px) to trigger navigation
+    this.isScrolling = false // Flag to suppress scroll handler during programmatic scrolls
 
     // Get current index and total images from data attributes
     this.getCurrentState = () => {
@@ -86,6 +87,9 @@ export default {
 
     // Handle scroll events to update dots based on visible image
     this.handleScroll = () => {
+      // Skip if this scroll was triggered programmatically (e.g. from updated())
+      if (this.isScrolling) return
+
       const wrapper = this.el.querySelector('.image-carousel__image-wrapper')
       if (!wrapper) return
 
@@ -108,8 +112,8 @@ export default {
         }
       })
 
-      // Update data attribute and dots
-      this.el.dataset.currentIndex = currentIndex
+      // Only update dots visually - don't modify data-current-index
+      // as that attribute is managed by LiveView server state
       this.updateDots(currentIndex)
     }
 
@@ -143,17 +147,30 @@ export default {
   },
 
   updated() {
-    // Scroll to current image in both compact and full modes
-    const { currentIndex, mode } = this.getCurrentState()
+    // Scroll to current image using direct scrollLeft manipulation.
+    // We avoid scrollIntoView() because on mobile browsers (especially iOS Safari)
+    // it scrolls ALL ancestor containers, not just the immediate scrollable parent.
+    // Inside a fixed-position modal, this causes the modal/page to scroll unexpectedly,
+    // which can trigger phx-click-away (closing the modal) or disconnect the LiveView socket.
+    const { currentIndex } = this.getCurrentState()
     const wrapper = this.el.querySelector('.image-carousel__image-wrapper')
     const images = wrapper?.querySelectorAll('.image-carousel__image')
 
-    if (images && images[currentIndex]) {
-      images[currentIndex].scrollIntoView({
-        behavior: 'smooth',
-        block: 'nearest',
-        inline: 'center'
-      })
+    if (wrapper && images && images[currentIndex]) {
+      const image = images[currentIndex]
+      // Calculate scroll position to center the target image in the wrapper
+      const scrollTarget = image.offsetLeft - (wrapper.offsetWidth - image.offsetWidth) / 2
+
+      // Suppress the scroll handler during programmatic scroll to prevent
+      // DOM state conflicts with LiveView-managed attributes
+      this.isScrolling = true
+      wrapper.scrollTo({ left: scrollTarget, behavior: 'smooth' })
+
+      // Clear the flag after the scroll animation settles
+      clearTimeout(this._scrollTimeout)
+      this._scrollTimeout = setTimeout(() => {
+        this.isScrolling = false
+      }, 400)
     }
   },
 
