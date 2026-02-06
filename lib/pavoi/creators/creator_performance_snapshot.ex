@@ -11,6 +11,7 @@ defmodule Pavoi.Creators.CreatorPerformanceSnapshot do
   @sources ~w(refunnel tiktok_api tiktok_marketplace manual csv_import)
 
   schema "creator_performance_snapshots" do
+    belongs_to :brand, Pavoi.Catalog.Brand
     belongs_to :creator, Pavoi.Creators.Creator
 
     field :snapshot_date, :date
@@ -61,10 +62,11 @@ defmodule Pavoi.Creators.CreatorPerformanceSnapshot do
       :video_gmv_delta_cents,
       :live_gmv_delta_cents
     ])
-    |> validate_required([:creator_id, :snapshot_date])
+    |> validate_required([:brand_id, :creator_id, :snapshot_date])
     |> validate_inclusion(:source, @sources)
     |> unique_constraint([:creator_id, :snapshot_date, :source])
     |> foreign_key_constraint(:creator_id)
+    |> foreign_key_constraint(:brand_id)
   end
 
   @doc """

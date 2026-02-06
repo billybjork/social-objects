@@ -10,6 +10,8 @@ defmodule Pavoi.Settings.SystemSetting do
     field :value, :string
     field :value_type, :string, default: "string"
 
+    belongs_to :brand, Pavoi.Catalog.Brand
+
     timestamps()
   end
 
@@ -17,7 +19,8 @@ defmodule Pavoi.Settings.SystemSetting do
   def changeset(system_setting, attrs) do
     system_setting
     |> cast(attrs, [:key, :value, :value_type])
-    |> validate_required([:key])
-    |> unique_constraint(:key)
+    |> validate_required([:brand_id, :key])
+    |> unique_constraint([:brand_id, :key])
+    |> foreign_key_constraint(:brand_id)
   end
 end

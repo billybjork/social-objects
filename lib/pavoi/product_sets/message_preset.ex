@@ -18,6 +18,8 @@ defmodule Pavoi.ProductSets.MessagePreset do
     field :color, :string
     field :position, :integer
 
+    belongs_to :brand, Pavoi.Catalog.Brand, type: :id
+
     timestamps(type: :utc_datetime)
   end
 
@@ -30,9 +32,10 @@ defmodule Pavoi.ProductSets.MessagePreset do
   def changeset(message_preset, attrs) do
     message_preset
     |> cast(attrs, [:message_text, :color, :position])
-    |> validate_required([:message_text, :color])
+    |> validate_required([:brand_id, :message_text, :color])
     |> validate_length(:message_text, min: 1, max: 1000)
     |> validate_inclusion(:color, @valid_colors)
     |> validate_number(:position, greater_than_or_equal_to: 0)
+    |> foreign_key_constraint(:brand_id)
   end
 end

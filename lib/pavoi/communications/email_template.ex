@@ -27,6 +27,8 @@ defmodule Pavoi.Communications.EmailTemplate do
     field :type, :string, default: "email"
     field :form_config, :map, default: %{}
 
+    belongs_to :brand, Pavoi.Catalog.Brand
+
     timestamps()
   end
 
@@ -47,12 +49,13 @@ defmodule Pavoi.Communications.EmailTemplate do
       :type,
       :form_config
     ])
-    |> validate_required([:name, :html_body, :type])
+    |> validate_required([:brand_id, :name, :html_body, :type])
     |> validate_inclusion(:lark_preset, @lark_presets)
     |> validate_inclusion(:type, @template_types)
     |> validate_subject_for_email()
     |> validate_form_config()
-    |> unique_constraint(:name)
+    |> unique_constraint([:brand_id, :name])
+    |> foreign_key_constraint(:brand_id)
   end
 
   # Email templates require a subject line

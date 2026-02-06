@@ -30,6 +30,7 @@ defmodule Pavoi.TiktokLive.Comment do
 
     field :classified_at, :utc_datetime
 
+    belongs_to :brand, Pavoi.Catalog.Brand
     belongs_to :stream, Pavoi.TiktokLive.Stream
     belongs_to :product_set_product, Pavoi.ProductSets.ProductSetProduct
 
@@ -50,8 +51,9 @@ defmodule Pavoi.TiktokLive.Comment do
       :product_set_product_id,
       :parsed_product_number
     ])
-    |> validate_required([:stream_id, :tiktok_user_id, :comment_text, :commented_at])
+    |> validate_required([:brand_id, :stream_id, :tiktok_user_id, :comment_text, :commented_at])
     |> foreign_key_constraint(:stream_id)
     |> foreign_key_constraint(:product_set_product_id)
+    |> foreign_key_constraint(:brand_id)
   end
 end

@@ -18,6 +18,8 @@ defmodule Pavoi.TiktokShop.Auth do
     field :shop_code, :string
     field :region, :string
 
+    belongs_to :brand, Pavoi.Catalog.Brand
+
     timestamps()
   end
 
@@ -35,6 +37,7 @@ defmodule Pavoi.TiktokShop.Auth do
       :shop_code,
       :region
     ])
-    |> validate_required([:access_token, :refresh_token])
+    |> validate_required([:brand_id, :access_token, :refresh_token])
+    |> foreign_key_constraint(:brand_id)
   end
 end

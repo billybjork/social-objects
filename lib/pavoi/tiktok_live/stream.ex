@@ -32,6 +32,7 @@ defmodule Pavoi.TiktokLive.Stream do
     field :report_sent_at, :utc_datetime
     field :sentiment_analysis, :string
 
+    belongs_to :brand, Pavoi.Catalog.Brand
     belongs_to :product_set, Pavoi.ProductSets.ProductSet
 
     has_many :comments, Pavoi.TiktokLive.Comment, foreign_key: :stream_id
@@ -68,8 +69,9 @@ defmodule Pavoi.TiktokLive.Stream do
       :product_set_id,
       :sentiment_analysis
     ])
-    |> validate_required([:room_id, :unique_id, :started_at])
+    |> validate_required([:brand_id, :room_id, :unique_id, :started_at])
     |> foreign_key_constraint(:product_set_id)
+    |> foreign_key_constraint(:brand_id)
   end
 
   @doc """

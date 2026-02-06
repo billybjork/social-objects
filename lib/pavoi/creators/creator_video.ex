@@ -9,6 +9,7 @@ defmodule Pavoi.Creators.CreatorVideo do
   import Ecto.Changeset
 
   schema "creator_videos" do
+    belongs_to :brand, Pavoi.Catalog.Brand
     belongs_to :creator, Pavoi.Creators.Creator
 
     # Video Identity
@@ -61,8 +62,9 @@ defmodule Pavoi.Creators.CreatorVideo do
       :est_commission_cents,
       :attributed_sample_id
     ])
-    |> validate_required([:creator_id, :tiktok_video_id])
+    |> validate_required([:brand_id, :creator_id, :tiktok_video_id])
     |> unique_constraint(:tiktok_video_id)
     |> foreign_key_constraint(:creator_id)
+    |> foreign_key_constraint(:brand_id)
   end
 end

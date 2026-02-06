@@ -17,6 +17,7 @@ defmodule Pavoi.TiktokLive.StreamStat do
     field :follow_count, :integer, default: 0
     field :share_count, :integer, default: 0
 
+    belongs_to :brand, Pavoi.Catalog.Brand
     belongs_to :stream, Pavoi.TiktokLive.Stream
 
     timestamps()
@@ -35,7 +36,8 @@ defmodule Pavoi.TiktokLive.StreamStat do
       :follow_count,
       :share_count
     ])
-    |> validate_required([:stream_id, :recorded_at])
+    |> validate_required([:brand_id, :stream_id, :recorded_at])
     |> foreign_key_constraint(:stream_id)
+    |> foreign_key_constraint(:brand_id)
   end
 end

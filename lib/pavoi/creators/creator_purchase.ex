@@ -10,6 +10,7 @@ defmodule Pavoi.Creators.CreatorPurchase do
   import Ecto.Changeset
 
   schema "creator_purchases" do
+    belongs_to :brand, Pavoi.Catalog.Brand
     belongs_to :creator, Pavoi.Creators.Creator
 
     # TikTok Order Info
@@ -43,8 +44,9 @@ defmodule Pavoi.Creators.CreatorPurchase do
       :line_items,
       :is_sample_order
     ])
-    |> validate_required([:creator_id, :tiktok_order_id])
+    |> validate_required([:brand_id, :creator_id, :tiktok_order_id])
     |> unique_constraint(:tiktok_order_id)
     |> foreign_key_constraint(:creator_id)
+    |> foreign_key_constraint(:brand_id)
   end
 end

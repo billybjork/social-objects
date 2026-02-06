@@ -14,6 +14,7 @@ defmodule Pavoi.Outreach.OutreachLog do
   alias Pavoi.Outreach.EmailEvent
 
   schema "outreach_logs" do
+    belongs_to :brand, Pavoi.Catalog.Brand
     belongs_to :creator, Pavoi.Creators.Creator
     has_many :email_events, EmailEvent
 
@@ -64,10 +65,11 @@ defmodule Pavoi.Outreach.OutreachLog do
       :spam_reported_at,
       :unsubscribed_at
     ])
-    |> validate_required([:creator_id, :channel, :status, :sent_at])
+    |> validate_required([:brand_id, :creator_id, :channel, :status, :sent_at])
     |> validate_inclusion(:channel, @channels)
     |> validate_inclusion(:status, @statuses)
     |> foreign_key_constraint(:creator_id)
+    |> foreign_key_constraint(:brand_id)
   end
 
   @doc """
