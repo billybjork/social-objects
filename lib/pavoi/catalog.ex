@@ -24,6 +24,13 @@ defmodule Pavoi.Catalog do
   def get_brand!(id), do: Repo.get!(Brand, id)
 
   @doc """
+  Gets a single brand.
+
+  Returns nil if the Brand does not exist.
+  """
+  def get_brand(id), do: Repo.get(Brand, id)
+
+  @doc """
   Gets a brand by slug.
   """
   def get_brand_by_slug(slug) do
@@ -32,6 +39,17 @@ defmodule Pavoi.Catalog do
 
   def get_brand_by_slug!(slug) do
     Repo.get_by!(Brand, slug: slug)
+  end
+
+  @doc """
+  Gets a brand by primary domain.
+  """
+  def get_brand_by_domain(domain) when is_binary(domain) do
+    Repo.get_by(Brand, primary_domain: domain)
+  end
+
+  def get_brand_by_domain!(domain) when is_binary(domain) do
+    Repo.get_by!(Brand, primary_domain: domain)
   end
 
   @doc """
@@ -71,8 +89,9 @@ defmodule Pavoi.Catalog do
   @doc """
   Returns the list of products with optional filters.
   """
-  def list_products(filters \\ []) do
+  def list_products(brand_id, filters \\ []) do
     Product
+    |> where([p], p.brand_id == ^brand_id)
     |> apply_product_filters(filters)
     |> Repo.all()
   end
@@ -81,8 +100,9 @@ defmodule Pavoi.Catalog do
   Lists all products with their images preloaded.
   Adds a primary_image virtual field for convenience.
   """
-  def list_products_with_images do
+  def list_products_with_images(brand_id) do
     Product
+    |> where([p], p.brand_id == ^brand_id)
     |> preload(:product_images)
     |> Repo.all()
     |> Enum.map(fn product ->
@@ -97,18 +117,7 @@ defmodule Pavoi.Catalog do
   Lists products for a specific brand with their images preloaded.
   Adds a primary_image virtual field for convenience.
   """
-  def list_products_by_brand_with_images(brand_id) do
-    Product
-    |> where([p], p.brand_id == ^brand_id)
-    |> preload(:product_images)
-    |> Repo.all()
-    |> Enum.map(fn product ->
-      primary_image =
-        Enum.find(product.product_images, & &1.is_primary) || List.first(product.product_images)
-
-      Map.put(product, :primary_image, primary_image)
-    end)
-  end
+  def list_products_by_brand_with_images(brand_id), do: list_products_with_images(brand_id)
 
   # Allow-list for safe product sorting
   defp build_order_by(sort_by) do
@@ -143,7 +152,7 @@ defmodule Pavoi.Catalog do
       - per_page: Items per page
       - has_more: Boolean indicating if more products are available
   """
-  def search_products_paginated(opts \\ []) do
+  def search_products_paginated(brand_id, opts \\ []) do
     page = Keyword.get(opts, :page, 1)
     per_page = Keyword.get(opts, :per_page, 20)
     sort_by = Keyword.get(opts, :sort_by, "")
@@ -151,7 +160,7 @@ defmodule Pavoi.Catalog do
     # Build and filter query
     query =
       from(p in Product, preload: :product_images)
-      |> apply_brand_filter(Keyword.get(opts, :brand_id))
+      |> where([p], p.brand_id == ^brand_id)
       |> apply_platform_filter(Keyword.get(opts, :platform_filter, ""))
       |> apply_search_filter(Keyword.get(opts, :search_query, ""))
       |> apply_exclude_ids_filter(Keyword.get(opts, :exclude_ids, []))
@@ -176,9 +185,6 @@ defmodule Pavoi.Catalog do
       has_more: total > page * per_page
     }
   end
-
-  defp apply_brand_filter(query, nil), do: query
-  defp apply_brand_filter(query, brand_id), do: where(query, [p], p.brand_id == ^brand_id)
 
   defp apply_platform_filter(query, "shopify"), do: where(query, [p], not is_nil(p.pid))
 
@@ -239,8 +245,8 @@ defmodule Pavoi.Catalog do
   Gets a single product.
   Returns `{:ok, product}` if found, `nil` if not found.
   """
-  def get_product(id) do
-    case Repo.get(Product, id) do
+  def get_product(brand_id, id) do
+    case Repo.get_by(Product, id: id, brand_id: brand_id) do
       nil -> nil
       product -> {:ok, product}
     end
@@ -250,31 +256,31 @@ defmodule Pavoi.Catalog do
   Gets a single product.
   Raises `Ecto.NoResultsError` if the Product does not exist.
   """
-  def get_product!(id), do: Repo.get!(Product, id)
+  def get_product!(brand_id, id), do: Repo.get_by!(Product, id: id, brand_id: brand_id)
 
   @doc """
   Gets a product by Shopify product ID (PID).
   Returns nil if not found.
   """
-  def get_product_by_pid(pid) do
-    Repo.get_by(Product, pid: pid)
+  def get_product_by_pid(brand_id, pid) do
+    Repo.get_by(Product, pid: pid, brand_id: brand_id)
   end
 
   @doc """
   Gets a product by TikTok product ID.
   Returns nil if not found.
   """
-  def get_product_by_tiktok_product_id(tiktok_product_id) do
-    Repo.get_by(Product, tiktok_product_id: tiktok_product_id)
+  def get_product_by_tiktok_product_id(brand_id, tiktok_product_id) do
+    Repo.get_by(Product, tiktok_product_id: tiktok_product_id, brand_id: brand_id)
   end
 
   @doc """
   Gets multiple products by their Shopify product IDs (PIDs).
   Returns a list of products that match any of the given PIDs.
   """
-  def list_products_by_pids(pids) when is_list(pids) do
+  def list_products_by_pids(brand_id, pids) when is_list(pids) do
     Product
-    |> where([p], p.pid in ^pids)
+    |> where([p], p.brand_id == ^brand_id and p.pid in ^pids)
     |> Repo.all()
   end
 
@@ -293,9 +299,7 @@ defmodule Pavoi.Catalog do
   ## Options
   - `:brand_id` - Filter by brand ID (optional)
   """
-  def find_products_by_ids(product_ids, opts \\ []) when is_list(product_ids) do
-    brand_id = Keyword.get(opts, :brand_id)
-
+  def find_products_by_ids(brand_id, product_ids) when is_list(product_ids) do
     # Build expanded Shopify GID patterns for numeric IDs
     # e.g., "8772010639613" -> "gid://shopify/Product/8772010639613"
     shopify_gid_patterns =
@@ -309,18 +313,12 @@ defmodule Pavoi.Catalog do
     query =
       from(p in Product,
         where:
-          p.tiktok_product_id in ^product_ids or
-            p.pid in ^all_pid_matches or
-            fragment("? && ?", p.tiktok_product_ids, ^product_ids),
+          p.brand_id == ^brand_id and
+            (p.tiktok_product_id in ^product_ids or
+               p.pid in ^all_pid_matches or
+               fragment("? && ?", p.tiktok_product_ids, ^product_ids)),
         preload: :product_images
       )
-
-    query =
-      if brand_id do
-        where(query, [p], p.brand_id == ^brand_id)
-      else
-        query
-      end
 
     products = Repo.all(query)
 
@@ -405,9 +403,9 @@ defmodule Pavoi.Catalog do
 
   Returns nil if no match found.
   """
-  def find_product_by_sku(sku) when is_binary(sku) do
+  def find_product_by_sku(brand_id, sku) when is_binary(sku) do
     Product
-    |> where([p], ilike(p.sku, ^"%#{sku}%"))
+    |> where([p], p.brand_id == ^brand_id and ilike(p.sku, ^"%#{sku}%"))
     |> limit(1)
     |> Repo.one()
   end
@@ -415,12 +413,12 @@ defmodule Pavoi.Catalog do
   @doc """
   Gets a product with brand, images, and variants preloaded.
   """
-  def get_product_with_images!(id) do
+  def get_product_with_images!(brand_id, id) do
     ordered_images = from(pi in ProductImage, order_by: [asc: pi.position])
     ordered_variants = from(pv in ProductVariant, order_by: [asc: pv.position])
 
     Product
-    |> where([p], p.id == ^id)
+    |> where([p], p.id == ^id and p.brand_id == ^brand_id)
     |> preload([
       :brand,
       product_images: ^ordered_images,
@@ -432,8 +430,8 @@ defmodule Pavoi.Catalog do
   @doc """
   Creates a product.
   """
-  def create_product(attrs \\ %{}) do
-    %Product{}
+  def create_product(brand_id, attrs \\ %{}) do
+    %Product{brand_id: brand_id}
     |> Product.changeset(attrs)
     |> Repo.insert()
   end

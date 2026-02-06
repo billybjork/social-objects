@@ -173,6 +173,9 @@ defmodule Pavoi.TiktokLive.StreamReconciler do
   @doc """
   Cancels any pending stream report jobs for a specific stream.
   Called when recovering a stream that was incorrectly marked as ended.
+
+  Cancels jobs in all active states including 'retryable' to prevent race conditions
+  where a report job might execute with stale stream data after recovery.
   """
   def cancel_pending_report_jobs(stream_id) do
     query = """
@@ -180,7 +183,7 @@ defmodule Pavoi.TiktokLive.StreamReconciler do
     SET state = 'cancelled', cancelled_at = NOW()
     WHERE worker = 'Pavoi.Workers.StreamReportWorker'
       AND args->>'stream_id' = $1
-      AND state IN ('available', 'scheduled')
+      AND state IN ('available', 'scheduled', 'retryable')
     RETURNING id
     """
 

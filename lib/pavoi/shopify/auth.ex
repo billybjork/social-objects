@@ -33,6 +33,8 @@ defmodule Pavoi.Shopify.Auth do
 
   require Logger
 
+  @token_cache_key :shopify_access_token
+
   @doc """
   Gets a valid Shopify Admin API access token.
 
@@ -46,14 +48,14 @@ defmodule Pavoi.Shopify.Auth do
 
   ## Examples
 
-      iex> Pavoi.Shopify.Auth.get_access_token()
+      iex> Pavoi.Shopify.Auth.get_access_token(brand_id)
       {:ok, "shpat_..."}
   """
-  def get_access_token do
-    case Application.get_env(:pavoi, :shopify_access_token) do
+  def get_access_token(brand_id) do
+    case get_cached_token(brand_id) do
       nil ->
         Logger.info("No access token cached, acquiring new token from Shopify...")
-        refresh_access_token()
+        refresh_access_token(brand_id)
 
       token ->
         {:ok, token}
@@ -73,53 +75,57 @@ defmodule Pavoi.Shopify.Auth do
 
   ## Examples
 
-      iex> Pavoi.Shopify.Auth.refresh_access_token()
+      iex> Pavoi.Shopify.Auth.refresh_access_token(brand_id)
       {:ok, "shpat_..."}
   """
-  def refresh_access_token do
+  def refresh_access_token(brand_id) do
     Logger.info("Refreshing Shopify access token using client credentials grant...")
 
-    client_id = Application.fetch_env!(:pavoi, :shopify_client_id)
-    client_secret = Application.fetch_env!(:pavoi, :shopify_client_secret)
-    shop_name = Application.fetch_env!(:pavoi, :shopify_store_name)
+    client_id = Pavoi.Settings.get_shopify_client_id(brand_id)
+    client_secret = Pavoi.Settings.get_shopify_client_secret(brand_id)
+    shop_name = Pavoi.Settings.get_shopify_store_name(brand_id)
 
-    url = "https://#{shop_name}.myshopify.com/admin/oauth/access_token"
+    if is_nil(client_id) or is_nil(client_secret) or is_nil(shop_name) do
+      Logger.error("Shopify credentials not configured for brand #{inspect(brand_id)}")
+      {:error, :missing_shopify_credentials}
+    else
+      url = "https://#{shop_name}.myshopify.com/admin/oauth/access_token"
 
-    body = %{
-      "grant_type" => "client_credentials",
-      "client_id" => client_id,
-      "client_secret" => client_secret
-    }
+      body = %{
+        "grant_type" => "client_credentials",
+        "client_id" => client_id,
+        "client_secret" => client_secret
+      }
 
-    headers = [{"Content-Type", "application/x-www-form-urlencoded"}]
+      headers = [{"Content-Type", "application/x-www-form-urlencoded"}]
 
-    # Convert body to form-encoded format
-    form_body = URI.encode_query(body)
+      # Convert body to form-encoded format
+      form_body = URI.encode_query(body)
 
-    result = Req.post(url, headers: headers, body: form_body)
+      result = Req.post(url, headers: headers, body: form_body)
 
-    case result do
-      {:ok, %{status: 200, body: %{"access_token" => token, "expires_in" => expires_in}}} ->
-        Logger.info("✅ Successfully acquired Shopify access token (expires in #{expires_in}s)")
+      case result do
+        {:ok, %{status: 200, body: %{"access_token" => token, "expires_in" => expires_in}}} ->
+          Logger.info("✅ Successfully acquired Shopify access token (expires in #{expires_in}s)")
 
-        # Store token in Application config
-        Application.put_env(:pavoi, :shopify_access_token, token)
+          cache_token(brand_id, token)
 
-        {:ok, token}
+          {:ok, token}
 
-      {:ok, %{status: status, body: body}} ->
-        Logger.error("Failed to acquire Shopify access token: HTTP #{status}")
-        Logger.error("Response body: #{inspect(body)}")
+        {:ok, %{status: status, body: body}} ->
+          Logger.error("Failed to acquire Shopify access token: HTTP #{status}")
+          Logger.error("Response body: #{inspect(body)}")
 
-        Logger.error(
-          "Hint: Ensure the app is installed on the store via Dev Dashboard > Install app"
-        )
+          Logger.error(
+            "Hint: Ensure the app is installed on the store via Dev Dashboard > Install app"
+          )
 
-        {:error, {:http_error, status, body}}
+          {:error, {:http_error, status, body}}
 
-      {:error, reason} ->
-        Logger.error("HTTP request failed while acquiring token: #{inspect(reason)}")
-        {:error, {:request_failed, reason}}
+        {:error, reason} ->
+          Logger.error("HTTP request failed while acquiring token: #{inspect(reason)}")
+          {:error, {:request_failed, reason}}
+      end
     end
   end
 
@@ -129,8 +135,19 @@ defmodule Pavoi.Shopify.Auth do
   This forces the next call to `get_access_token/0` to acquire a fresh token.
   Useful when a 401 error indicates the current token has expired.
   """
-  def clear_token do
+  def clear_token(brand_id) do
     Logger.debug("Clearing cached Shopify access token")
-    Application.delete_env(:pavoi, :shopify_access_token)
+    :persistent_term.erase(token_cache_key(brand_id))
   end
+
+  defp get_cached_token(brand_id) do
+    :persistent_term.get(token_cache_key(brand_id), nil)
+  end
+
+  defp cache_token(brand_id, token) do
+    :persistent_term.put(token_cache_key(brand_id), token)
+  end
+
+  defp token_cache_key(nil), do: {@token_cache_key, :default}
+  defp token_cache_key(brand_id), do: {@token_cache_key, brand_id}
 end

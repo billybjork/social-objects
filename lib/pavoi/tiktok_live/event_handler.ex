@@ -33,6 +33,7 @@ defmodule Pavoi.TiktokLive.EventHandler do
   defmodule State do
     @moduledoc false
     defstruct [
+      :brand_id,
       :stream_id,
       :stream,
       :comment_batch,
@@ -52,13 +53,15 @@ defmodule Pavoi.TiktokLive.EventHandler do
   ## Options
 
   - `:stream_id` - Required. Database ID of the stream to handle events for.
+  - `:brand_id` - Optional. Brand ID for scoping PubSub and inserts.
   - `:name` - Optional. Process name for registration.
   """
   def start_link(opts) do
     stream_id = Keyword.fetch!(opts, :stream_id)
+    brand_id = Keyword.get(opts, :brand_id)
     name = Keyword.get(opts, :name)
 
-    GenServer.start_link(__MODULE__, stream_id, name: name)
+    GenServer.start_link(__MODULE__, {stream_id, brand_id}, name: name)
   end
 
   @doc """
@@ -78,16 +81,18 @@ defmodule Pavoi.TiktokLive.EventHandler do
   # Server callbacks
 
   @impl GenServer
-  def init(stream_id) do
+  def init({stream_id, brand_id}) do
     Logger.info("Starting event handler for stream #{stream_id}")
-
-    # Subscribe to TikTok live events
-    Phoenix.PubSub.subscribe(Pavoi.PubSub, "tiktok_live:events")
 
     # Load stream record
     stream = Repo.get!(Stream, stream_id)
+    brand_id = brand_id || stream.brand_id
+
+    # Subscribe to TikTok live events
+    Phoenix.PubSub.subscribe(Pavoi.PubSub, "tiktok_live:events:#{brand_id}")
 
     state = %State{
+      brand_id: brand_id,
       stream_id: stream_id,
       stream: stream,
       comment_batch: [],
@@ -192,6 +197,7 @@ defmodule Pavoi.TiktokLive.EventHandler do
     else
       # Add comment to batch
       comment_attrs = %{
+        brand_id: state.brand_id,
         stream_id: state.stream_id,
         tiktok_user_id: event.user_id,
         tiktok_username: event.username,
@@ -303,13 +309,13 @@ defmodule Pavoi.TiktokLive.EventHandler do
     # Flush any remaining comments before enqueueing report
     state = flush_comment_batch(state)
 
-    case Pavoi.TiktokLive.mark_stream_ended(state.stream_id) do
+    case Pavoi.TiktokLive.mark_stream_ended(state.brand_id, state.stream_id) do
       {:ok, :ended} ->
         # Auto-link to session if one was active during the stream
-        auto_link_stream(state.stream_id)
+        auto_link_stream(state.brand_id, state.stream_id)
 
         # Enqueue Slack report job for the completed stream
-        enqueue_stream_report(state.stream_id)
+        enqueue_stream_report(state.brand_id, state.stream_id)
 
       {:error, :already_ended} ->
         Logger.debug("Stream #{state.stream_id} already ended, skipping report enqueue")
@@ -356,13 +362,13 @@ defmodule Pavoi.TiktokLive.EventHandler do
     state = flush_comment_batch(state)
 
     # Mark stream as ended on disconnect (the worker will also handle cleanup)
-    case Pavoi.TiktokLive.mark_stream_ended(state.stream_id) do
+    case Pavoi.TiktokLive.mark_stream_ended(state.brand_id, state.stream_id) do
       {:ok, :ended} ->
         # Auto-link to session if one was active during the stream
-        auto_link_stream(state.stream_id)
+        auto_link_stream(state.brand_id, state.stream_id)
 
         # Enqueue Slack report job for the completed stream
-        enqueue_stream_report(state.stream_id, 600)
+        enqueue_stream_report(state.brand_id, state.stream_id, 600)
 
       {:error, :already_ended} ->
         Logger.debug("Stream #{state.stream_id} already ended, skipping report enqueue")
@@ -472,6 +478,7 @@ defmodule Pavoi.TiktokLive.EventHandler do
     now = DateTime.utc_now() |> DateTime.truncate(:second)
 
     stat_attrs = %{
+      brand_id: state.brand_id,
       stream_id: state.stream_id,
       recorded_at: now,
       viewer_count: state.stats.viewer_count,
@@ -482,7 +489,9 @@ defmodule Pavoi.TiktokLive.EventHandler do
       share_count: state.stats.share_count
     }
 
-    case %StreamStat{} |> StreamStat.changeset(stat_attrs) |> Repo.insert() do
+    case %StreamStat{brand_id: state.brand_id}
+         |> StreamStat.changeset(stat_attrs)
+         |> Repo.insert() do
       {:ok, _} ->
         Logger.debug("Saved stats snapshot for stream #{state.stream_id}")
 
@@ -575,8 +584,8 @@ defmodule Pavoi.TiktokLive.EventHandler do
     Pavoi.Storage.upload_binary(key, binary, "image/jpeg")
   end
 
-  defp auto_link_stream(stream_id) do
-    case Pavoi.TiktokLive.auto_link_stream_to_product_set(stream_id) do
+  defp auto_link_stream(brand_id, stream_id) do
+    case Pavoi.TiktokLive.auto_link_stream_to_product_set(brand_id, stream_id) do
       {:ok, _session_stream} ->
         Logger.info("Stream #{stream_id} auto-linked to session")
 
@@ -591,13 +600,13 @@ defmodule Pavoi.TiktokLive.EventHandler do
     end
   end
 
-  defp enqueue_stream_report(stream_id, delay_seconds \\ 10) do
+  defp enqueue_stream_report(brand_id, stream_id, delay_seconds \\ 10) do
     # Delay as safety margin after explicit batch flush or disconnects
     Logger.info(
       "Enqueueing stream report for stream #{stream_id} (scheduled in #{delay_seconds}s)"
     )
 
-    %{stream_id: stream_id}
+    %{stream_id: stream_id, brand_id: brand_id}
     |> StreamReportWorker.new(schedule_in: delay_seconds)
     |> Oban.insert()
   end

@@ -26,7 +26,7 @@ defmodule Pavoi.TiktokLive.Client do
 
   ## Examples
 
-      iex> TiktokLive.Client.live?("pavoi")
+      iex> TiktokLive.Client.live?("brand_handle")
       {:ok, true}
 
   """
@@ -44,7 +44,7 @@ defmodule Pavoi.TiktokLive.Client do
 
   ## Examples
 
-      iex> TiktokLive.Client.fetch_room_info("pavoi")
+      iex> TiktokLive.Client.fetch_room_info("brand_handle")
       {:ok, %{
         room_id: "7123456789",
         is_live: true,

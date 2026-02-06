@@ -8,9 +8,11 @@ defmodule Pavoi.Communications.Email do
 
   import Swoosh.Email
 
+  alias Pavoi.Catalog
   alias Pavoi.Communications.{EmailTemplate, TemplateRenderer}
   alias Pavoi.Creators.Creator
   alias Pavoi.Mailer
+  alias Pavoi.Settings
 
   @doc """
   Sends an email to a creator using a database-stored template.
@@ -18,17 +20,19 @@ defmodule Pavoi.Communications.Email do
   Returns {:ok, message_id} on success, {:error, reason} on failure.
   """
   def send_templated_email(creator, %EmailTemplate{} = template) do
+    brand = Catalog.get_brand!(template.brand_id)
     features = get_features()
     original_email = creator.email
     to_email = recipient_email(original_email, features)
     to_name = Creator.full_name(creator) || creator.tiktok_username || "Creator"
 
-    {rendered_subject, rendered_html, rendered_text} = TemplateRenderer.render(template, creator)
+    {rendered_subject, rendered_html, rendered_text} =
+      TemplateRenderer.render(template, creator, brand)
 
     email =
       new()
       |> to({to_name, to_email})
-      |> from(from_address())
+      |> from(from_address(brand))
       |> subject(rendered_subject)
       |> html_body(rendered_html)
       |> text_body(rendered_text)
@@ -62,17 +66,12 @@ defmodule Pavoi.Communications.Email do
     config[:api_key] && config[:api_key] != ""
   end
 
-  defp from_address do
-    from_name = non_empty_string(Application.get_env(:pavoi, :sendgrid_from_name), "Pavoi")
-
-    from_email =
-      non_empty_string(Application.get_env(:pavoi, :sendgrid_from_email), "noreply@pavoi.com")
+  defp from_address(brand) do
+    from_name = Settings.get_sendgrid_from_name(brand.id) || brand.name || Settings.app_name()
+    from_email = Settings.get_sendgrid_from_email(brand.id)
 
     {from_name, from_email}
   end
-
-  defp non_empty_string(value, _default) when is_binary(value) and value != "", do: value
-  defp non_empty_string(_, default), do: default
 
   defp get_features do
     Application.get_env(:pavoi, :features, [])

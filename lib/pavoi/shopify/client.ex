@@ -35,17 +35,17 @@ defmodule Pavoi.Shopify.Client do
 
   ## Examples
 
-      iex> Pavoi.Shopify.Client.fetch_products()
+      iex> Pavoi.Shopify.Client.fetch_products(brand_id)
       {:ok, %{products: [...], has_next_page: true, end_cursor: "..."}}
 
-      iex> Pavoi.Shopify.Client.fetch_products("cursor_string")
+      iex> Pavoi.Shopify.Client.fetch_products(brand_id, "cursor_string")
       {:ok, %{products: [...], has_next_page: false, end_cursor: nil}}
   """
-  def fetch_products(cursor \\ nil) do
+  def fetch_products(brand_id, cursor \\ nil) do
     query = build_products_query()
     variables = %{cursor: cursor}
 
-    case execute_graphql(query, variables) do
+    case execute_graphql(brand_id, query, variables) do
       {:ok, response} -> parse_products_response(response)
       {:error, reason} -> {:error, reason}
     end
@@ -61,12 +61,12 @@ defmodule Pavoi.Shopify.Client do
     - `{:ok, [products]}` on success
     - `{:error, reason}` on error
   """
-  def fetch_all_products do
-    fetch_all_products_recursive(nil, [])
+  def fetch_all_products(brand_id) do
+    fetch_all_products_recursive(brand_id, nil, [])
   end
 
-  defp fetch_all_products_recursive(cursor, accumulated_batches) do
-    case fetch_products(cursor) do
+  defp fetch_all_products_recursive(brand_id, cursor, accumulated_batches) do
+    case fetch_products(brand_id, cursor) do
       {:ok, %{products: products, has_next_page: false}} ->
         # Reverse and flatten accumulated batches for correct order
         all_products = Enum.reverse([products | accumulated_batches]) |> List.flatten()
@@ -75,20 +75,20 @@ defmodule Pavoi.Shopify.Client do
       {:ok, %{products: products, has_next_page: true, end_cursor: next_cursor}} ->
         Logger.info("Fetched #{length(products)} products, continuing with cursor...")
         # Prepend batch (O(1)) instead of append (O(n))
-        fetch_all_products_recursive(next_cursor, [products | accumulated_batches])
+        fetch_all_products_recursive(brand_id, next_cursor, [products | accumulated_batches])
 
       {:error, reason} ->
         {:error, reason}
     end
   end
 
-  defp execute_graphql(query, variables, retry \\ true) do
-    url = graphql_url()
+  defp execute_graphql(brand_id, query, variables, retry \\ true) do
+    url = graphql_url(brand_id)
     body = Jason.encode!(%{query: query, variables: variables})
 
-    case build_headers() do
+    case build_headers(brand_id) do
       {:ok, headers} ->
-        make_graphql_request(url, headers, body, query, variables, retry)
+        make_graphql_request(brand_id, url, headers, body, query, variables, retry)
 
       {:error, reason} ->
         Logger.error("Failed to build headers: #{inspect(reason)}")
@@ -96,13 +96,13 @@ defmodule Pavoi.Shopify.Client do
     end
   end
 
-  defp make_graphql_request(url, headers, body, query, variables, retry) do
+  defp make_graphql_request(brand_id, url, headers, body, query, variables, retry) do
     case Req.post(url, headers: headers, body: body) do
       {:ok, %{status: 200, body: body}} ->
         parse_graphql_body(body)
 
       {:ok, %{status: 401}} when retry ->
-        handle_401_retry(query, variables)
+        handle_401_retry(brand_id, query, variables)
 
       {:ok, %{status: 401}} ->
         Logger.error("Shopify API returned 401 after token refresh - check app credentials")
@@ -125,15 +125,15 @@ defmodule Pavoi.Shopify.Client do
   defp parse_graphql_body(%{"data" => data}), do: {:ok, data}
   defp parse_graphql_body(%{"errors" => errors}), do: {:error, {:graphql_errors, errors}}
 
-  defp handle_401_retry(query, variables) do
+  defp handle_401_retry(brand_id, query, variables) do
     Logger.warning("Shopify API returned 401 Unauthorized - refreshing token and retrying")
-    Auth.clear_token()
+    Auth.clear_token(brand_id)
 
-    case Auth.refresh_access_token() do
+    case Auth.refresh_access_token(brand_id) do
       {:ok, _token} ->
         Logger.info("Token refreshed, retrying request...")
         # Retry once with new token (retry=false to prevent infinite loop)
-        execute_graphql(query, variables, false)
+        execute_graphql(brand_id, query, variables, false)
 
       {:error, reason} ->
         Logger.error("Failed to refresh token: #{inspect(reason)}")
@@ -198,8 +198,8 @@ defmodule Pavoi.Shopify.Client do
     """
   end
 
-  defp build_headers do
-    case Auth.get_access_token() do
+  defp build_headers(brand_id) do
+    case Auth.get_access_token(brand_id) do
       {:ok, token} ->
         {:ok,
          [
@@ -212,8 +212,13 @@ defmodule Pavoi.Shopify.Client do
     end
   end
 
-  defp graphql_url do
-    store_name = Application.fetch_env!(:pavoi, :shopify_store_name)
+  defp graphql_url(brand_id) do
+    store_name = Pavoi.Settings.get_shopify_store_name(brand_id)
+
+    if is_nil(store_name) do
+      raise "Shopify store name not configured for brand #{inspect(brand_id)}"
+    end
+
     "https://#{store_name}.myshopify.com/admin/api/2024-10/graphql.json"
   end
 end

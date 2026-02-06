@@ -22,7 +22,7 @@ defmodule Pavoi.TiktokLive.BridgeClient do
       {:ok, pid} = BridgeClient.start_link()
 
       # Connect to a TikTok stream (via HTTP API)
-      BridgeClient.connect_stream("pavoi")
+      BridgeClient.connect_stream("brand_handle")
 
       # Events are broadcast via PubSub to "tiktok_live:bridge:events"
   """

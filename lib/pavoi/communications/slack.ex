@@ -31,7 +31,7 @@ defmodule Pavoi.Communications.Slack do
   Returns `{:ok, :sent}` on success, `{:error, reason}` on failure.
   """
   def send_message(blocks, opts \\ []) do
-    config = get_config()
+    config = get_config(Keyword.get(opts, :brand_id))
 
     if config_valid?(config) do
       text = Keyword.get(opts, :text, "TikTok Live Stream Report")
@@ -89,8 +89,8 @@ defmodule Pavoi.Communications.Slack do
   @doc """
   Checks if Slack is properly configured.
   """
-  def configured? do
-    config = get_config()
+  def configured?(opts \\ []) do
+    config = get_config(Keyword.get(opts, :brand_id))
     config_valid?(config)
   end
 
@@ -113,7 +113,7 @@ defmodule Pavoi.Communications.Slack do
   Returns `{:ok, file_id}` on success, `{:error, reason}` on failure.
   """
   def upload_image(binary, filename, opts \\ []) do
-    config = get_config()
+    config = get_config(Keyword.get(opts, :brand_id))
 
     if config_valid?(config) do
       title = Keyword.get(opts, :title, filename)
@@ -263,11 +263,11 @@ defmodule Pavoi.Communications.Slack do
     end
   end
 
-  defp get_config do
+  defp get_config(brand_id) do
     %{
-      bot_token: Application.get_env(:pavoi, :slack_bot_token),
-      channel: Application.get_env(:pavoi, :slack_channel, "#tiktok-live-reports"),
-      dev_user_id: Application.get_env(:pavoi, :slack_dev_user_id)
+      bot_token: Pavoi.Settings.get_slack_bot_token(brand_id),
+      channel: Pavoi.Settings.get_slack_channel(brand_id),
+      dev_user_id: Pavoi.Settings.get_slack_dev_user_id(brand_id)
     }
   end
 

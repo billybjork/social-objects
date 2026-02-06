@@ -22,18 +22,20 @@ defmodule Pavoi.ProductSets do
   @doc """
   Returns the list of product sets.
   """
-  def list_product_sets do
-    Repo.all(ProductSet)
+  def list_product_sets(brand_id) do
+    from(ps in ProductSet, where: ps.brand_id == ^brand_id)
+    |> Repo.all()
   end
 
   @doc """
   Returns the list of product sets with brands and products preloaded, ordered by most recently modified.
   """
-  def list_product_sets_with_details do
+  def list_product_sets_with_details(brand_id) do
     ordered_images = from(pi in ProductImage, order_by: [asc: pi.position])
     ordered_variants = from(pv in ProductVariant, order_by: [asc: pv.position])
 
     ProductSet
+    |> where([ps], ps.brand_id == ^brand_id)
     |> order_by([ps], desc: ps.updated_at)
     |> preload([
       :brand,
@@ -63,7 +65,7 @@ defmodule Pavoi.ProductSets do
     * `:total` - Total count of product sets
     * `:has_more` - Boolean indicating if there are more product sets to load
   """
-  def list_product_sets_with_details_paginated(opts \\ []) do
+  def list_product_sets_with_details_paginated(brand_id, opts \\ []) do
     page = Keyword.get(opts, :page, 1)
     per_page = Keyword.get(opts, :per_page, 20)
     search_query = Keyword.get(opts, :search_query, "")
@@ -73,6 +75,7 @@ defmodule Pavoi.ProductSets do
 
     base_query =
       ProductSet
+      |> where([ps], ps.brand_id == ^brand_id)
       |> order_by([ps], desc: ps.updated_at)
 
     # Apply search filter if provided
@@ -120,10 +123,11 @@ defmodule Pavoi.ProductSets do
   Gets a single product set.
   Raises `Ecto.NoResultsError` if the ProductSet does not exist.
   """
-  def get_product_set!(id) do
+  def get_product_set!(brand_id, id) do
     ordered_images = from(pi in ProductImage, order_by: [asc: pi.position])
 
     ProductSet
+    |> where([ps], ps.brand_id == ^brand_id)
     |> preload([
       :brand,
       product_set_products: [product: [:brand, product_images: ^ordered_images]]
@@ -134,11 +138,11 @@ defmodule Pavoi.ProductSets do
   @doc """
   Gets a product set by slug.
   """
-  def get_product_set_by_slug!(slug) do
+  def get_product_set_by_slug!(brand_id, slug) do
     ordered_images = from(pi in ProductImage, order_by: [asc: pi.position])
 
     ProductSet
-    |> where([ps], ps.slug == ^slug)
+    |> where([ps], ps.brand_id == ^brand_id and ps.slug == ^slug)
     |> preload(product_set_products: [product: [:brand, product_images: ^ordered_images]])
     |> Repo.one!()
   end
@@ -160,11 +164,11 @@ defmodule Pavoi.ProductSets do
   @doc """
   Creates a product set.
   """
-  def create_product_set(attrs \\ %{}) do
-    %ProductSet{}
+  def create_product_set(brand_id, attrs \\ %{}) do
+    %ProductSet{brand_id: brand_id}
     |> ProductSet.changeset(attrs)
     |> Repo.insert()
-    |> broadcast_product_set_list_change()
+    |> broadcast_product_set_list_change(brand_id)
   end
 
   @doc """
@@ -175,9 +179,9 @@ defmodule Pavoi.ProductSets do
 
   Returns {:ok, product_set} or {:error, changeset} on failure.
   """
-  def create_product_set_with_products(product_set_attrs, product_ids \\ []) do
+  def create_product_set_with_products(brand_id, product_set_attrs, product_ids \\ []) do
     Repo.transaction(fn ->
-      with {:ok, product_set} <- create_product_set(product_set_attrs),
+      with {:ok, product_set} <- create_product_set(brand_id, product_set_attrs),
            :ok <- add_products_to_product_set(product_set.id, product_ids) do
         product_set
       else
@@ -205,10 +209,10 @@ defmodule Pavoi.ProductSets do
 
   Returns {:ok, product_set} or {:error, changeset}.
   """
-  def duplicate_product_set(product_set_id) do
+  def duplicate_product_set(brand_id, product_set_id) do
     Repo.transaction(fn ->
       # Load the original product set with products
-      original_product_set = get_product_set!(product_set_id)
+      original_product_set = get_product_set!(brand_id, product_set_id)
 
       # Generate new name and slug
       new_name = "Copy of #{original_product_set.name}"
@@ -223,7 +227,7 @@ defmodule Pavoi.ProductSets do
       }
 
       # Create the new product set
-      with {:ok, new_product_set} <- create_product_set(product_set_attrs),
+      with {:ok, new_product_set} <- create_product_set(brand_id, product_set_attrs),
            :ok <-
              duplicate_product_set_products(
                original_product_set.product_set_products,
@@ -312,7 +316,7 @@ defmodule Pavoi.ProductSets do
     product_set
     |> ProductSet.changeset(attrs)
     |> Repo.update()
-    |> broadcast_product_set_list_change()
+    |> broadcast_product_set_list_change(product_set.brand_id)
   end
 
   @doc """
@@ -320,7 +324,7 @@ defmodule Pavoi.ProductSets do
   """
   def delete_product_set(%ProductSet{} = product_set) do
     Repo.delete(product_set)
-    |> broadcast_product_set_list_change()
+    |> broadcast_product_set_list_change(product_set.brand_id)
   end
 
   # Updates a product set's updated_at timestamp to the current time.
@@ -353,6 +357,8 @@ defmodule Pavoi.ProductSets do
   Also updates the product set's updated_at timestamp to mark it as recently modified.
   """
   def add_product_to_product_set(product_set_id, product_id, attrs \\ %{}) do
+    brand_id = product_set_brand_id(product_set_id)
+
     attrs =
       attrs
       |> Map.put(:product_set_id, product_set_id)
@@ -369,7 +375,7 @@ defmodule Pavoi.ProductSets do
     end
 
     result
-    |> broadcast_product_set_list_change()
+    |> broadcast_product_set_list_change(brand_id)
   end
 
   @doc """
@@ -391,7 +397,9 @@ defmodule Pavoi.ProductSets do
             renumber_product_set_products(product_set_product.product_set_id)
 
             result
-            |> broadcast_product_set_list_change()
+            |> broadcast_product_set_list_change(
+              product_set_brand_id(product_set_product.product_set_id)
+            )
 
           error ->
             error
@@ -410,7 +418,7 @@ defmodule Pavoi.ProductSets do
   """
   def reorder_products(product_set_id, ordered_product_set_product_ids) do
     # Validate input
-    with {:ok, _product_set} <- validate_product_set_exists(product_set_id),
+    with {:ok, product_set} <- validate_product_set_exists(product_set_id),
          :ok <- validate_no_duplicates(ordered_product_set_product_ids),
          {:ok, valid_ids} <-
            validate_product_set_product_ownership(product_set_id, ordered_product_set_product_ids) do
@@ -453,7 +461,7 @@ defmodule Pavoi.ProductSets do
 
       case result do
         {:ok, count} ->
-          broadcast_product_set_list_change({:ok, count})
+          broadcast_product_set_list_change({:ok, count}, product_set.brand_id)
           {:ok, count}
 
         {:error, reason} ->
@@ -625,7 +633,7 @@ defmodule Pavoi.ProductSets do
     end)
     |> case do
       {:ok, psp} ->
-        broadcast_product_set_list_change({:ok, psp})
+        broadcast_product_set_list_change({:ok, psp}, product_set_brand_id(psp.product_set_id))
 
       {:error, reason} ->
         {:error, reason}
@@ -867,8 +875,9 @@ defmodule Pavoi.ProductSets do
   @doc """
   Returns the list of message presets, ordered by position.
   """
-  def list_message_presets do
+  def list_message_presets(brand_id) do
     MessagePreset
+    |> where([mp], mp.brand_id == ^brand_id)
     |> order_by([mp], asc: mp.position)
     |> Repo.all()
   end
@@ -878,12 +887,13 @@ defmodule Pavoi.ProductSets do
 
   Raises `Ecto.NoResultsError` if the message preset does not exist.
   """
-  def get_message_preset!(id), do: Repo.get!(MessagePreset, id)
+  def get_message_preset!(brand_id, id),
+    do: Repo.get_by!(MessagePreset, id: id, brand_id: brand_id)
 
   @doc """
   Creates a message preset.
   """
-  def create_message_preset(attrs \\ %{}) do
+  def create_message_preset(brand_id, attrs \\ %{}) do
     # If no position provided, set it to be last
     attrs =
       if Map.has_key?(attrs, :position) or Map.has_key?(attrs, "position") do
@@ -891,13 +901,14 @@ defmodule Pavoi.ProductSets do
       else
         max_position =
           MessagePreset
+          |> where([mp], mp.brand_id == ^brand_id)
           |> select([mp], max(mp.position))
           |> Repo.one()
 
         Map.put(attrs, :position, (max_position || 0) + 1)
       end
 
-    %MessagePreset{}
+    %MessagePreset{brand_id: brand_id}
     |> MessagePreset.changeset(attrs)
     |> Repo.insert()
   end
@@ -986,12 +997,12 @@ defmodule Pavoi.ProductSets do
 
   defp broadcast_state_change(error), do: error
 
-  defp broadcast_product_set_list_change(result) do
+  defp broadcast_product_set_list_change(result, brand_id) do
     case result do
-      {:ok, _} ->
+      {:ok, _} when not is_nil(brand_id) ->
         Phoenix.PubSub.broadcast(
           Pavoi.PubSub,
-          "product_sets:list",
+          "product_sets:#{brand_id}:list",
           {:product_set_list_changed}
         )
 
@@ -1000,6 +1011,11 @@ defmodule Pavoi.ProductSets do
       error ->
         error
     end
+  end
+
+  defp product_set_brand_id(product_set_id) do
+    from(ps in ProductSet, where: ps.id == ^product_set_id, select: ps.brand_id)
+    |> Repo.one()
   end
 
   defp get_current_product_set_product(%ProductSetState{current_product_set_product_id: nil}),

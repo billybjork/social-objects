@@ -8,6 +8,7 @@ defmodule Pavoi.AI do
 
   alias Pavoi.AI.TalkingPointsGeneration
   alias Pavoi.Catalog
+  alias Pavoi.Catalog.Product
   alias Pavoi.ProductSets
   alias Pavoi.Repo
   alias Pavoi.Workers.TalkingPointsWorker
@@ -20,14 +21,16 @@ defmodule Pavoi.AI do
   to track progress.
 
   ## Parameters
+    - brand_id: Integer ID of the brand
     - product_id: Integer ID of the product
 
   ## Example
-      iex> AI.generate_talking_points_async(123)
+      iex> AI.generate_talking_points_async(brand_id, 123)
       {:ok, %TalkingPointsGeneration{job_id: "abc-123", status: "pending", ...}}
   """
-  def generate_talking_points_async(product_id) when is_integer(product_id) do
-    generate_talking_points_async([product_id], nil)
+  def generate_talking_points_async(brand_id, product_id)
+      when is_integer(brand_id) and is_integer(product_id) do
+    generate_talking_points_async(brand_id, [product_id], nil)
   end
 
   @doc """
@@ -37,14 +40,16 @@ defmodule Pavoi.AI do
   in the given product set. Progress can be tracked via PubSub broadcasts.
 
   ## Parameters
+    - brand_id: Integer ID of the brand
     - product_set_id: Integer ID of the product set
 
   ## Example
-      iex> AI.generate_product_set_talking_points_async(456)
+      iex> AI.generate_product_set_talking_points_async(brand_id, 456)
       {:ok, %TalkingPointsGeneration{job_id: "def-456", status: "pending", ...}}
   """
-  def generate_product_set_talking_points_async(product_set_id) when is_integer(product_set_id) do
-    product_set = ProductSets.get_product_set!(product_set_id)
+  def generate_product_set_talking_points_async(brand_id, product_set_id)
+      when is_integer(brand_id) and is_integer(product_set_id) do
+    product_set = ProductSets.get_product_set!(brand_id, product_set_id)
 
     product_ids =
       product_set
@@ -55,7 +60,7 @@ defmodule Pavoi.AI do
     if Enum.empty?(product_ids) do
       {:error, "Product set has no products"}
     else
-      generate_talking_points_async(product_ids, product_set_id)
+      generate_talking_points_async(brand_id, product_ids, product_set_id)
     end
   rescue
     Ecto.NoResultsError ->
@@ -69,8 +74,8 @@ defmodule Pavoi.AI do
   - `{:ok, generation}` on success
   - `{:error, reason}` on failure (empty list, invalid product IDs, etc.)
   """
-  def generate_talking_points_async(product_ids, product_set_id \\ nil)
-      when is_list(product_ids) do
+  def generate_talking_points_async(brand_id, product_ids, product_set_id \\ nil)
+      when is_integer(brand_id) and is_list(product_ids) do
     # Validate input
     cond do
       Enum.empty?(product_ids) ->
@@ -86,6 +91,7 @@ defmodule Pavoi.AI do
         # Create the generation record
         attrs = %{
           job_id: job_id,
+          brand_id: brand_id,
           product_set_id: product_set_id,
           product_ids: product_ids,
           total_count: length(product_ids)
@@ -178,11 +184,19 @@ defmodule Pavoi.AI do
       Logger.warning("No talking points to apply for generation #{generation.job_id}")
       {:error, :no_results}
     else
+      brand_id = generation.brand_id
+
+      if is_nil(brand_id) do
+        Logger.warning(
+          "Generation #{generation.job_id} missing brand_id; falling back to unscoped product lookup"
+        )
+      end
+
       results =
         for {product_id_str, talking_points} <- generation.results do
           product_id = String.to_integer(product_id_str)
 
-          with {:ok, product} <- Catalog.get_product(product_id),
+          with {:ok, product} <- fetch_product_for_generation(brand_id, product_id),
                {:ok, updated_product} <-
                  Catalog.update_product(product, %{talking_points_md: talking_points}) do
             Logger.debug("Applied talking points to product #{product_id}")
@@ -218,6 +232,7 @@ defmodule Pavoi.AI do
   defp enqueue_worker(generation) do
     %{
       job_id: generation.job_id,
+      brand_id: generation.brand_id,
       product_ids: generation.product_ids,
       product_set_id: generation.product_set_id
     }
@@ -234,18 +249,21 @@ defmodule Pavoi.AI do
   - `{:generation_completed, generation}`
   - `{:generation_failed, generation, reason}`
   """
-  def broadcast_generation_event({event, _} = message)
+  def broadcast_generation_event({event, generation} = message)
       when event in [:generation_started, :generation_completed, :generation_failed] do
-    Phoenix.PubSub.broadcast(Pavoi.PubSub, "ai:talking_points", message)
+    {general_topic, _job_topic} = topics_for_ids(generation.brand_id, generation.job_id)
+    Phoenix.PubSub.broadcast(Pavoi.PubSub, general_topic, message)
   end
 
   def broadcast_generation_event(
         {:generation_progress, generation, _product_id, _product_name} = message
       ) do
+    {general_topic, job_topic} = topics_for_ids(generation.brand_id, generation.job_id)
+
     # Broadcast to general channel
-    Phoenix.PubSub.broadcast(Pavoi.PubSub, "ai:talking_points", message)
+    Phoenix.PubSub.broadcast(Pavoi.PubSub, general_topic, message)
     # Also broadcast to job-specific channel
-    Phoenix.PubSub.broadcast(Pavoi.PubSub, "ai:talking_points:#{generation.job_id}", message)
+    Phoenix.PubSub.broadcast(Pavoi.PubSub, job_topic, message)
   end
 
   @doc """
@@ -258,14 +276,41 @@ defmodule Pavoi.AI do
       # Subscribe to a specific job's events
       AI.subscribe("tp_abc123...")
   """
-  def subscribe(job_id \\ nil) do
-    topic =
-      if job_id do
-        "ai:talking_points:#{job_id}"
-      else
-        "ai:talking_points"
-      end
+  def subscribe, do: subscribe_topic(nil, nil)
 
+  def subscribe(job_id) when is_binary(job_id), do: subscribe_topic(nil, job_id)
+
+  def subscribe(brand_id) when is_integer(brand_id), do: subscribe_topic(brand_id, nil)
+
+  def subscribe(brand_id, job_id) when is_integer(brand_id) and is_binary(job_id),
+    do: subscribe_topic(brand_id, job_id)
+
+  defp subscribe_topic(brand_id, job_id) do
+    {general_topic, job_topic} = topics_for_ids(brand_id, job_id)
+    topic = if job_id, do: job_topic, else: general_topic
     Phoenix.PubSub.subscribe(Pavoi.PubSub, topic)
+  end
+
+  defp fetch_product_for_generation(nil, product_id) do
+    case Repo.get(Product, product_id) do
+      nil -> nil
+      product -> {:ok, product}
+    end
+  end
+
+  defp fetch_product_for_generation(brand_id, product_id) when is_integer(brand_id) do
+    Catalog.get_product(brand_id, product_id)
+  end
+
+  defp topics_for_ids(nil, job_id) do
+    general_topic = "ai:talking_points"
+    job_topic = if job_id, do: "ai:talking_points:#{job_id}", else: general_topic
+    {general_topic, job_topic}
+  end
+
+  defp topics_for_ids(brand_id, job_id) when is_integer(brand_id) do
+    general_topic = "ai:talking_points:#{brand_id}"
+    job_topic = if job_id, do: "ai:talking_points:#{brand_id}:#{job_id}", else: general_topic
+    {general_topic, job_topic}
   end
 end

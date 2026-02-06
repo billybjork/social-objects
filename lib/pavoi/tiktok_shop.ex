@@ -21,7 +21,7 @@ defmodule Pavoi.TiktokShop do
   Returns the URL as a string that the user should visit in their browser.
   After authorization, they'll be redirected to the configured redirect_uri with an auth code.
   """
-  def generate_authorization_url do
+  def generate_authorization_url(brand_id) do
     # Determine the correct authorization base URL based on region
     auth_url_base =
       case region() do
@@ -29,7 +29,7 @@ defmodule Pavoi.TiktokShop do
         _ -> "https://services.tiktokshop.com"
       end
 
-    state = generate_state()
+    state = generate_state(brand_id)
 
     "#{auth_url_base}/open/authorize?service_id=#{service_id()}&state=#{state}"
   end
@@ -40,7 +40,7 @@ defmodule Pavoi.TiktokShop do
   This should be called in your OAuth callback handler after the user approves the app.
   Stores the tokens in the database and returns the auth record.
   """
-  def exchange_code_for_token(auth_code) do
+  def exchange_code_for_token(brand_id, auth_code) do
     url = "#{auth_base()}/api/v2/token/get"
 
     params = [
@@ -52,7 +52,7 @@ defmodule Pavoi.TiktokShop do
 
     case Req.get(url, params: params) do
       {:ok, %Req.Response{status: 200, body: %{"data" => token_data}}} ->
-        store_tokens(token_data)
+        store_tokens(brand_id, token_data)
 
       {:ok, %Req.Response{status: 200, body: response}} ->
         {:error, "Token exchange failed: #{inspect(response)}"}
@@ -71,8 +71,8 @@ defmodule Pavoi.TiktokShop do
   Should be called when the access token expires.
   Updates the tokens in the database.
   """
-  def refresh_access_token do
-    case get_auth() do
+  def refresh_access_token(brand_id) do
+    case get_auth(brand_id) do
       nil ->
         {:error, :no_auth_record}
 
@@ -108,15 +108,15 @@ defmodule Pavoi.TiktokShop do
   This should be called after obtaining an access token to get shop-specific credentials.
   Updates the auth record with shop information.
   """
-  def get_authorized_shops do
-    case get_auth() do
+  def get_authorized_shops(brand_id) do
+    case get_auth(brand_id) do
       nil ->
         {:error, :no_auth_record}
 
       auth ->
         path = "/authorization/202309/shops"
 
-        case make_api_request(:get, path, %{}) do
+        case make_api_request(brand_id, :get, path, %{}) do
           {:ok, %{"data" => %{"shops" => [_ | _] = shops}}} ->
             # Take the first shop
             shop = List.first(shops)
@@ -152,16 +152,16 @@ defmodule Pavoi.TiktokShop do
     - `{:ok, :refreshed}` - Token was refreshed successfully
     - `{:error, reason}` - Refresh failed or no auth record exists
   """
-  def maybe_refresh_token_if_expiring do
-    case get_auth() do
+  def maybe_refresh_token_if_expiring(brand_id) do
+    case get_auth(brand_id) do
       nil -> {:error, :no_auth_record}
-      auth -> maybe_refresh_token(auth)
+      auth -> maybe_refresh_token(brand_id, auth)
     end
   end
 
-  defp maybe_refresh_token(auth) do
+  defp maybe_refresh_token(brand_id, auth) do
     if token_expiring_within?(auth, 60 * 60) do
-      do_refresh_token()
+      do_refresh_token(brand_id)
     else
       {:ok, :no_refresh_needed}
     end
@@ -173,8 +173,8 @@ defmodule Pavoi.TiktokShop do
     DateTime.compare(auth.access_token_expires_at, threshold) == :lt
   end
 
-  defp do_refresh_token do
-    case refresh_access_token() do
+  defp do_refresh_token(brand_id) do
+    case refresh_access_token(brand_id) do
       {:ok, _updated_auth} -> {:ok, :refreshed}
       {:error, reason} -> {:error, reason}
     end
@@ -186,37 +186,53 @@ defmodule Pavoi.TiktokShop do
   Automatically handles signature generation and token refresh if needed.
   Will retry once on 401 expired credentials errors.
   """
-  def make_api_request(method, path, params \\ %{}, body \\ %{}) do
-    do_make_api_request(method, path, params, body, _retry_count = 0)
+  def make_api_request(brand_id, method, path, params \\ %{}, body \\ %{}) do
+    do_make_api_request(brand_id, method, path, params, body, _retry_count = 0)
   end
 
-  defp do_make_api_request(method, path, params, body, retry_count) do
+  defp do_make_api_request(brand_id, method, path, params, body, retry_count) do
     result =
-      with {:ok, auth} <- get_auth_or_error(),
-           {:ok, auth} <- ensure_valid_token(auth),
+      with {:ok, auth} <- get_auth_or_error(brand_id),
+           {:ok, auth} <- ensure_valid_token(brand_id, auth),
            {all_params, body_string, headers} <- build_request_params(auth, path, params, body),
            url <- "#{api_base()}#{path}" do
         execute_request(method, url, all_params, body_string, headers)
       end
 
-    maybe_retry_on_token_error(result, method, path, params, body, retry_count)
+    maybe_retry_on_token_error(result, brand_id, method, path, params, body, retry_count)
   end
 
-  defp maybe_retry_on_token_error({:error, reason} = result, method, path, params, body, 0)
+  defp maybe_retry_on_token_error(
+         {:error, reason} = result,
+         brand_id,
+         method,
+         path,
+         params,
+         body,
+         0
+       )
        when is_binary(reason) do
     if token_expired_error?(reason) do
-      retry_with_fresh_token(method, path, params, body, result)
+      retry_with_fresh_token(brand_id, method, path, params, body, result)
     else
       result
     end
   end
 
-  defp maybe_retry_on_token_error(result, _method, _path, _params, _body, _retry_count),
-    do: result
+  defp maybe_retry_on_token_error(
+         result,
+         _brand_id,
+         _method,
+         _path,
+         _params,
+         _body,
+         _retry_count
+       ),
+       do: result
 
-  defp retry_with_fresh_token(method, path, params, body, original_result) do
-    case refresh_access_token() do
-      {:ok, _} -> do_make_api_request(method, path, params, body, 1)
+  defp retry_with_fresh_token(brand_id, method, path, params, body, original_result) do
+    case refresh_access_token(brand_id) do
+      {:ok, _} -> do_make_api_request(brand_id, method, path, params, body, 1)
       {:error, _} -> original_result
     end
   end
@@ -263,8 +279,8 @@ defmodule Pavoi.TiktokShop do
 
   ## Private Helper Functions
 
-  defp get_auth_or_error do
-    case get_auth() do
+  defp get_auth_or_error(brand_id) do
+    case get_auth(brand_id) do
       nil -> {:error, :no_auth_record}
       auth -> {:ok, auth}
     end
@@ -348,8 +364,9 @@ defmodule Pavoi.TiktokShop do
     {:error, "Request failed: #{inspect(error)}"}
   end
 
-  defp generate_state do
-    :crypto.strong_rand_bytes(16) |> Base.url_encode64(padding: false)
+  defp generate_state(brand_id) do
+    nonce = :crypto.strong_rand_bytes(16) |> Base.url_encode64(padding: false)
+    Phoenix.Token.sign(PavoiWeb.Endpoint, "tiktok_oauth", %{brand_id: brand_id, nonce: nonce})
   end
 
   # =============================================================================
@@ -374,12 +391,12 @@ defmodule Pavoi.TiktokShop do
 
   ## Examples
       # Search by username
-      search_marketplace_creators(keyword: "zoekate1")
+      search_marketplace_creators(brand_id, keyword: "zoekate1")
 
       # Search high-GMV creators
-      search_marketplace_creators(gmv_ranges: ["GMV_RANGE_10000_AND_ABOVE"])
+      search_marketplace_creators(brand_id, gmv_ranges: ["GMV_RANGE_10000_AND_ABOVE"])
   """
-  def search_marketplace_creators(opts \\ []) do
+  def search_marketplace_creators(brand_id, opts \\ []) do
     keyword = Keyword.get(opts, :keyword)
     page_size = Keyword.get(opts, :page_size, 12)
     page_token = Keyword.get(opts, :page_token)
@@ -395,7 +412,7 @@ defmodule Pavoi.TiktokShop do
     body =
       maybe_add_filter(body, "follower_demographics", Keyword.get(opts, :follower_demographics))
 
-    case make_api_request(:post, "#{@marketplace_creators_path}/search", params, body) do
+    case make_api_request(brand_id, :post, "#{@marketplace_creators_path}/search", params, body) do
       {:ok, %{"code" => 0, "data" => data}} ->
         {:ok,
          %{
@@ -428,10 +445,16 @@ defmodule Pavoi.TiktokShop do
     - Returns error 16901006 if region doesn't match
 
   ## Example
-      get_marketplace_creator("7494112116023331142")
+      get_marketplace_creator(brand_id, "7494112116023331142")
   """
-  def get_marketplace_creator(creator_user_id) when is_binary(creator_user_id) do
-    case make_api_request(:get, "#{@marketplace_creators_path}/#{creator_user_id}", %{}, %{}) do
+  def get_marketplace_creator(brand_id, creator_user_id) when is_binary(creator_user_id) do
+    case make_api_request(
+           brand_id,
+           :get,
+           "#{@marketplace_creators_path}/#{creator_user_id}",
+           %{},
+           %{}
+         ) do
       {:ok, %{"code" => 0, "data" => data}} ->
         {:ok, data}
 
@@ -468,9 +491,14 @@ defmodule Pavoi.TiktokShop do
 
   ## Example
       # Get orders during a stream
-      fetch_orders_in_range(stream.started_at, stream.ended_at)
+      fetch_orders_in_range(brand_id, stream.started_at, stream.ended_at)
   """
-  def fetch_orders_in_range(%DateTime{} = start_time, %DateTime{} = end_time, opts \\ []) do
+  def fetch_orders_in_range(
+        brand_id,
+        %DateTime{} = start_time,
+        %DateTime{} = end_time,
+        opts \\ []
+      ) do
     page_size = Keyword.get(opts, :page_size, 100)
 
     body = %{
@@ -478,16 +506,16 @@ defmodule Pavoi.TiktokShop do
       "create_time_lt" => DateTime.to_unix(end_time)
     }
 
-    fetch_all_orders_pages(body, page_size, nil, [])
+    fetch_all_orders_pages(brand_id, body, page_size, nil, [])
   end
 
-  defp fetch_all_orders_pages(body, page_size, page_token, acc) do
+  defp fetch_all_orders_pages(brand_id, body, page_size, page_token, acc) do
     params =
       if page_token,
         do: %{page_size: page_size, page_token: page_token},
         else: %{page_size: page_size}
 
-    case make_api_request(:post, @orders_search_path, params, body) do
+    case make_api_request(brand_id, :post, @orders_search_path, params, body) do
       {:ok, %{"code" => 0, "data" => %{"orders" => orders} = data}} when is_list(orders) ->
         new_acc = acc ++ orders
         next_token = Map.get(data, "next_page_token")
@@ -495,7 +523,7 @@ defmodule Pavoi.TiktokShop do
         if next_token && next_token != "" && length(acc) < 1000 do
           # Rate limit protection
           Process.sleep(300)
-          fetch_all_orders_pages(body, page_size, next_token, new_acc)
+          fetch_all_orders_pages(brand_id, body, page_size, next_token, new_acc)
         else
           {:ok, new_acc}
         end
@@ -572,7 +600,7 @@ defmodule Pavoi.TiktokShop do
   # Token Storage
   # =============================================================================
 
-  defp store_tokens(token_data) do
+  defp store_tokens(brand_id, token_data) do
     access_expires_in = Map.get(token_data, "access_token_expire_in", 0)
     refresh_expires_in = Map.get(token_data, "refresh_token_expire_in", 0)
 
@@ -584,9 +612,9 @@ defmodule Pavoi.TiktokShop do
     }
 
     # Upsert: if record exists, update it; otherwise create new one
-    case Repo.one(Auth) do
+    case Repo.get_by(Auth, brand_id: brand_id) do
       nil ->
-        %Auth{}
+        %Auth{brand_id: brand_id}
         |> Auth.changeset(attrs)
         |> Repo.insert()
 
@@ -641,18 +669,17 @@ defmodule Pavoi.TiktokShop do
     |> Repo.update()
   end
 
-  defp get_auth do
-    Repo.one(Auth)
-  end
+  defp get_auth(nil), do: nil
+  defp get_auth(brand_id), do: Repo.get_by(Auth, brand_id: brand_id)
 
-  defp ensure_valid_token(auth) do
+  defp ensure_valid_token(brand_id, auth) do
     # Check if access token is expired or about to expire (within 5 minutes)
     now = DateTime.utc_now()
     expires_soon = DateTime.add(now, 5 * 60, :second)
 
     if DateTime.compare(auth.access_token_expires_at, expires_soon) == :lt do
       # Token expired or expiring soon, refresh it
-      case refresh_access_token() do
+      case refresh_access_token(brand_id) do
         {:ok, updated_auth} -> {:ok, updated_auth}
         {:error, reason} -> {:error, {:token_refresh_failed, reason}}
       end

@@ -13,23 +13,23 @@ defmodule Pavoi.Communications do
   @doc """
   Lists all active email templates, ordered by name.
   """
-  def list_email_templates do
-    list_templates_by_type("email")
+  def list_email_templates(brand_id) do
+    list_templates_by_type(brand_id, "email")
   end
 
   @doc """
   Lists all email templates including inactive ones.
   """
-  def list_all_email_templates do
-    list_all_templates_by_type("email")
+  def list_all_email_templates(brand_id) do
+    list_all_templates_by_type(brand_id, "email")
   end
 
   @doc """
   Lists active templates of a specific type, ordered by name.
   """
-  def list_templates_by_type(type) when type in ["email", "page"] do
+  def list_templates_by_type(brand_id, type) when type in ["email", "page"] do
     from(t in EmailTemplate,
-      where: t.type == ^type and t.is_active == true,
+      where: t.brand_id == ^brand_id and t.type == ^type and t.is_active == true,
       order_by: [asc: t.name]
     )
     |> Repo.all()
@@ -38,9 +38,9 @@ defmodule Pavoi.Communications do
   @doc """
   Lists all templates of a specific type including inactive ones, ordered by name.
   """
-  def list_all_templates_by_type(type) when type in ["email", "page"] do
+  def list_all_templates_by_type(brand_id, type) when type in ["email", "page"] do
     from(t in EmailTemplate,
-      where: t.type == ^type,
+      where: t.brand_id == ^brand_id and t.type == ^type,
       order_by: [asc: t.name]
     )
     |> Repo.all()
@@ -51,15 +51,16 @@ defmodule Pavoi.Communications do
 
   Raises `Ecto.NoResultsError` if the template does not exist.
   """
-  def get_email_template!(id), do: Repo.get!(EmailTemplate, id)
+  def get_email_template!(brand_id, id),
+    do: Repo.get_by!(EmailTemplate, id: id, brand_id: brand_id)
 
   @doc """
   Gets a single email template by name.
 
   Returns nil if not found or inactive.
   """
-  def get_email_template_by_name(name) do
-    Repo.get_by(EmailTemplate, name: name, is_active: true)
+  def get_email_template_by_name(brand_id, name) do
+    Repo.get_by(EmailTemplate, brand_id: brand_id, name: name, is_active: true)
   end
 
   @doc """
@@ -67,8 +68,13 @@ defmodule Pavoi.Communications do
 
   Returns nil if no default is set.
   """
-  def get_default_email_template do
-    Repo.get_by(EmailTemplate, type: "email", is_default: true, is_active: true)
+  def get_default_email_template(brand_id) do
+    Repo.get_by(EmailTemplate,
+      brand_id: brand_id,
+      type: "email",
+      is_default: true,
+      is_active: true
+    )
   end
 
   @doc """
@@ -76,8 +82,9 @@ defmodule Pavoi.Communications do
 
   Returns nil if no default is set for that preset.
   """
-  def get_default_page_template(lark_preset) do
+  def get_default_page_template(brand_id, lark_preset) do
     Repo.get_by(EmailTemplate,
+      brand_id: brand_id,
       type: "page",
       lark_preset: lark_preset,
       is_default: true,
@@ -88,8 +95,8 @@ defmodule Pavoi.Communications do
   @doc """
   Creates an email template.
   """
-  def create_email_template(attrs \\ %{}) do
-    %EmailTemplate{}
+  def create_email_template(brand_id, attrs \\ %{}) do
+    %EmailTemplate{brand_id: brand_id}
     |> EmailTemplate.changeset(attrs)
     |> Repo.insert()
   end
@@ -116,13 +123,17 @@ defmodule Pavoi.Communications do
         if template.type == "page" do
           from(t in EmailTemplate,
             where:
-              t.type == ^template.type and
+              t.brand_id == ^template.brand_id and
+                t.type == ^template.type and
                 t.lark_preset == ^template.lark_preset and
                 t.is_default == true
           )
         else
           from(t in EmailTemplate,
-            where: t.type == ^template.type and t.is_default == true
+            where:
+              t.brand_id == ^template.brand_id and
+                t.type == ^template.type and
+                t.is_default == true
           )
         end
 

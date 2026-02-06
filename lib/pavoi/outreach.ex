@@ -100,7 +100,15 @@ defmodule Pavoi.Outreach do
   Generates a signed token for unsubscribe links.
   Token is valid for 90 days.
   """
-  def generate_unsubscribe_token(creator_id) do
+  def generate_unsubscribe_token(brand_id, creator_id)
+      when is_integer(brand_id) and is_integer(creator_id) do
+    Phoenix.Token.sign(PavoiWeb.Endpoint, "unsubscribe", %{
+      brand_id: brand_id,
+      creator_id: creator_id
+    })
+  end
+
+  def generate_unsubscribe_token(creator_id) when is_integer(creator_id) do
     Phoenix.Token.sign(PavoiWeb.Endpoint, "unsubscribe", creator_id)
   end
 
@@ -119,8 +127,9 @@ defmodule Pavoi.Outreach do
   Token encodes both creator_id and lark_preset for redirect after form submission.
   Token is valid for 90 days.
   """
-  def generate_join_token(creator_id, lark_preset) do
+  def generate_join_token(brand_id, creator_id, lark_preset) do
     Phoenix.Token.sign(PavoiWeb.Endpoint, "join", %{
+      brand_id: brand_id,
       creator_id: creator_id,
       lark_preset: lark_preset
     })
@@ -182,8 +191,8 @@ defmodule Pavoi.Outreach do
     - sent_at: Override send timestamp (defaults to now)
     - lark_preset: Which Lark preset was used (jewelry, active, top_creators)
   """
-  def log_outreach(creator_id, channel, status, opts \\ []) do
-    %OutreachLog{}
+  def log_outreach(brand_id, creator_id, channel, status, opts \\ []) do
+    %OutreachLog{brand_id: brand_id}
     |> OutreachLog.changeset(%{
       creator_id: creator_id,
       channel: channel,
@@ -199,9 +208,9 @@ defmodule Pavoi.Outreach do
   @doc """
   Lists outreach history for a creator, most recent first.
   """
-  def list_outreach_history(creator_id) do
+  def list_outreach_history(brand_id, creator_id) do
     from(ol in OutreachLog,
-      where: ol.creator_id == ^creator_id,
+      where: ol.brand_id == ^brand_id and ol.creator_id == ^creator_id,
       order_by: [desc: ol.sent_at]
     )
     |> Repo.all()
@@ -211,9 +220,9 @@ defmodule Pavoi.Outreach do
   Gets the most recent email outreach log for a creator.
   Returns nil if no email has been sent.
   """
-  def get_latest_email_outreach_log(creator_id) do
+  def get_latest_email_outreach_log(brand_id, creator_id) do
     from(ol in OutreachLog,
-      where: ol.creator_id == ^creator_id,
+      where: ol.brand_id == ^brand_id and ol.creator_id == ^creator_id,
       where: ol.channel == "email",
       order_by: [desc: ol.sent_at],
       limit: 1
@@ -225,10 +234,10 @@ defmodule Pavoi.Outreach do
   Gets the latest email outreach logs for multiple creators in a single query.
   Returns a map of creator_id => OutreachLog.
   """
-  def get_latest_email_outreach_logs(creator_ids) when is_list(creator_ids) do
+  def get_latest_email_outreach_logs(brand_id, creator_ids) when is_list(creator_ids) do
     # Use a window function to get the latest email log per creator
     from(ol in OutreachLog,
-      where: ol.creator_id in ^creator_ids,
+      where: ol.brand_id == ^brand_id and ol.creator_id in ^creator_ids,
       where: ol.channel == "email",
       distinct: ol.creator_id,
       order_by: [ol.creator_id, desc: ol.sent_at]
@@ -245,29 +254,34 @@ defmodule Pavoi.Outreach do
   Returns a map like:
     %{never_contacted: 50, contacted: 100, opted_out: 5, total: 155}
   """
-  def get_outreach_stats do
-    # Count opted out creators
+  def get_outreach_stats(brand_id) do
     opted_out_count =
-      from(c in Creator, where: c.email_opted_out == true)
-      |> Repo.aggregate(:count)
-
-    # Count creators who have been contacted (have email outreach logs)
-    contacted_count =
       from(c in Creator,
-        join: ol in OutreachLog,
-        on: ol.creator_id == c.id,
-        where: ol.channel == "email",
-        where: c.email_opted_out == false,
-        select: c.id
+        join: bc in Pavoi.Creators.BrandCreator,
+        on: bc.creator_id == c.id,
+        where: bc.brand_id == ^brand_id and c.email_opted_out == true,
+        select: count(c.id)
       )
-      |> Repo.all()
-      |> Enum.uniq()
-      |> length()
+      |> Repo.one()
 
-    # Total creators
-    total_count = Repo.aggregate(Creator, :count)
+    contacted_count =
+      from(ol in OutreachLog,
+        where: ol.brand_id == ^brand_id and ol.channel == "email",
+        select: count(ol.creator_id, :distinct)
+      )
+      |> Repo.one()
 
-    # Never contacted = total - contacted - opted_out
+    total_count =
+      from(bc in Pavoi.Creators.BrandCreator,
+        where: bc.brand_id == ^brand_id,
+        select: count(bc.creator_id, :distinct)
+      )
+      |> Repo.one()
+
+    opted_out_count = opted_out_count || 0
+    contacted_count = contacted_count || 0
+    total_count = total_count || 0
+
     never_contacted = total_count - contacted_count - opted_out_count
 
     %{
@@ -284,12 +298,12 @@ defmodule Pavoi.Outreach do
   Returns counts by engagement level:
     %{delivered: 80, opened: 45, clicked: 12, bounced: 3}
   """
-  def get_engagement_counts do
+  def get_engagement_counts(brand_id) do
     # Get the latest outreach log per creator and count by engagement level
     # This uses a subquery to get the max log ID per creator
     latest_logs_query =
       from(ol in OutreachLog,
-        where: ol.channel == "email",
+        where: ol.brand_id == ^brand_id and ol.channel == "email",
         group_by: ol.creator_id,
         select: %{creator_id: ol.creator_id, max_id: max(ol.id)}
       )
@@ -319,12 +333,13 @@ defmodule Pavoi.Outreach do
   @doc """
   Gets the count of messages sent today.
   """
-  def count_sent_today do
+  def count_sent_today(brand_id) do
     today_start =
       Date.utc_today()
       |> DateTime.new!(~T[00:00:00], "Etc/UTC")
 
     from(ol in OutreachLog,
+      where: ol.brand_id == ^brand_id,
       where: ol.sent_at >= ^today_start,
       where: ol.status == "sent"
     )
@@ -353,6 +368,20 @@ defmodule Pavoi.Outreach do
     from(c in Creator,
       where: c.id == ^id,
       preload: [outreach_logs: ^from(ol in OutreachLog, order_by: [desc: ol.sent_at])]
+    )
+    |> Repo.one!()
+  end
+
+  def get_creator_with_outreach!(brand_id, id) do
+    from(c in Creator,
+      where: c.id == ^id,
+      preload: [
+        outreach_logs:
+          ^from(ol in OutreachLog,
+            where: ol.brand_id == ^brand_id,
+            order_by: [desc: ol.sent_at]
+          )
+      ]
     )
     |> Repo.one!()
   end
@@ -413,10 +442,13 @@ defmodule Pavoi.Outreach do
 
   Returns a map with counts for each event type and calculated rates.
   """
-  def get_engagement_stats do
+  def get_engagement_stats(brand_id) do
     # Count events by type
     event_counts =
       from(e in EmailEvent,
+        join: ol in OutreachLog,
+        on: ol.id == e.outreach_log_id,
+        where: ol.brand_id == ^brand_id,
         group_by: e.event_type,
         select: {e.event_type, count(e.id)}
       )
@@ -426,7 +458,9 @@ defmodule Pavoi.Outreach do
     # Count total emails sent (for rate calculation)
     total_sent =
       from(ol in OutreachLog,
-        where: ol.channel == "email" and ol.status in ["sent", "delivered"],
+        where:
+          ol.brand_id == ^brand_id and ol.channel == "email" and
+            ol.status in ["sent", "delivered"],
         select: count(ol.id)
       )
       |> Repo.one()

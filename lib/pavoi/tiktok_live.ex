@@ -23,7 +23,7 @@ defmodule Pavoi.TiktokLive do
       config :pavoi, :tiktok_bridge_url, System.get_env("TIKTOK_BRIDGE_URL")
 
       config :pavoi, :tiktok_live_monitor,
-        accounts: ["pavoi"]
+        accounts: ["brand_handle"]
 
   """
 
@@ -31,7 +31,7 @@ defmodule Pavoi.TiktokLive do
 
   require Logger
 
-  alias Pavoi.ProductSets.ProductSetProduct
+  alias Pavoi.ProductSets.{ProductSet, ProductSetProduct}
   alias Pavoi.Repo
   alias Pavoi.TiktokLive.{Client, Comment, ProductSetStream, Stream, StreamStat}
   alias Pavoi.Workers.{TiktokLiveMonitorWorker, TiktokLiveStreamWorker}
@@ -41,8 +41,9 @@ defmodule Pavoi.TiktokLive do
   @doc """
   Returns a list of all captured streams, most recent first.
   """
-  def list_streams do
+  def list_streams(brand_id) do
     Stream
+    |> where([s], s.brand_id == ^brand_id)
     |> order_by([s], desc: s.started_at)
     |> Repo.all()
   end
@@ -59,8 +60,9 @@ defmodule Pavoi.TiktokLive do
   - `:limit` - Limit number of results
   - `:offset` - Offset for pagination
   """
-  def list_streams(opts) do
+  def list_streams(brand_id, opts) do
     Stream
+    |> where([s], s.brand_id == ^brand_id)
     |> apply_filters(opts)
     |> apply_sorting(opts)
     |> preload(product_set: :product_set_products)
@@ -72,11 +74,12 @@ defmodule Pavoi.TiktokLive do
 
   Same filters as `list_streams/1` except `:limit` and `:offset` are ignored.
   """
-  def count_streams(opts \\ []) do
+  def count_streams(brand_id, opts \\ []) do
     # Remove pagination options for count query
     count_opts = Keyword.drop(opts, [:limit, :offset])
 
     Stream
+    |> where([s], s.brand_id == ^brand_id)
     |> apply_filters(count_opts)
     |> Repo.aggregate(:count)
   end
@@ -86,8 +89,8 @@ defmodule Pavoi.TiktokLive do
 
   Returns `nil` if not found.
   """
-  def get_stream(id) do
-    Repo.get(Stream, id)
+  def get_stream(brand_id, id) do
+    Repo.get_by(Stream, id: id, brand_id: brand_id)
   end
 
   @doc """
@@ -95,16 +98,16 @@ defmodule Pavoi.TiktokLive do
 
   Raises `Ecto.NoResultsError` if not found.
   """
-  def get_stream!(id) do
-    Repo.get!(Stream, id)
+  def get_stream!(brand_id, id) do
+    Repo.get_by!(Stream, id: id, brand_id: brand_id)
   end
 
   @doc """
   Gets the currently active (capturing) stream, if any.
   """
-  def get_active_stream do
+  def get_active_stream(brand_id) do
     from(s in Stream,
-      where: s.status == :capturing,
+      where: s.brand_id == ^brand_id and s.status == :capturing,
       order_by: [desc: s.started_at],
       limit: 1
     )
@@ -114,9 +117,9 @@ defmodule Pavoi.TiktokLive do
   @doc """
   Gets the most recent stream for a given account.
   """
-  def get_latest_stream(unique_id) do
+  def get_latest_stream(brand_id, unique_id) do
     from(s in Stream,
-      where: s.unique_id == ^unique_id,
+      where: s.brand_id == ^brand_id and s.unique_id == ^unique_id,
       order_by: [desc: s.started_at],
       limit: 1
     )
@@ -128,12 +131,12 @@ defmodule Pavoi.TiktokLive do
 
   Returns `{:ok, :ended}` when the update was applied, or `{:error, :already_ended}`.
   """
-  def mark_stream_ended(stream_id) do
+  def mark_stream_ended(brand_id, stream_id) do
     ended_at = DateTime.utc_now() |> DateTime.truncate(:second)
 
     {updated, _} =
       from(s in Stream,
-        where: s.id == ^stream_id and s.status != :ended
+        where: s.brand_id == ^brand_id and s.id == ^stream_id and s.status != :ended
       )
       |> Repo.update_all(set: [status: :ended, ended_at: ended_at])
 
@@ -149,12 +152,12 @@ defmodule Pavoi.TiktokLive do
 
   Uses an atomic update to ensure only one report is ever sent per stream.
   """
-  def mark_report_sent(stream_id) do
+  def mark_report_sent(brand_id, stream_id) do
     sent_at = DateTime.utc_now() |> DateTime.truncate(:second)
 
     {updated, _} =
       from(s in Stream,
-        where: s.id == ^stream_id and is_nil(s.report_sent_at)
+        where: s.brand_id == ^brand_id and s.id == ^stream_id and is_nil(s.report_sent_at)
       )
       |> Repo.update_all(set: [report_sent_at: sent_at])
 
@@ -171,8 +174,8 @@ defmodule Pavoi.TiktokLive do
   `gmv_data` should be a map with `:total_gmv_cents`, `:total_orders`, and `:hourly` keys.
   The `:hourly` key should contain a list of maps with `:hour`, `:gmv_cents`, and `:order_count`.
   """
-  def update_stream_gmv(stream_id, gmv_data) do
-    stream = get_stream!(stream_id)
+  def update_stream_gmv(brand_id, stream_id, gmv_data) do
+    stream = get_stream!(brand_id, stream_id)
 
     # Convert hourly data to serializable format (DateTime keys to ISO strings)
     hourly_map = serialize_hourly_gmv(gmv_data.hourly)
@@ -212,14 +215,14 @@ defmodule Pavoi.TiktokLive do
   - `:per_page` - Comments per page (default: 50)
   - `:order` - :asc or :desc (default: :desc)
   """
-  def list_stream_comments(stream_id, opts \\ []) do
+  def list_stream_comments(brand_id, stream_id, opts \\ []) do
     page = Keyword.get(opts, :page, 1)
     per_page = Keyword.get(opts, :per_page, 50)
     order = Keyword.get(opts, :order, :desc)
 
     query =
       from(c in Comment,
-        where: c.stream_id == ^stream_id,
+        where: c.brand_id == ^brand_id and c.stream_id == ^stream_id,
         limit: ^per_page,
         offset: ^((page - 1) * per_page)
       )
@@ -231,7 +234,7 @@ defmodule Pavoi.TiktokLive do
       end
 
     comments = Repo.all(query)
-    total = count_stream_comments(stream_id)
+    total = count_stream_comments(brand_id, stream_id)
 
     %{
       comments: comments,
@@ -245,20 +248,22 @@ defmodule Pavoi.TiktokLive do
   @doc """
   Counts total comments for a stream.
   """
-  def count_stream_comments(stream_id) do
-    from(c in Comment, where: c.stream_id == ^stream_id)
+  def count_stream_comments(brand_id, stream_id) do
+    from(c in Comment, where: c.brand_id == ^brand_id and c.stream_id == ^stream_id)
     |> Repo.aggregate(:count)
   end
 
   @doc """
   Searches comments by text content.
   """
-  def search_comments(stream_id, query, opts \\ []) do
+  def search_comments(brand_id, stream_id, query, opts \\ []) do
     limit = Keyword.get(opts, :limit, 50)
     search_pattern = "%#{query}%"
 
     from(c in Comment,
-      where: c.stream_id == ^stream_id and ilike(c.comment_text, ^search_pattern),
+      where:
+        c.brand_id == ^brand_id and c.stream_id == ^stream_id and
+          ilike(c.comment_text, ^search_pattern),
       order_by: [desc: c.commented_at],
       limit: ^limit
     )
@@ -280,10 +285,10 @@ defmodule Pavoi.TiktokLive do
         total: 371
       }
   """
-  def get_sentiment_breakdown(stream_id) do
+  def get_sentiment_breakdown(brand_id, stream_id) do
     results =
       from(c in Comment,
-        where: c.stream_id == ^stream_id,
+        where: c.brand_id == ^brand_id and c.stream_id == ^stream_id,
         where: not is_nil(c.sentiment),
         where: c.category != :flash_sale,
         group_by: c.sentiment,
@@ -324,11 +329,11 @@ defmodule Pavoi.TiktokLive do
 
   Flash sale category is excluded from results.
   """
-  def get_category_breakdown(stream_id) do
+  def get_category_breakdown(brand_id, stream_id) do
     # Get total classified comments (excluding flash sales)
     total =
       from(c in Comment,
-        where: c.stream_id == ^stream_id,
+        where: c.brand_id == ^brand_id and c.stream_id == ^stream_id,
         where: not is_nil(c.category),
         where: c.category != :flash_sale,
         select: count(c.id)
@@ -341,7 +346,7 @@ defmodule Pavoi.TiktokLive do
       # Get counts and unique commenters per category
       category_stats =
         from(c in Comment,
-          where: c.stream_id == ^stream_id,
+          where: c.brand_id == ^brand_id and c.stream_id == ^stream_id,
           where: not is_nil(c.category),
           where: c.category != :flash_sale,
           group_by: c.category,
@@ -355,7 +360,7 @@ defmodule Pavoi.TiktokLive do
 
       # Fetch examples for each category
       Enum.map(category_stats, fn stat ->
-        examples = get_category_examples(stream_id, stat.category, 2)
+        examples = get_category_examples(brand_id, stream_id, stat.category, 2)
 
         %{
           category: stat.category,
@@ -369,9 +374,9 @@ defmodule Pavoi.TiktokLive do
     end
   end
 
-  defp get_category_examples(stream_id, category, limit) do
+  defp get_category_examples(brand_id, stream_id, category, limit) do
     from(c in Comment,
-      where: c.stream_id == ^stream_id,
+      where: c.brand_id == ^brand_id and c.stream_id == ^stream_id,
       where: c.category == ^category,
       where: c.comment_text != "",
       select: %{
@@ -387,9 +392,9 @@ defmodule Pavoi.TiktokLive do
   @doc """
   Returns the count of comments that have been classified for a stream.
   """
-  def count_classified_comments(stream_id) do
+  def count_classified_comments(brand_id, stream_id) do
     from(c in Comment,
-      where: c.stream_id == ^stream_id,
+      where: c.brand_id == ^brand_id and c.stream_id == ^stream_id,
       where: not is_nil(c.classified_at),
       select: count(c.id)
     )
@@ -403,11 +408,12 @@ defmodule Pavoi.TiktokLive do
 
   - `:stream_id` - Filter to a specific stream (optional)
   """
-  def get_aggregate_sentiment_breakdown(opts \\ []) do
+  def get_aggregate_sentiment_breakdown(brand_id, opts \\ []) do
     stream_id = Keyword.get(opts, :stream_id)
 
     query =
       from(c in Comment,
+        where: c.brand_id == ^brand_id,
         where: not is_nil(c.sentiment),
         where: c.category != :flash_sale,
         group_by: c.sentiment,
@@ -447,12 +453,13 @@ defmodule Pavoi.TiktokLive do
 
   - `:stream_id` - Filter to a specific stream (optional)
   """
-  def get_aggregate_category_breakdown(opts \\ []) do
+  def get_aggregate_category_breakdown(brand_id, opts \\ []) do
     stream_id = Keyword.get(opts, :stream_id)
 
     # Get total classified comments (excluding flash sales)
     total_query =
       from(c in Comment,
+        where: c.brand_id == ^brand_id,
         where: not is_nil(c.category),
         where: c.category != :flash_sale,
         select: count(c.id)
@@ -473,6 +480,7 @@ defmodule Pavoi.TiktokLive do
       # Get counts per category
       query =
         from(c in Comment,
+          where: c.brand_id == ^brand_id,
           where: not is_nil(c.category),
           where: c.category != :flash_sale,
           group_by: c.category,
@@ -514,7 +522,7 @@ defmodule Pavoi.TiktokLive do
   - `:page` - Page number (default 1)
   - `:per_page` - Results per page (default 25)
   """
-  def list_classified_comments(opts \\ []) do
+  def list_classified_comments(brand_id, opts \\ []) do
     page = Keyword.get(opts, :page, 1)
     per_page = Keyword.get(opts, :per_page, 25)
     stream_id = Keyword.get(opts, :stream_id)
@@ -524,6 +532,7 @@ defmodule Pavoi.TiktokLive do
 
     query =
       from(c in Comment,
+        where: c.brand_id == ^brand_id,
         where: not is_nil(c.classified_at),
         order_by: [desc: c.commented_at],
         preload: [:stream]
@@ -567,11 +576,11 @@ defmodule Pavoi.TiktokLive do
 
   Returns a map of stream_id => %{positive_percent: N, negative_percent: N}
   """
-  def get_streams_sentiment_summary([]), do: %{}
+  def get_streams_sentiment_summary(_brand_id, []), do: %{}
 
-  def get_streams_sentiment_summary(stream_ids) when is_list(stream_ids) do
+  def get_streams_sentiment_summary(brand_id, stream_ids) when is_list(stream_ids) do
     from(c in Comment,
-      where: c.stream_id in ^stream_ids,
+      where: c.brand_id == ^brand_id and c.stream_id in ^stream_ids,
       where: not is_nil(c.sentiment),
       where: c.category != :flash_sale,
       group_by: [c.stream_id, c.sentiment],
@@ -611,9 +620,9 @@ defmodule Pavoi.TiktokLive do
   @doc """
   Returns time-series statistics for a stream.
   """
-  def list_stream_stats(stream_id) do
+  def list_stream_stats(brand_id, stream_id) do
     from(s in StreamStat,
-      where: s.stream_id == ^stream_id,
+      where: s.brand_id == ^brand_id and s.stream_id == ^stream_id,
       order_by: [asc: s.recorded_at]
     )
     |> Repo.all()
@@ -622,11 +631,11 @@ defmodule Pavoi.TiktokLive do
   @doc """
   Returns aggregate statistics for a stream.
   """
-  def get_stream_summary(stream_id) do
-    stream = get_stream!(stream_id)
+  def get_stream_summary(brand_id, stream_id) do
+    stream = get_stream!(brand_id, stream_id)
 
-    comment_count = count_stream_comments(stream_id)
-    unique_commenters = count_unique_commenters(stream_id)
+    comment_count = count_stream_comments(brand_id, stream_id)
+    unique_commenters = count_unique_commenters(brand_id, stream_id)
 
     duration =
       if stream.ended_at do
@@ -647,9 +656,9 @@ defmodule Pavoi.TiktokLive do
     }
   end
 
-  defp count_unique_commenters(stream_id) do
+  defp count_unique_commenters(brand_id, stream_id) do
     from(c in Comment,
-      where: c.stream_id == ^stream_id,
+      where: c.brand_id == ^brand_id and c.stream_id == ^stream_id,
       select: count(c.tiktok_user_id, :distinct)
     )
     |> Repo.one()
@@ -682,8 +691,8 @@ defmodule Pavoi.TiktokLive do
 
   This enqueues the monitor worker to run immediately.
   """
-  def check_live_status_now(source \\ "manual") do
-    TiktokLiveMonitorWorker.new(%{"source" => source})
+  def check_live_status_now(brand_id, source \\ "manual") do
+    TiktokLiveMonitorWorker.new(%{"brand_id" => brand_id, "source" => source})
     |> Oban.insert()
   end
 
@@ -692,13 +701,13 @@ defmodule Pavoi.TiktokLive do
 
   Returns `{:ok, stream}` if capture started, `{:error, reason}` otherwise.
   """
-  def start_capture(unique_id) do
+  def start_capture(brand_id, unique_id) do
     case Client.fetch_room_info(unique_id) do
       {:ok, %{is_live: true, room_id: room_id} = room_info} ->
         # Check if already capturing
-        case get_active_capture(room_id) do
+        case get_active_capture(brand_id, room_id) do
           nil ->
-            create_and_start_capture(unique_id, room_id, room_info)
+            create_and_start_capture(brand_id, unique_id, room_id, room_info)
 
           stream ->
             {:ok, stream}
@@ -718,8 +727,8 @@ defmodule Pavoi.TiktokLive do
   This marks the stream as ended in the database. The worker will detect
   this and stop the connection and event handler.
   """
-  def stop_capture(stream_id) do
-    stream = get_stream!(stream_id)
+  def stop_capture(brand_id, stream_id) do
+    stream = get_stream!(brand_id, stream_id)
 
     stream
     |> Stream.changeset(%{
@@ -734,8 +743,8 @@ defmodule Pavoi.TiktokLive do
 
   Returns `{:ok, stream}` on success or `{:error, reason}` on failure.
   """
-  def delete_stream(stream_id) do
-    stream = get_stream!(stream_id)
+  def delete_stream(brand_id, stream_id) do
+    stream = get_stream!(brand_id, stream_id)
 
     Ecto.Multi.new()
     |> Ecto.Multi.delete_all(:comments, from(c in Comment, where: c.stream_id == ^stream_id))
@@ -764,9 +773,9 @@ defmodule Pavoi.TiktokLive do
 
   `{:ok, target_stream}` on success, `{:error, reason}` on failure.
   """
-  def merge_streams(target_id, source_id) when target_id != source_id do
-    target = get_stream!(target_id)
-    source = get_stream!(source_id)
+  def merge_streams(brand_id, target_id, source_id) when target_id != source_id do
+    target = get_stream!(brand_id, target_id)
+    source = get_stream!(brand_id, source_id)
 
     if target.room_id != source.room_id do
       {:error, :different_rooms}
@@ -863,6 +872,9 @@ defmodule Pavoi.TiktokLive do
 
   defp apply_filters(query, opts) do
     Enum.reduce(opts, query, fn
+      {:brand_id, brand_id}, q ->
+        where(q, [s], s.brand_id == ^brand_id)
+
       {:search, search_term}, q ->
         pattern = "%#{search_term}%"
 
@@ -941,16 +953,17 @@ defmodule Pavoi.TiktokLive do
     end
   end
 
-  defp get_active_capture(room_id) do
+  defp get_active_capture(brand_id, room_id) do
     from(s in Stream,
-      where: s.room_id == ^room_id and s.status == :capturing,
+      where: s.brand_id == ^brand_id and s.room_id == ^room_id and s.status == :capturing,
       limit: 1
     )
     |> Repo.one()
   end
 
-  defp create_and_start_capture(unique_id, room_id, room_info) do
+  defp create_and_start_capture(brand_id, unique_id, room_id, room_info) do
     stream_attrs = %{
+      brand_id: brand_id,
       room_id: room_id,
       unique_id: unique_id,
       title: room_info[:title],
@@ -960,10 +973,10 @@ defmodule Pavoi.TiktokLive do
       raw_metadata: Map.drop(room_info, [:is_live])
     }
 
-    case %Stream{} |> Stream.changeset(stream_attrs) |> Repo.insert() do
+    case %Stream{brand_id: brand_id} |> Stream.changeset(stream_attrs) |> Repo.insert() do
       {:ok, stream} ->
         # Enqueue the stream worker
-        %{stream_id: stream.id, unique_id: unique_id}
+        %{stream_id: stream.id, unique_id: unique_id, brand_id: brand_id}
         |> TiktokLiveStreamWorker.new()
         |> Oban.insert()
 
@@ -986,12 +999,22 @@ defmodule Pavoi.TiktokLive do
 
   Returns `{:ok, product_set_stream}` or `{:error, changeset}`.
   """
-  def link_stream_to_product_set(stream_id, product_set_id, opts \\ []) do
+  def link_stream_to_product_set(brand_id, stream_id, product_set_id, opts \\ []) do
     linked_by = Keyword.get(opts, :linked_by, "manual")
     parse_comments = Keyword.get(opts, :parse_comments, true)
 
+    case Repo.get_by(ProductSet, id: product_set_id, brand_id: brand_id) do
+      %ProductSet{} ->
+        update_stream_link(brand_id, stream_id, product_set_id, linked_by, parse_comments)
+
+      _ ->
+        {:error, :not_found}
+    end
+  end
+
+  defp update_stream_link(brand_id, stream_id, product_set_id, linked_by, parse_comments) do
     # Update the stream's product_set_id directly
-    stream = get_stream!(stream_id)
+    stream = get_stream!(brand_id, stream_id)
 
     stream
     |> Stream.changeset(%{product_set_id: product_set_id})
@@ -1009,7 +1032,7 @@ defmodule Pavoi.TiktokLive do
         |> Repo.insert(on_conflict: :nothing)
 
         if parse_comments do
-          parse_comments_for_product_set(stream_id, product_set_id)
+          parse_comments_for_product_set(brand_id, stream_id, product_set_id)
         end
 
         {:ok, updated_stream}
@@ -1024,12 +1047,12 @@ defmodule Pavoi.TiktokLive do
 
   Also clears parsed product associations from comments.
   """
-  def unlink_stream_from_product_set(stream_id, product_set_id) do
+  def unlink_stream_from_product_set(brand_id, stream_id, product_set_id) do
     # Clear product_set_product_id from comments for this stream+product_set combo
-    clear_parsed_products_for_link(stream_id, product_set_id)
+    clear_parsed_products_for_link(brand_id, stream_id, product_set_id)
 
     # Clear the direct product_set_id on the stream (if it matches)
-    stream = get_stream!(stream_id)
+    stream = get_stream!(brand_id, stream_id)
 
     if stream.product_set_id == product_set_id do
       stream
@@ -1052,10 +1075,10 @@ defmodule Pavoi.TiktokLive do
   Returns a list for backward compatibility, but will contain at most one product set
   since a stream can only be linked to one product set.
   """
-  def get_linked_product_sets(stream_id) do
+  def get_linked_product_sets(brand_id, stream_id) do
     stream =
       from(s in Stream,
-        where: s.id == ^stream_id,
+        where: s.brand_id == ^brand_id and s.id == ^stream_id,
         preload: [product_set: :product_set_products]
       )
       |> Repo.one()
@@ -1089,8 +1112,8 @@ defmodule Pavoi.TiktokLive do
 
   Returns `{:ok, product_set}` if a product set was detected, `:none` otherwise.
   """
-  def detect_active_product_set(stream_id) do
-    stream = get_stream!(stream_id)
+  def detect_active_product_set(brand_id, stream_id) do
+    stream = get_stream!(brand_id, stream_id)
 
     # Stream must have both started_at and ended_at to detect product set
     if is_nil(stream.started_at) or is_nil(stream.ended_at) do
@@ -1103,6 +1126,7 @@ defmodule Pavoi.TiktokLive do
           where: pss.updated_at >= ^stream.started_at,
           where: pss.updated_at <= ^stream.ended_at,
           join: ps in assoc(pss, :product_set),
+          where: ps.brand_id == ^brand_id,
           order_by: [desc: pss.updated_at],
           limit: 1,
           select: ps
@@ -1124,20 +1148,20 @@ defmodule Pavoi.TiktokLive do
   Returns `{:ok, product_set_stream}` if auto-linked, `:none` if no product set detected,
   or `{:already_linked, product_set}` if the stream is already linked to a product set.
   """
-  def auto_link_stream_to_product_set(stream_id) do
+  def auto_link_stream_to_product_set(brand_id, stream_id) do
     # Check if already linked
-    case get_linked_product_sets(stream_id) do
+    case get_linked_product_sets(brand_id, stream_id) do
       [product_set | _] ->
         {:already_linked, product_set}
 
       [] ->
-        case detect_active_product_set(stream_id) do
+        case detect_active_product_set(brand_id, stream_id) do
           {:ok, product_set} ->
             Logger.info(
               "Auto-linking stream #{stream_id} to product set #{product_set.id} (#{product_set.name})"
             )
 
-            link_stream_to_product_set(stream_id, product_set.id, linked_by: "auto")
+            link_stream_to_product_set(brand_id, stream_id, product_set.id, linked_by: "auto")
 
           :none ->
             :none
@@ -1156,7 +1180,7 @@ defmodule Pavoi.TiktokLive do
 
   Only parses comments for the given stream.
   """
-  def parse_comments_for_product_set(stream_id, product_set_id) do
+  def parse_comments_for_product_set(brand_id, stream_id, product_set_id) do
     # Get product set products to build position map
     product_set_products =
       from(psp in ProductSetProduct,
@@ -1172,7 +1196,9 @@ defmodule Pavoi.TiktokLive do
     # Get all comments for this stream that haven't been parsed yet
     comments =
       from(c in Comment,
-        where: c.stream_id == ^stream_id and is_nil(c.product_set_product_id),
+        where:
+          c.brand_id == ^brand_id and c.stream_id == ^stream_id and
+            is_nil(c.product_set_product_id),
         select: [:id, :comment_text]
       )
       |> Repo.all()
@@ -1184,7 +1210,7 @@ defmodule Pavoi.TiktokLive do
           {:ok, product_number} ->
             product_set_product_id = Map.get(product_set_products, product_number)
 
-            from(c in Comment, where: c.id == ^comment.id)
+            from(c in Comment, where: c.brand_id == ^brand_id and c.id == ^comment.id)
             |> Repo.update_all(
               set: [
                 parsed_product_number: product_number,
@@ -1235,7 +1261,7 @@ defmodule Pavoi.TiktokLive do
     end
   end
 
-  defp clear_parsed_products_for_link(stream_id, product_set_id) do
+  defp clear_parsed_products_for_link(brand_id, stream_id, product_set_id) do
     # Get product set product IDs for this product set
     product_set_product_ids =
       from(psp in ProductSetProduct,
@@ -1246,7 +1272,7 @@ defmodule Pavoi.TiktokLive do
 
     # Clear only comments that were linked to this product set's products
     from(c in Comment,
-      where: c.stream_id == ^stream_id,
+      where: c.brand_id == ^brand_id and c.stream_id == ^stream_id,
       where: c.product_set_product_id in ^product_set_product_ids
     )
     |> Repo.update_all(set: [product_set_product_id: nil, parsed_product_number: nil])
@@ -1259,9 +1285,9 @@ defmodule Pavoi.TiktokLive do
 
   Returns counts of comments per product number for the given product set.
   """
-  def get_product_interest_summary(stream_id, product_set_id) do
+  def get_product_interest_summary(brand_id, stream_id, product_set_id) do
     from(c in Comment,
-      where: c.stream_id == ^stream_id,
+      where: c.brand_id == ^brand_id and c.stream_id == ^stream_id,
       where: not is_nil(c.parsed_product_number),
       join: psp in ProductSetProduct,
       on: psp.product_set_id == ^product_set_id and psp.position == c.parsed_product_number,

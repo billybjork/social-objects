@@ -24,9 +24,12 @@ defmodule Pavoi.BigQuery do
       iex> Pavoi.BigQuery.query("INVALID SQL")
       {:error, "Query failed: ..."}
   """
-  def query(sql) do
-    with {:ok, token} <- get_access_token(),
-         {:ok, response} <- execute_query(sql, token) do
+  def query(sql, opts \\ []) do
+    config = build_config(opts)
+
+    with :ok <- validate_config(config),
+         {:ok, token} <- get_access_token(config),
+         {:ok, response} <- execute_query(sql, token, config.project_id) do
       {:ok, parse_results(response)}
     end
   end
@@ -34,24 +37,24 @@ defmodule Pavoi.BigQuery do
   @doc """
   Tests the BigQuery connection by running a simple query.
   """
-  def test_connection do
-    query("SELECT 1 as test")
+  def test_connection(opts \\ []) do
+    query("SELECT 1 as test", opts)
   end
 
   # Token Management
 
-  defp get_access_token do
-    case get_cached_token() do
+  defp get_access_token(config) do
+    case get_cached_token(config) do
       {:ok, token} ->
         {:ok, token}
 
       :expired ->
-        generate_new_token()
+        generate_new_token(config)
     end
   end
 
-  defp get_cached_token do
-    case :persistent_term.get(@token_cache_key, nil) do
+  defp get_cached_token(config) do
+    case :persistent_term.get(token_cache_key(config), nil) do
       nil ->
         :expired
 
@@ -64,19 +67,19 @@ defmodule Pavoi.BigQuery do
     end
   end
 
-  defp cache_token(token, expires_in_seconds) do
+  defp cache_token(config, token, expires_in_seconds) do
     expires_at = System.system_time(:second) + expires_in_seconds
-    :persistent_term.put(@token_cache_key, {token, expires_at})
+    :persistent_term.put(token_cache_key(config), {token, expires_at})
   end
 
-  defp generate_new_token do
+  defp generate_new_token(config) do
     Logger.debug("[BigQuery] Generating new access token...")
 
-    with {:ok, jwt} <- generate_jwt(),
+    with {:ok, jwt} <- generate_jwt(config),
          {:ok, response} <- exchange_jwt_for_token(jwt) do
       token = response["access_token"]
       expires_in = response["expires_in"] || 3600
-      cache_token(token, min(expires_in - 60, @token_ttl_seconds))
+      cache_token(config, token, min(expires_in - 60, @token_ttl_seconds))
       Logger.debug("[BigQuery] Access token generated and cached")
       {:ok, token}
     end
@@ -84,13 +87,13 @@ defmodule Pavoi.BigQuery do
 
   # JWT Generation
 
-  defp generate_jwt do
-    email = service_account_email()
-    private_key_pem = private_key()
+  defp generate_jwt(config) do
+    email = config.service_account_email
+    private_key_pem = config.private_key
 
     if is_nil(email) or is_nil(private_key_pem) do
       {:error,
-       "BigQuery credentials not configured. Set BIGQUERY_SERVICE_ACCOUNT_EMAIL and BIGQUERY_PRIVATE_KEY environment variables."}
+       "BigQuery credentials not configured. Set brand settings or BIGQUERY_SERVICE_ACCOUNT_EMAIL and BIGQUERY_PRIVATE_KEY environment variables."}
     else
       now = System.system_time(:second)
 
@@ -157,8 +160,8 @@ defmodule Pavoi.BigQuery do
 
   # Query Execution
 
-  defp execute_query(sql, token) do
-    url = "https://bigquery.googleapis.com/bigquery/v2/projects/#{project_id()}/queries"
+  defp execute_query(sql, token, project_id) do
+    url = "https://bigquery.googleapis.com/bigquery/v2/projects/#{project_id}/queries"
 
     body = %{
       "query" => sql,
@@ -203,15 +206,22 @@ defmodule Pavoi.BigQuery do
 
   # Configuration Helpers
 
-  defp project_id do
-    Application.get_env(:pavoi, :bigquery_project_id)
+  defp build_config(opts) do
+    brand_id = Keyword.get(opts, :brand_id)
+
+    %{
+      brand_id: brand_id,
+      project_id: Pavoi.Settings.get_bigquery_project_id(brand_id),
+      service_account_email: Pavoi.Settings.get_bigquery_service_account_email(brand_id),
+      private_key: Pavoi.Settings.get_bigquery_private_key(brand_id)
+    }
   end
 
-  defp service_account_email do
-    Application.get_env(:pavoi, :bigquery_service_account_email)
-  end
+  defp validate_config(%{project_id: project_id}) when is_binary(project_id) and project_id != "",
+    do: :ok
 
-  defp private_key do
-    Application.get_env(:pavoi, :bigquery_private_key)
-  end
+  defp validate_config(_config), do: {:error, :missing_bigquery_project_id}
+
+  defp token_cache_key(%{brand_id: nil}), do: {@token_cache_key, :default}
+  defp token_cache_key(%{brand_id: brand_id}), do: {@token_cache_key, brand_id}
 end

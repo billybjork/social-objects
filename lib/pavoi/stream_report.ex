@@ -13,10 +13,12 @@ defmodule Pavoi.StreamReport do
   require Logger
 
   alias Pavoi.AI.OpenAIClient
+  alias Pavoi.Catalog
   alias Pavoi.Repo
   alias Pavoi.TiktokLive
   alias Pavoi.TiktokLive.Comment
   alias Pavoi.TiktokShop
+  alias PavoiWeb.BrandRoutes
 
   @flash_sale_threshold 50
   @max_comments_for_ai 200
@@ -31,31 +33,33 @@ defmodule Pavoi.StreamReport do
   - `:flash_sales` - Detected flash sale comments
   - `:sentiment_analysis` - AI-generated insights (or nil if failed)
   """
-  def generate(stream_id) do
-    stream = TiktokLive.get_stream!(stream_id)
+  def generate(brand_id, stream_id) do
+    stream = TiktokLive.get_stream!(brand_id, stream_id)
 
     # Auto-link to session if not already linked
-    TiktokLive.auto_link_stream_to_product_set(stream_id)
+    TiktokLive.auto_link_stream_to_product_set(brand_id, stream_id)
 
     # Get basic stats
-    stats = get_stats(stream)
+    stats = get_stats(brand_id, stream)
 
     # Get product interest (if linked to session)
-    products = get_top_products(stream_id)
+    products = get_top_products(brand_id, stream_id)
 
     # Detect flash sale comments
-    flash_sales = detect_flash_sale_comments(stream_id)
+    flash_sales = detect_flash_sale_comments(brand_id, stream_id)
 
     # Use cached sentiment analysis or generate new one
-    sentiment = get_or_generate_sentiment(stream, flash_sales)
+    sentiment = get_or_generate_sentiment(brand_id, stream, flash_sales)
 
     # Fetch GMV data for the stream time window
-    gmv_data = get_gmv_data(stream)
+    gmv_data = get_gmv_data(brand_id, stream)
 
     # Get sentiment & category breakdowns for classified comments
-    sentiment_breakdown = TiktokLive.get_aggregate_sentiment_breakdown(stream_id: stream_id)
-    category_breakdown = TiktokLive.get_category_breakdown(stream_id)
-    unique_commenters = count_unique_commenters(stream_id)
+    sentiment_breakdown =
+      TiktokLive.get_aggregate_sentiment_breakdown(brand_id, stream_id: stream_id)
+
+    category_breakdown = TiktokLive.get_category_breakdown(brand_id, stream_id)
+    unique_commenters = count_unique_commenters(brand_id, stream_id)
 
     {:ok,
      %{
@@ -71,9 +75,9 @@ defmodule Pavoi.StreamReport do
      }}
   end
 
-  defp get_stats(stream) do
+  defp get_stats(brand_id, stream) do
     duration = calculate_duration(stream.started_at, stream.ended_at)
-    comment_count = TiktokLive.count_stream_comments(stream.id)
+    comment_count = TiktokLive.count_stream_comments(brand_id, stream.id)
 
     %{
       duration: duration,
@@ -88,10 +92,19 @@ defmodule Pavoi.StreamReport do
   end
 
   defp calculate_duration(started_at, ended_at) do
-    if started_at && ended_at do
-      DateTime.diff(ended_at, started_at, :second)
-    else
-      0
+    cond do
+      is_nil(started_at) ->
+        0
+
+      is_nil(ended_at) ->
+        # Fallback: if ended_at is nil but stream is being reported, use current time
+        # This shouldn't normally happen (StreamReportWorker guards against it), but
+        # provides a reasonable fallback rather than showing "< 1m" for long streams
+        Logger.warning("Calculating duration with nil ended_at, using current time as fallback")
+        DateTime.diff(DateTime.utc_now(), started_at, :second)
+
+      true ->
+        DateTime.diff(ended_at, started_at, :second)
     end
   end
 
@@ -106,10 +119,10 @@ defmodule Pavoi.StreamReport do
     end
   end
 
-  defp get_top_products(stream_id) do
-    case TiktokLive.get_linked_product_sets(stream_id) do
+  defp get_top_products(brand_id, stream_id) do
+    case TiktokLive.get_linked_product_sets(brand_id, stream_id) do
       [session | _] ->
-        TiktokLive.get_product_interest_summary(stream_id, session.id)
+        TiktokLive.get_product_interest_summary(brand_id, stream_id, session.id)
         |> Enum.take(5)
 
       [] ->
@@ -117,11 +130,11 @@ defmodule Pavoi.StreamReport do
     end
   end
 
-  defp get_gmv_data(%{started_at: nil}), do: nil
-  defp get_gmv_data(%{ended_at: nil}), do: nil
+  defp get_gmv_data(_brand_id, %{started_at: nil}), do: nil
+  defp get_gmv_data(_brand_id, %{ended_at: nil}), do: nil
 
-  defp get_gmv_data(stream) do
-    case TiktokShop.fetch_orders_in_range(stream.started_at, stream.ended_at) do
+  defp get_gmv_data(brand_id, stream) do
+    case TiktokShop.fetch_orders_in_range(brand_id, stream.started_at, stream.ended_at) do
       {:ok, orders} ->
         build_gmv_summary(orders)
 
@@ -150,9 +163,9 @@ defmodule Pavoi.StreamReport do
 
   Returns a list of `%{text: string, count: integer}` sorted by count descending.
   """
-  def detect_flash_sale_comments(stream_id) do
+  def detect_flash_sale_comments(brand_id, stream_id) do
     from(c in Comment,
-      where: c.stream_id == ^stream_id,
+      where: c.brand_id == ^brand_id and c.stream_id == ^stream_id,
       group_by: c.comment_text,
       having: count(c.id) >= ^@flash_sale_threshold,
       select: %{text: c.comment_text, count: count(c.id)},
@@ -161,13 +174,13 @@ defmodule Pavoi.StreamReport do
     |> Repo.all()
   end
 
-  defp get_comments_for_analysis(stream_id, flash_sales) do
+  defp get_comments_for_analysis(brand_id, stream_id, flash_sales) do
     flash_sale_texts = Enum.map(flash_sales, & &1.text)
 
     # Get unique comments excluding flash sales, including username for AI context
     query =
       from(c in Comment,
-        where: c.stream_id == ^stream_id,
+        where: c.brand_id == ^brand_id and c.stream_id == ^stream_id,
         where: c.comment_text not in ^flash_sale_texts,
         distinct: c.comment_text,
         select: %{
@@ -213,28 +226,29 @@ defmodule Pavoi.StreamReport do
   end
 
   # Use cached sentiment analysis if available, otherwise generate and cache it
-  defp get_or_generate_sentiment(%{sentiment_analysis: cached} = _stream, _flash_sales)
+  defp get_or_generate_sentiment(_brand_id, %{sentiment_analysis: cached} = _stream, _flash_sales)
        when is_binary(cached) and cached != "" do
     Logger.info("Using cached sentiment analysis")
     cached
   end
 
-  defp get_or_generate_sentiment(stream, flash_sales) do
-    comments = get_comments_for_analysis(stream.id, flash_sales)
+  defp get_or_generate_sentiment(brand_id, stream, flash_sales) do
+    comments = get_comments_for_analysis(brand_id, stream.id, flash_sales)
     sentiment = generate_sentiment_analysis(comments)
 
     # Cache the sentiment analysis on the stream
     if sentiment do
-      save_sentiment_analysis(stream.id, sentiment)
+      save_sentiment_analysis(brand_id, stream.id, sentiment)
     end
 
     sentiment
   end
 
-  defp save_sentiment_analysis(stream_id, sentiment) do
+  defp save_sentiment_analysis(brand_id, stream_id, sentiment) do
     alias Pavoi.TiktokLive.Stream
 
     from(s in Stream, where: s.id == ^stream_id)
+    |> where([s], s.brand_id == ^brand_id)
     |> Repo.update_all(set: [sentiment_analysis: sentiment])
   end
 
@@ -279,7 +293,7 @@ defmodule Pavoi.StreamReport do
 
     with {:ok, blocks} <- format_slack_blocks(report_data) do
       # Always send the message
-      Slack.send_message(blocks)
+      Slack.send_message(blocks, brand_id: report_data.stream.brand_id)
     end
   end
 
@@ -308,7 +322,7 @@ defmodule Pavoi.StreamReport do
 
     blocks =
       if Enum.any?(report_data.top_products) do
-        blocks ++ [products_block(report_data.top_products), divider_block()]
+        blocks ++ [products_block(report_data.stream, report_data.top_products), divider_block()]
       else
         blocks
       end
@@ -349,8 +363,16 @@ defmodule Pavoi.StreamReport do
 
   defp header_block(stream) do
     ended_at = format_ended_at(stream.ended_at)
-    detail_url = "https://app.pavoi.com/streams?s=#{stream.id}"
-    analytics_url = "https://app.pavoi.com/streams?as=#{stream.id}&pt=analytics"
+
+    brand =
+      if Ecto.assoc_loaded?(stream.brand) do
+        stream.brand
+      else
+        Catalog.get_brand!(stream.brand_id)
+      end
+
+    detail_url = BrandRoutes.brand_url(brand, "/streams?s=#{stream.id}")
+    analytics_url = BrandRoutes.brand_url(brand, "/streams?as=#{stream.id}&pt=analytics")
 
     [
       %{
@@ -470,14 +492,16 @@ defmodule Pavoi.StreamReport do
 
   defp format_money(_), do: "$0"
 
-  defp products_block(products) do
+  defp products_block(stream, products) do
+    brand = stream.brand || Catalog.get_brand!(stream.brand_id)
+
     lines =
       products
       |> Enum.with_index(1)
       |> Enum.map(fn {product, rank} ->
         # Extract a short, meaningful product name
         name = shorten_product_name(product.product_name || "Unknown")
-        link = product_more_info_link(product.product_id)
+        link = product_more_info_link(brand, product.product_id)
         "`##{rank}` #{name} — *#{product.comment_count}*#{link}"
       end)
 
@@ -485,10 +509,10 @@ defmodule Pavoi.StreamReport do
     %{type: "section", text: %{type: "mrkdwn", text: text}}
   end
 
-  defp product_more_info_link(nil), do: ""
+  defp product_more_info_link(_brand, nil), do: ""
 
-  defp product_more_info_link(product_id) do
-    url = "https://app.pavoi.com/products?p=#{product_id}"
+  defp product_more_info_link(brand, product_id) do
+    url = BrandRoutes.brand_url(brand, "/product-sets?pt=products&p=#{product_id}")
     " (<#{url}|more info>)"
   end
 
@@ -604,9 +628,9 @@ defmodule Pavoi.StreamReport do
     end
   end
 
-  defp count_unique_commenters(stream_id) do
+  defp count_unique_commenters(brand_id, stream_id) do
     from(c in Comment,
-      where: c.stream_id == ^stream_id,
+      where: c.brand_id == ^brand_id and c.stream_id == ^stream_id,
       select: count(c.tiktok_user_id, :distinct)
     )
     |> Repo.one()

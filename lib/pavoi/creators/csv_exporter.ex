@@ -90,6 +90,7 @@ defmodule Pavoi.Creators.CsvExporter do
   end
 
   defp escape_field(nil), do: ""
+
   defp escape_field(value) when is_binary(value) do
     if needs_escaping?(value) do
       "\"" <> String.replace(value, "\"", "\"\"") <> "\""
@@ -97,6 +98,7 @@ defmodule Pavoi.Creators.CsvExporter do
       value
     end
   end
+
   defp escape_field(value) when is_integer(value), do: Integer.to_string(value)
   defp escape_field(value) when is_float(value), do: Float.to_string(value)
   defp escape_field(value), do: escape_field(to_string(value))
@@ -110,10 +112,12 @@ defmodule Pavoi.Creators.CsvExporter do
   defp format_boolean(false), do: "No"
 
   defp format_cents(nil), do: ""
+
   defp format_cents(cents) when is_integer(cents) do
     dollars = cents / 100
     :erlang.float_to_binary(dollars, decimals: 2)
   end
+
   defp format_cents(%Decimal{} = cents) do
     cents
     |> Decimal.div(100)
@@ -122,9 +126,11 @@ defmodule Pavoi.Creators.CsvExporter do
   end
 
   defp format_datetime(nil), do: ""
+
   defp format_datetime(%DateTime{} = dt) do
     Calendar.strftime(dt, "%Y-%m-%d %H:%M:%S UTC")
   end
+
   defp format_datetime(%NaiveDateTime{} = dt) do
     Calendar.strftime(dt, "%Y-%m-%d %H:%M:%S")
   end

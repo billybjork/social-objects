@@ -7,8 +7,10 @@ defmodule Pavoi.Communications.TemplateRenderer do
   Plain text version is auto-generated from HTML if not provided.
   """
 
+  alias Pavoi.Catalog.Brand
   alias Pavoi.Communications.EmailTemplate
   alias Pavoi.Outreach
+  alias PavoiWeb.BrandRoutes
 
   # Known Lark invite URL patterns to replace with join URLs
   @lark_url_pattern ~r{https://applink\.larksuite\.com/[^"'\s<>]+}
@@ -19,8 +21,8 @@ defmodule Pavoi.Communications.TemplateRenderer do
   Replaces any Lark URLs with join URLs that capture SMS consent.
   Returns {subject, html_body, text_body}
   """
-  def render(%EmailTemplate{} = template, creator) do
-    join_url = generate_join_url(creator.id, template.lark_preset)
+  def render(%EmailTemplate{} = template, creator, %Brand{} = brand) do
+    join_url = generate_join_url(brand, creator.id, template.lark_preset)
 
     html_body = replace_lark_urls(template.html_body, join_url)
 
@@ -43,9 +45,9 @@ defmodule Pavoi.Communications.TemplateRenderer do
     {template.subject, template.html_body}
   end
 
-  defp generate_join_url(creator_id, lark_preset) do
-    token = Outreach.generate_join_token(creator_id, lark_preset)
-    "#{PavoiWeb.Endpoint.url()}/join/#{token}"
+  defp generate_join_url(%Brand{} = brand, creator_id, lark_preset) do
+    token = Outreach.generate_join_token(brand.id, creator_id, lark_preset)
+    BrandRoutes.brand_url(brand, "/join/#{token}")
   end
 
   defp replace_lark_urls(content, join_url) when is_binary(content) do

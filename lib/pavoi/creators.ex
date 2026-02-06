@@ -48,6 +48,7 @@ defmodule Pavoi.Creators do
     per_page = Keyword.get(opts, :per_page, 50)
     sort_by = Keyword.get(opts, :sort_by)
     sort_dir = Keyword.get(opts, :sort_dir, "asc")
+    brand_id = Keyword.get(opts, :brand_id)
 
     query =
       from(c in Creator)
@@ -55,12 +56,13 @@ defmodule Pavoi.Creators do
       |> apply_creator_badge_filter(Keyword.get(opts, :badge_level))
       |> apply_creator_brand_filter(Keyword.get(opts, :brand_id))
       |> apply_creator_tag_filter(Keyword.get(opts, :tag_ids))
+      |> apply_creator_brand_filter(brand_id)
 
     total = Repo.aggregate(query, :count)
 
     creators =
       query
-      |> apply_creator_sort(sort_by, sort_dir)
+      |> apply_creator_sort(sort_by, sort_dir, brand_id)
       |> limit(^per_page)
       |> offset(^((page - 1) * per_page))
       |> Repo.all()
@@ -95,21 +97,23 @@ defmodule Pavoi.Creators do
     per_page = Keyword.get(opts, :per_page, 50)
     sort_by = Keyword.get(opts, :sort_by, "gmv")
     sort_dir = Keyword.get(opts, :sort_dir, "desc")
+    brand_id = Keyword.get(opts, :brand_id)
 
     query =
       from(c in Creator)
       |> apply_creator_search_filter(Keyword.get(opts, :search_query, ""))
       |> apply_creator_badge_filter(Keyword.get(opts, :badge_level))
       |> apply_creator_tag_filter(Keyword.get(opts, :tag_ids))
-      |> apply_outreach_status_filter(Keyword.get(opts, :outreach_status))
+      |> apply_outreach_status_filter(Keyword.get(opts, :outreach_status), brand_id)
       |> apply_added_after_filter(Keyword.get(opts, :added_after))
       |> apply_added_before_filter(Keyword.get(opts, :added_before))
+      |> apply_creator_brand_filter(brand_id)
 
     total = Repo.aggregate(query, :count)
 
     creators =
       query
-      |> apply_unified_sort(sort_by, sort_dir)
+      |> apply_unified_sort(sort_by, sort_dir, brand_id)
       |> limit(^per_page)
       |> offset(^((page - 1) * per_page))
       |> Repo.all()
@@ -123,12 +127,12 @@ defmodule Pavoi.Creators do
     }
   end
 
-  defp apply_outreach_status_filter(query, nil), do: query
-  defp apply_outreach_status_filter(query, ""), do: query
+  defp apply_outreach_status_filter(query, nil, _brand_id), do: query
+  defp apply_outreach_status_filter(query, "", _brand_id), do: query
 
   # New contact-based status filters
-  defp apply_outreach_status_filter(query, "never_contacted") do
-    # Creators with no email outreach logs and not opted out
+  defp apply_outreach_status_filter(query, "never_contacted", nil) do
+    # Creators with no email outreach logs and not opted out (no brand filter)
     from(c in query,
       left_join: ol in Pavoi.Outreach.OutreachLog,
       on: ol.creator_id == c.id and ol.channel == "email",
@@ -137,8 +141,18 @@ defmodule Pavoi.Creators do
     )
   end
 
-  defp apply_outreach_status_filter(query, "contacted") do
-    # Creators with at least one email outreach log and not opted out
+  defp apply_outreach_status_filter(query, "never_contacted", brand_id) do
+    # Creators with no email outreach logs and not opted out (for specific brand)
+    from(c in query,
+      left_join: ol in Pavoi.Outreach.OutreachLog,
+      on: ol.creator_id == c.id and ol.channel == "email" and ol.brand_id == ^brand_id,
+      where: is_nil(ol.id),
+      where: c.email_opted_out == false
+    )
+  end
+
+  defp apply_outreach_status_filter(query, "contacted", nil) do
+    # Creators with at least one email outreach log and not opted out (no brand filter)
     from(c in query,
       join: ol in Pavoi.Outreach.OutreachLog,
       on: ol.creator_id == c.id and ol.channel == "email",
@@ -147,19 +161,37 @@ defmodule Pavoi.Creators do
     )
   end
 
-  defp apply_outreach_status_filter(query, "opted_out") do
+  defp apply_outreach_status_filter(query, "contacted", brand_id) do
+    # Creators with at least one email outreach log and not opted out (for specific brand)
+    from(c in query,
+      join: ol in Pavoi.Outreach.OutreachLog,
+      on: ol.creator_id == c.id and ol.channel == "email" and ol.brand_id == ^brand_id,
+      where: c.email_opted_out == false,
+      distinct: true
+    )
+  end
+
+  defp apply_outreach_status_filter(query, "opted_out", _brand_id) do
     where(query, [c], c.email_opted_out == true)
   end
 
-  defp apply_outreach_status_filter(query, "sampled") do
+  defp apply_outreach_status_filter(query, "sampled", brand_id) do
     # Creators who have received at least one sample
     sampled_creator_ids =
-      from(cs in CreatorSample, select: cs.creator_id, distinct: true)
+      from(cs in CreatorSample,
+        select: cs.creator_id,
+        distinct: true
+      )
+      |> maybe_filter_by_brand(:brand_id, brand_id)
 
     from(c in query, where: c.id in subquery(sampled_creator_ids))
   end
 
-  defp apply_outreach_status_filter(query, _), do: query
+  defp apply_outreach_status_filter(query, _, _brand_id), do: query
+
+  # Helper to conditionally filter by brand_id without causing PostgreSQL type inference issues
+  defp maybe_filter_by_brand(query, _field, nil), do: query
+  defp maybe_filter_by_brand(query, :brand_id, brand_id), do: where(query, [q], q.brand_id == ^brand_id)
 
   defp apply_added_after_filter(query, nil), do: query
 
@@ -191,146 +223,149 @@ defmodule Pavoi.Creators do
   end
 
   # Unified sort supporting all columns from both CRM and Outreach modes
-  defp apply_unified_sort(query, "sms_consent", "asc"),
+  defp apply_unified_sort(query, "sms_consent", "asc", _brand_id),
     do: order_by(query, [c], asc_nulls_last: c.sms_consent)
 
-  defp apply_unified_sort(query, "sms_consent", "desc"),
+  defp apply_unified_sort(query, "sms_consent", "desc", _brand_id),
     do: order_by(query, [c], desc_nulls_last: c.sms_consent)
 
-  defp apply_unified_sort(query, "added", "asc"),
+  defp apply_unified_sort(query, "added", "asc", _brand_id),
     do: order_by(query, [c], asc: c.inserted_at)
 
-  defp apply_unified_sort(query, "added", "desc"),
+  defp apply_unified_sort(query, "added", "desc", _brand_id),
     do: order_by(query, [c], desc: c.inserted_at)
 
-  defp apply_unified_sort(query, "sent", "asc"),
+  defp apply_unified_sort(query, "sent", "asc", _brand_id),
     do: order_by(query, [c], asc_nulls_last: c.outreach_sent_at)
 
-  defp apply_unified_sort(query, "sent", "desc"),
+  defp apply_unified_sort(query, "sent", "desc", _brand_id),
     do: order_by(query, [c], desc_nulls_last: c.outreach_sent_at)
 
   # Enrichment columns
-  defp apply_unified_sort(query, "enriched", "asc"),
+  defp apply_unified_sort(query, "enriched", "asc", _brand_id),
     do: order_by(query, [c], asc_nulls_last: c.last_enriched_at)
 
-  defp apply_unified_sort(query, "enriched", "desc"),
+  defp apply_unified_sort(query, "enriched", "desc", _brand_id),
     do: order_by(query, [c], desc_nulls_first: c.last_enriched_at)
 
-  defp apply_unified_sort(query, "video_gmv", "asc"),
+  defp apply_unified_sort(query, "video_gmv", "asc", _brand_id),
     do: order_by(query, [c], asc_nulls_last: c.video_gmv_cents)
 
-  defp apply_unified_sort(query, "video_gmv", "desc"),
+  defp apply_unified_sort(query, "video_gmv", "desc", _brand_id),
     do: order_by(query, [c], desc_nulls_last: c.video_gmv_cents)
 
-  defp apply_unified_sort(query, "avg_views", "asc"),
+  defp apply_unified_sort(query, "avg_views", "asc", _brand_id),
     do: order_by(query, [c], asc_nulls_last: c.avg_video_views)
 
-  defp apply_unified_sort(query, "avg_views", "desc"),
+  defp apply_unified_sort(query, "avg_views", "desc", _brand_id),
     do: order_by(query, [c], desc_nulls_last: c.avg_video_views)
 
   # Cumulative GMV sorting
-  defp apply_unified_sort(query, "cumulative_gmv", "asc"),
+  defp apply_unified_sort(query, "cumulative_gmv", "asc", _brand_id),
     do: order_by(query, [c], asc_nulls_last: c.cumulative_gmv_cents)
 
-  defp apply_unified_sort(query, "cumulative_gmv", "desc"),
+  defp apply_unified_sort(query, "cumulative_gmv", "desc", _brand_id),
     do: order_by(query, [c], desc_nulls_last: c.cumulative_gmv_cents)
 
   # Delegate to existing sort handlers for CRM columns
-  defp apply_unified_sort(query, sort_by, sort_dir),
-    do: apply_creator_sort(query, sort_by, sort_dir)
+  defp apply_unified_sort(query, sort_by, sort_dir, brand_id),
+    do: apply_creator_sort(query, sort_by, sort_dir, brand_id)
 
-  defp apply_creator_sort(query, "username", "asc"),
+  defp apply_creator_sort(query, "username", "asc", _brand_id),
     do: order_by(query, [c], asc: c.tiktok_username)
 
-  defp apply_creator_sort(query, "username", "desc"),
+  defp apply_creator_sort(query, "username", "desc", _brand_id),
     do: order_by(query, [c], desc: c.tiktok_username)
 
-  defp apply_creator_sort(query, "followers", "desc"),
+  defp apply_creator_sort(query, "followers", "desc", _brand_id),
     do: order_by(query, [c], desc_nulls_last: c.follower_count)
 
-  defp apply_creator_sort(query, "followers", "asc"),
+  defp apply_creator_sort(query, "followers", "asc", _brand_id),
     do: order_by(query, [c], asc_nulls_last: c.follower_count)
 
-  defp apply_creator_sort(query, "gmv", "desc"),
+  defp apply_creator_sort(query, "gmv", "desc", _brand_id),
     do: order_by(query, [c], desc_nulls_last: c.total_gmv_cents)
 
-  defp apply_creator_sort(query, "gmv", "asc"),
+  defp apply_creator_sort(query, "gmv", "asc", _brand_id),
     do: order_by(query, [c], asc_nulls_last: c.total_gmv_cents)
 
-  defp apply_creator_sort(query, "videos", "desc"),
+  defp apply_creator_sort(query, "videos", "desc", _brand_id),
     do: order_by(query, [c], desc_nulls_last: c.total_videos)
 
-  defp apply_creator_sort(query, "videos", "asc"),
+  defp apply_creator_sort(query, "videos", "asc", _brand_id),
     do: order_by(query, [c], asc_nulls_last: c.total_videos)
 
   # Note: videos_posted and commission are computed from creator_videos table via subquery
-  defp apply_creator_sort(query, "videos_posted", dir) do
+  defp apply_creator_sort(query, "videos_posted", dir, brand_id) do
     video_counts =
-      from(cv in CreatorVideo,
-        group_by: cv.creator_id,
-        select: %{creator_id: cv.creator_id, count: count(cv.id)}
-      )
+      CreatorVideo
+      |> maybe_filter_brand(brand_id)
+      |> group_by([cv], cv.creator_id)
+      |> select([cv], %{creator_id: cv.creator_id, count: count(cv.id)})
 
     query
     |> join(:left, [c], vc in subquery(video_counts), on: vc.creator_id == c.id)
     |> order_by([c, vc], [{^sort_dir_atom(dir), coalesce(vc.count, 0)}])
   end
 
-  defp apply_creator_sort(query, "commission", dir) do
+  defp apply_creator_sort(query, "commission", dir, brand_id) do
     commission_sums =
-      from(cv in CreatorVideo,
-        group_by: cv.creator_id,
-        select: %{creator_id: cv.creator_id, total: coalesce(sum(cv.est_commission_cents), 0)}
-      )
+      CreatorVideo
+      |> maybe_filter_brand(brand_id)
+      |> group_by([cv], cv.creator_id)
+      |> select([cv], %{
+        creator_id: cv.creator_id,
+        total: coalesce(sum(cv.est_commission_cents), 0)
+      })
 
     query
     |> join(:left, [c], cs in subquery(commission_sums), on: cs.creator_id == c.id)
     |> order_by([c, cs], [{^sort_dir_atom(dir), coalesce(cs.total, 0)}])
   end
 
-  defp apply_creator_sort(query, "name", "asc"),
+  defp apply_creator_sort(query, "name", "asc", _brand_id),
     do: order_by(query, [c], asc_nulls_last: c.first_name, asc_nulls_last: c.last_name)
 
-  defp apply_creator_sort(query, "name", "desc"),
+  defp apply_creator_sort(query, "name", "desc", _brand_id),
     do: order_by(query, [c], desc_nulls_last: c.first_name, desc_nulls_last: c.last_name)
 
-  defp apply_creator_sort(query, "email", "asc"),
+  defp apply_creator_sort(query, "email", "asc", _brand_id),
     do: order_by(query, [c], asc_nulls_last: c.email)
 
-  defp apply_creator_sort(query, "email", "desc"),
+  defp apply_creator_sort(query, "email", "desc", _brand_id),
     do: order_by(query, [c], desc_nulls_last: c.email)
 
-  defp apply_creator_sort(query, "phone", "asc"),
+  defp apply_creator_sort(query, "phone", "asc", _brand_id),
     do: order_by(query, [c], asc_nulls_last: c.phone)
 
-  defp apply_creator_sort(query, "phone", "desc"),
+  defp apply_creator_sort(query, "phone", "desc", _brand_id),
     do: order_by(query, [c], desc_nulls_last: c.phone)
 
-  defp apply_creator_sort(query, "samples", dir) do
+  defp apply_creator_sort(query, "samples", dir, brand_id) do
     sample_counts =
-      from(cs in CreatorSample,
-        group_by: cs.creator_id,
-        select: %{creator_id: cs.creator_id, count: count(cs.id)}
-      )
+      CreatorSample
+      |> maybe_filter_brand(brand_id)
+      |> group_by([cs], cs.creator_id)
+      |> select([cs], %{creator_id: cs.creator_id, count: count(cs.id)})
 
     query
     |> join(:left, [c], sc in subquery(sample_counts), on: sc.creator_id == c.id)
     |> order_by([c, sc], [{^sort_dir_atom(dir), coalesce(sc.count, 0)}])
   end
 
-  defp apply_creator_sort(query, "last_sample", dir) do
+  defp apply_creator_sort(query, "last_sample", dir, brand_id) do
     last_sample_dates =
-      from(cs in CreatorSample,
-        group_by: cs.creator_id,
-        select: %{creator_id: cs.creator_id, last_at: max(cs.ordered_at)}
-      )
+      CreatorSample
+      |> maybe_filter_brand(brand_id)
+      |> group_by([cs], cs.creator_id)
+      |> select([cs], %{creator_id: cs.creator_id, last_at: max(cs.ordered_at)})
 
     query
     |> join(:left, [c], ls in subquery(last_sample_dates), on: ls.creator_id == c.id)
     |> order_by([c, ls], [{^sort_dir_nulls_last(dir), ls.last_at}])
   end
 
-  defp apply_creator_sort(query, _, _),
+  defp apply_creator_sort(query, _, _, _brand_id),
     do: order_by(query, [c], asc: c.tiktok_username)
 
   defp sort_dir_atom("desc"), do: :desc
@@ -387,11 +422,23 @@ defmodule Pavoi.Creators do
     )
   end
 
+  defp maybe_filter_brand(query, nil), do: query
+
+  defp maybe_filter_brand(query, brand_id),
+    do: where(query, [q], field(q, :brand_id) == ^brand_id)
+
   @doc """
   Gets a single creator.
   Raises `Ecto.NoResultsError` if the Creator does not exist.
   """
   def get_creator!(id), do: Repo.get!(Creator, id)
+
+  def get_creator!(brand_id, id) do
+    Creator
+    |> join(:inner, [c], bc in BrandCreator, on: bc.creator_id == c.id)
+    |> where([c, bc], c.id == ^id and bc.brand_id == ^brand_id)
+    |> Repo.one!()
+  end
 
   @doc """
   Gets a creator by TikTok username (case-insensitive).
@@ -421,6 +468,23 @@ defmodule Pavoi.Creators do
     |> Repo.one!()
   end
 
+  def get_creator_with_details!(brand_id, id) do
+    videos_query =
+      from(v in CreatorVideo, order_by: [desc: v.gmv_cents], preload: :video_products)
+
+    Creator
+    |> join(:inner, [c], bc in BrandCreator, on: bc.creator_id == c.id)
+    |> where([c, bc], c.id == ^id and bc.brand_id == ^brand_id)
+    |> preload([
+      :brands,
+      :creator_tags,
+      creator_samples: [:brand, product: :product_images],
+      creator_videos: ^videos_query,
+      performance_snapshots: []
+    ])
+    |> Repo.one!()
+  end
+
   @doc """
   Gets a creator with minimal associations for modal header display.
   Only loads creator_tags, not samples/videos/performance data.
@@ -432,12 +496,29 @@ defmodule Pavoi.Creators do
     |> Repo.one!()
   end
 
+  def get_creator_for_modal!(brand_id, id) do
+    Creator
+    |> join(:inner, [c], bc in BrandCreator, on: bc.creator_id == c.id)
+    |> where([c, bc], c.id == ^id and bc.brand_id == ^brand_id)
+    |> preload([:brands, :creator_tags])
+    |> Repo.one!()
+  end
+
   @doc """
   Gets samples for a creator with full associations for display.
   """
   def get_samples_for_modal(creator_id) do
     from(cs in CreatorSample,
       where: cs.creator_id == ^creator_id,
+      order_by: [desc: cs.ordered_at],
+      preload: [:brand, product: :product_images]
+    )
+    |> Repo.all()
+  end
+
+  def get_samples_for_modal(brand_id, creator_id) do
+    from(cs in CreatorSample,
+      where: cs.brand_id == ^brand_id and cs.creator_id == ^creator_id,
       order_by: [desc: cs.ordered_at],
       preload: [:brand, product: :product_images]
     )
@@ -456,12 +537,29 @@ defmodule Pavoi.Creators do
     |> Repo.all()
   end
 
+  def get_videos_for_modal(brand_id, creator_id) do
+    from(cv in CreatorVideo,
+      where: cv.brand_id == ^brand_id and cv.creator_id == ^creator_id,
+      order_by: [desc: cv.gmv_cents],
+      preload: [:video_products]
+    )
+    |> Repo.all()
+  end
+
   @doc """
   Gets performance snapshots for a creator.
   """
   def get_performance_for_modal(creator_id) do
     from(ps in CreatorPerformanceSnapshot,
       where: ps.creator_id == ^creator_id,
+      order_by: [desc: ps.snapshot_date]
+    )
+    |> Repo.all()
+  end
+
+  def get_performance_for_modal(brand_id, creator_id) do
+    from(ps in CreatorPerformanceSnapshot,
+      where: ps.brand_id == ^brand_id and ps.creator_id == ^creator_id,
       order_by: [desc: ps.snapshot_date]
     )
     |> Repo.all()
@@ -577,6 +675,17 @@ defmodule Pavoi.Creators do
     Repo.aggregate(Creator, :count)
   end
 
+  @doc """
+  Returns the count of creators associated with a brand.
+  """
+  def count_creators_for_brand(brand_id) do
+    from(bc in BrandCreator,
+      where: bc.brand_id == ^brand_id,
+      select: count(bc.creator_id, :distinct)
+    )
+    |> Repo.one()
+  end
+
   ## Brand-Creator Relationships
 
   @doc """
@@ -637,6 +746,15 @@ defmodule Pavoi.Creators do
     |> Repo.all()
   end
 
+  def list_samples_for_creator(brand_id, creator_id) do
+    from(cs in CreatorSample,
+      where: cs.brand_id == ^brand_id and cs.creator_id == ^creator_id,
+      order_by: [desc: cs.ordered_at],
+      preload: [:brand, :product]
+    )
+    |> Repo.all()
+  end
+
   @doc """
   Gets sample count for a creator.
   """
@@ -645,11 +763,24 @@ defmodule Pavoi.Creators do
     |> Repo.aggregate(:count)
   end
 
+  def count_samples_for_creator(brand_id, creator_id) do
+    from(cs in CreatorSample, where: cs.brand_id == ^brand_id and cs.creator_id == ^creator_id)
+    |> Repo.aggregate(:count)
+  end
+
   @doc """
   Counts unique creators who have received at least one sample.
   """
   def count_sampled_creators do
     from(cs in CreatorSample, select: count(cs.creator_id, :distinct))
+    |> Repo.one()
+  end
+
+  def count_sampled_creators(brand_id) do
+    from(cs in CreatorSample,
+      where: cs.brand_id == ^brand_id,
+      select: count(cs.creator_id, :distinct)
+    )
     |> Repo.one()
   end
 
@@ -663,6 +794,20 @@ defmodule Pavoi.Creators do
     else
       from(cs in CreatorSample,
         where: cs.creator_id in ^creator_ids,
+        group_by: cs.creator_id,
+        select: {cs.creator_id, count(cs.id)}
+      )
+      |> Repo.all()
+      |> Map.new()
+    end
+  end
+
+  def batch_count_samples(brand_id, creator_ids) when is_list(creator_ids) do
+    if creator_ids == [] do
+      %{}
+    else
+      from(cs in CreatorSample,
+        where: cs.brand_id == ^brand_id and cs.creator_id in ^creator_ids,
         group_by: cs.creator_id,
         select: {cs.creator_id, count(cs.id)}
       )
@@ -689,13 +834,27 @@ defmodule Pavoi.Creators do
     end
   end
 
+  def batch_get_last_sample_at(brand_id, creator_ids) when is_list(creator_ids) do
+    if creator_ids == [] do
+      %{}
+    else
+      from(cs in CreatorSample,
+        where: cs.brand_id == ^brand_id and cs.creator_id in ^creator_ids,
+        group_by: cs.creator_id,
+        select: {cs.creator_id, max(cs.ordered_at)}
+      )
+      |> Repo.all()
+      |> Map.new()
+    end
+  end
+
   ## Creator Videos
 
   @doc """
   Creates a creator video.
   """
-  def create_creator_video(attrs \\ %{}) do
-    %CreatorVideo{}
+  def create_creator_video(brand_id, attrs \\ %{}) do
+    %CreatorVideo{brand_id: brand_id}
     |> CreatorVideo.changeset(attrs)
     |> Repo.insert()
   end
@@ -710,9 +869,9 @@ defmodule Pavoi.Creators do
   @doc """
   Lists videos for a creator.
   """
-  def list_videos_for_creator(creator_id) do
+  def list_videos_for_creator(brand_id, creator_id) do
     from(cv in CreatorVideo,
-      where: cv.creator_id == ^creator_id,
+      where: cv.brand_id == ^brand_id and cv.creator_id == ^creator_id,
       order_by: [desc: cv.posted_at]
     )
     |> Repo.all()
@@ -721,8 +880,8 @@ defmodule Pavoi.Creators do
   @doc """
   Gets video count for a creator.
   """
-  def count_videos_for_creator(creator_id) do
-    from(cv in CreatorVideo, where: cv.creator_id == ^creator_id)
+  def count_videos_for_creator(brand_id, creator_id) do
+    from(cv in CreatorVideo, where: cv.brand_id == ^brand_id and cv.creator_id == ^creator_id)
     |> Repo.aggregate(:count)
   end
 
@@ -730,12 +889,12 @@ defmodule Pavoi.Creators do
   Batch gets video counts for multiple creators.
   Returns a map of creator_id => count.
   """
-  def batch_count_videos(creator_ids) when is_list(creator_ids) do
+  def batch_count_videos(brand_id, creator_ids) when is_list(creator_ids) do
     if creator_ids == [] do
       %{}
     else
       from(cv in CreatorVideo,
-        where: cv.creator_id in ^creator_ids,
+        where: cv.brand_id == ^brand_id and cv.creator_id in ^creator_ids,
         group_by: cv.creator_id,
         select: {cv.creator_id, count(cv.id)}
       )
@@ -748,12 +907,12 @@ defmodule Pavoi.Creators do
   Batch sums commission earned (est_commission_cents) for multiple creators.
   Returns a map of creator_id => total_commission_cents.
   """
-  def batch_sum_commission(creator_ids) when is_list(creator_ids) do
+  def batch_sum_commission(brand_id, creator_ids) when is_list(creator_ids) do
     if creator_ids == [] do
       %{}
     else
       from(cv in CreatorVideo,
-        where: cv.creator_id in ^creator_ids,
+        where: cv.brand_id == ^brand_id and cv.creator_id in ^creator_ids,
         group_by: cv.creator_id,
         select: {cv.creator_id, coalesce(sum(cv.est_commission_cents), 0)}
       )
@@ -796,6 +955,33 @@ defmodule Pavoi.Creators do
       |> Repo.all()
 
     # Group by creator_id and compute deltas
+    snapshots
+    |> Enum.group_by(& &1.creator_id)
+    |> Enum.map(fn {creator_id, creator_snapshots} ->
+      compute_snapshot_delta(creator_id, creator_snapshots, start_date, end_date)
+    end)
+    |> Map.new()
+  end
+
+  def batch_load_snapshot_deltas(brand_id, creator_ids, days_back) when is_list(creator_ids) do
+    end_date = Date.utc_today()
+    start_date = Date.add(end_date, -days_back)
+
+    snapshots =
+      from(s in CreatorPerformanceSnapshot,
+        where: s.brand_id == ^brand_id and s.creator_id in ^creator_ids,
+        where: s.snapshot_date >= ^start_date and s.snapshot_date <= ^end_date,
+        where: s.source == "tiktok_marketplace",
+        select: %{
+          creator_id: s.creator_id,
+          snapshot_date: s.snapshot_date,
+          gmv_cents: s.gmv_cents,
+          follower_count: s.follower_count
+        },
+        order_by: [asc: s.creator_id, asc: s.snapshot_date]
+      )
+      |> Repo.all()
+
     snapshots
     |> Enum.group_by(& &1.creator_id)
     |> Enum.map(fn {creator_id, creator_snapshots} ->
@@ -891,7 +1077,7 @@ defmodule Pavoi.Creators do
   """
   def auto_attribute_video_to_sample(video) do
     # Get creator's unfulfilled samples
-    unfulfilled_samples = get_unfulfilled_samples_for_creator(video.creator_id)
+    unfulfilled_samples = get_unfulfilled_samples_for_creator(video.brand_id, video.creator_id)
 
     # Get product IDs from this video
     video_product_ids = get_product_ids_for_video(video.id)
@@ -915,6 +1101,16 @@ defmodule Pavoi.Creators do
   def get_unfulfilled_samples_for_creator(creator_id) do
     from(s in CreatorSample,
       where: s.creator_id == ^creator_id,
+      where: s.fulfilled == false or is_nil(s.fulfilled),
+      where: not is_nil(s.product_id),
+      order_by: [desc: s.ordered_at]
+    )
+    |> Repo.all()
+  end
+
+  def get_unfulfilled_samples_for_creator(brand_id, creator_id) do
+    from(s in CreatorSample,
+      where: s.brand_id == ^brand_id and s.creator_id == ^creator_id,
       where: s.fulfilled == false or is_nil(s.fulfilled),
       where: not is_nil(s.product_id),
       order_by: [desc: s.ordered_at]
@@ -965,13 +1161,39 @@ defmodule Pavoi.Creators do
       nil
   end
 
+  def get_fulfillment_stats(brand_id, creator_id) do
+    total =
+      from(s in CreatorSample,
+        where: s.brand_id == ^brand_id and s.creator_id == ^creator_id,
+        select: count()
+      )
+      |> Repo.one()
+
+    fulfilled =
+      from(s in CreatorSample,
+        where: s.brand_id == ^brand_id and s.creator_id == ^creator_id and s.fulfilled == true,
+        select: count()
+      )
+      |> Repo.one()
+
+    %{
+      total_samples: total,
+      fulfilled: fulfilled,
+      unfulfilled: total - fulfilled,
+      fulfillment_rate: if(total > 0, do: fulfilled / total, else: 0.0)
+    }
+  rescue
+    Postgrex.Error ->
+      nil
+  end
+
   ## Performance Snapshots
 
   @doc """
   Creates a performance snapshot.
   """
-  def create_performance_snapshot(attrs \\ %{}) do
-    %CreatorPerformanceSnapshot{}
+  def create_performance_snapshot(brand_id, attrs \\ %{}) do
+    %CreatorPerformanceSnapshot{brand_id: brand_id}
     |> CreatorPerformanceSnapshot.changeset(attrs)
     |> Repo.insert()
   end
@@ -979,9 +1201,9 @@ defmodule Pavoi.Creators do
   @doc """
   Gets the latest performance snapshot for a creator.
   """
-  def get_latest_snapshot(creator_id) do
+  def get_latest_snapshot(brand_id, creator_id) do
     from(s in CreatorPerformanceSnapshot,
-      where: s.creator_id == ^creator_id,
+      where: s.brand_id == ^brand_id and s.creator_id == ^creator_id,
       order_by: [desc: s.snapshot_date],
       limit: 1
     )
@@ -991,9 +1213,9 @@ defmodule Pavoi.Creators do
   @doc """
   Lists performance snapshots for a creator.
   """
-  def list_snapshots_for_creator(creator_id) do
+  def list_snapshots_for_creator(brand_id, creator_id) do
     from(s in CreatorPerformanceSnapshot,
-      where: s.creator_id == ^creator_id,
+      where: s.brand_id == ^brand_id and s.creator_id == ^creator_id,
       order_by: [desc: s.snapshot_date]
     )
     |> Repo.all()
@@ -1034,6 +1256,23 @@ defmodule Pavoi.Creators do
   end
 
   def find_creators_by_handles(_), do: {[], []}
+
+  def find_creators_by_handles(brand_id, input) when is_binary(input) do
+    handles =
+      input
+      |> String.split(~r/[\s,]+/)
+      |> Enum.map(&normalize_handle/1)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.uniq()
+
+    if handles == [] do
+      {[], []}
+    else
+      find_creators_by_normalized_handles(brand_id, handles)
+    end
+  end
+
+  def find_creators_by_handles(_brand_id, _), do: {[], []}
 
   defp normalize_handle(raw) do
     raw = String.trim(raw)
@@ -1093,6 +1332,50 @@ defmodule Pavoi.Creators do
     not_found_handles = remaining_handles -- found_previous_handles
 
     # Combine results, removing duplicates (same creator found via both paths)
+    all_found = (found_by_username ++ found_by_previous) |> Enum.uniq_by(& &1.id)
+
+    {all_found, not_found_handles}
+  end
+
+  defp find_creators_by_normalized_handles(brand_id, handles) do
+    found_by_username =
+      from(c in Creator,
+        join: bc in BrandCreator,
+        on: bc.creator_id == c.id,
+        where: bc.brand_id == ^brand_id and c.tiktok_username in ^handles
+      )
+      |> Repo.all()
+
+    found_usernames = Enum.map(found_by_username, &String.downcase(&1.tiktok_username))
+    remaining_handles = handles -- found_usernames
+
+    found_by_previous =
+      if remaining_handles == [] do
+        []
+      else
+        from(c in Creator,
+          join: bc in BrandCreator,
+          on: bc.creator_id == c.id,
+          where:
+            bc.brand_id == ^brand_id and
+              fragment(
+                "EXISTS (SELECT 1 FROM unnest(?) AS prev WHERE LOWER(prev) = ANY(?))",
+                c.previous_tiktok_usernames,
+                ^remaining_handles
+              )
+        )
+        |> Repo.all()
+      end
+
+    found_previous_handles =
+      Enum.flat_map(found_by_previous, fn creator ->
+        (creator.previous_tiktok_usernames || [])
+        |> Enum.map(&String.downcase/1)
+        |> Enum.filter(&(&1 in remaining_handles))
+      end)
+
+    not_found_handles = remaining_handles -- found_previous_handles
+
     all_found = (found_by_username ++ found_by_previous) |> Enum.uniq_by(& &1.id)
 
     {all_found, not_found_handles}
@@ -1211,6 +1494,16 @@ defmodule Pavoi.Creators do
     |> MapSet.new()
   end
 
+  def list_existing_order_ids(brand_id) do
+    from(cs in CreatorSample,
+      where: cs.brand_id == ^brand_id and not is_nil(cs.tiktok_order_id),
+      select: cs.tiktok_order_id,
+      distinct: true
+    )
+    |> Repo.all()
+    |> MapSet.new()
+  end
+
   @doc """
   Parses a full name into first and last name components.
   Returns {first_name, last_name} tuple.
@@ -1247,10 +1540,14 @@ defmodule Pavoi.Creators do
   """
   def get_tag!(id), do: Repo.get!(CreatorTag, id)
 
+  def get_tag!(brand_id, id), do: Repo.get_by!(CreatorTag, id: id, brand_id: brand_id)
+
   @doc """
   Gets a tag by ID, returns nil if not found.
   """
   def get_tag(id), do: Repo.get(CreatorTag, id)
+
+  def get_tag(brand_id, id), do: Repo.get_by(CreatorTag, id: id, brand_id: brand_id)
 
   @doc """
   Gets a tag by name for a specific brand (case-insensitive).
@@ -1459,14 +1756,24 @@ defmodule Pavoi.Creators do
     |> Repo.all()
   end
 
+  def get_tag_ids_for_creator(brand_id, creator_id) do
+    from(a in CreatorTagAssignment,
+      join: t in CreatorTag,
+      on: a.creator_tag_id == t.id,
+      where: a.creator_id == ^creator_id and t.brand_id == ^brand_id,
+      select: a.creator_tag_id
+    )
+    |> Repo.all()
+  end
+
   ## Creator Purchases
 
   @doc """
   Creates a creator purchase record.
   Uses on_conflict: :nothing to handle duplicates gracefully.
   """
-  def create_purchase(attrs \\ %{}) do
-    %CreatorPurchase{}
+  def create_purchase(brand_id, attrs \\ %{}) do
+    %CreatorPurchase{brand_id: brand_id}
     |> CreatorPurchase.changeset(attrs)
     |> Repo.insert(on_conflict: :nothing, conflict_target: :tiktok_order_id)
   end
@@ -1474,9 +1781,9 @@ defmodule Pavoi.Creators do
   @doc """
   Lists purchases for a creator, ordered by date descending.
   """
-  def list_purchases_for_creator(creator_id) do
+  def list_purchases_for_creator(brand_id, creator_id) do
     from(p in CreatorPurchase,
-      where: p.creator_id == ^creator_id,
+      where: p.brand_id == ^brand_id and p.creator_id == ^creator_id,
       order_by: [desc: p.ordered_at]
     )
     |> Repo.all()
@@ -1486,9 +1793,9 @@ defmodule Pavoi.Creators do
   Gets purchase statistics for a creator.
   Returns %{purchase_count: n, total_spent_cents: n, paid_purchase_count: n}
   """
-  def get_purchase_stats(creator_id) do
+  def get_purchase_stats(brand_id, creator_id) do
     from(p in CreatorPurchase,
-      where: p.creator_id == ^creator_id,
+      where: p.brand_id == ^brand_id and p.creator_id == ^creator_id,
       select: %{
         purchase_count: count(p.id),
         total_spent_cents: coalesce(sum(p.total_amount_cents), 0)
@@ -1499,7 +1806,8 @@ defmodule Pavoi.Creators do
       # Also count non-sample (paid) purchases
       paid_count =
         from(p in CreatorPurchase,
-          where: p.creator_id == ^creator_id and p.is_sample_order == false,
+          where:
+            p.brand_id == ^brand_id and p.creator_id == ^creator_id and p.is_sample_order == false,
           select: count(p.id)
         )
         |> Repo.one()
@@ -1520,12 +1828,31 @@ defmodule Pavoi.Creators do
     |> Repo.all()
   end
 
+  def get_purchases_for_modal(brand_id, creator_id) do
+    from(p in CreatorPurchase,
+      where: p.brand_id == ^brand_id and p.creator_id == ^creator_id,
+      order_by: [desc: p.ordered_at],
+      limit: 50
+    )
+    |> Repo.all()
+  end
+
   @doc """
   Lists all existing purchase order IDs for efficient deduplication.
   Returns a MapSet for O(1) lookups.
   """
   def list_existing_purchase_order_ids do
     from(p in CreatorPurchase,
+      select: p.tiktok_order_id,
+      distinct: true
+    )
+    |> Repo.all()
+    |> MapSet.new()
+  end
+
+  def list_existing_purchase_order_ids(brand_id) do
+    from(p in CreatorPurchase,
+      where: p.brand_id == ^brand_id,
       select: p.tiktok_order_id,
       distinct: true
     )
@@ -1543,6 +1870,22 @@ defmodule Pavoi.Creators do
     else
       from(p in CreatorPurchase,
         where: p.creator_id in ^creator_ids and p.is_sample_order == false,
+        group_by: p.creator_id,
+        select: {p.creator_id, count(p.id)}
+      )
+      |> Repo.all()
+      |> Map.new()
+    end
+  end
+
+  def batch_count_purchases(brand_id, creator_ids) when is_list(creator_ids) do
+    if creator_ids == [] do
+      %{}
+    else
+      from(p in CreatorPurchase,
+        where:
+          p.brand_id == ^brand_id and p.creator_id in ^creator_ids and
+            p.is_sample_order == false,
         group_by: p.creator_id,
         select: {p.creator_id, count(p.id)}
       )
