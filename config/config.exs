@@ -83,6 +83,17 @@ config :esbuild,
     env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
   ]
 
+# Configure Tailwind CSS (standalone CLI - no Node.js required)
+config :tailwind,
+  version: "4.0.14",
+  pavoi: [
+    args: ~w(
+      --input=css/tailwind.css
+      --output=../priv/static/assets/css/app.css
+    ),
+    cd: Path.expand("../assets", __DIR__)
+  ]
+
 # Configures Elixir's Logger
 config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",

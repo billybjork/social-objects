@@ -2,8 +2,8 @@
 // to get started and then uncomment the line below.
 // import "./user_socket.js"
 
-// Import CSS - esbuild will bundle it and output to priv/static/assets/js/app.css
-import "../css/app.css"
+// CSS is now handled by Tailwind CLI (see config/config.exs)
+// Output: priv/static/assets/css/app.css
 
 // You can include dependencies in two ways.
 //

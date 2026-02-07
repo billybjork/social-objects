@@ -1,5 +1,11 @@
 /**
- * App - Main CSS entry point
+ * App - Main CSS entry point (DEPRECATED)
+ *
+ * NOTE: This file is no longer the main entry point.
+ * CSS is now processed by Tailwind CLI using tailwind.css as the entry point.
+ * This file is kept for reference during migration.
+ *
+ * See: assets/css/tailwind.css
  *
  * ITCSS Architecture (layers ordered by specificity, low → high):
  *

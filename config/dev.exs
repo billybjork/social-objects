@@ -67,7 +67,8 @@ config :pavoi, PavoiWeb.Endpoint,
   secret_key_base: "cbp7vzcpMcH98t9a7NIO3LrSWzXeN5nccqZdEFe2QWydund6F2h5TvtuAdvhv1dz",
   watchers:
     [
-      esbuild: {Esbuild, :install_and_run, [:pavoi, ~w(--sourcemap=inline --watch)]}
+      esbuild: {Esbuild, :install_and_run, [:pavoi, ~w(--sourcemap=inline --watch)]},
+      tailwind: {Tailwind, :install_and_run, [:pavoi, ~w(--watch)]}
     ] ++ bridge_watcher
 
 # ## SSL Support
