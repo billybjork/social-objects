@@ -119,31 +119,34 @@ defmodule Pavoi.Communications do
   def set_default_template(%EmailTemplate{} = template) do
     Repo.transaction(fn ->
       # Clear existing default for same type (and lark_preset for page templates)
-      query =
-        if template.type == "page" do
-          from(t in EmailTemplate,
-            where:
-              t.brand_id == ^template.brand_id and
-                t.type == ^template.type and
-                t.lark_preset == ^template.lark_preset and
-                t.is_default == true
-          )
-        else
-          from(t in EmailTemplate,
-            where:
-              t.brand_id == ^template.brand_id and
-                t.type == ^template.type and
-                t.is_default == true
-          )
-        end
-
-      Repo.update_all(query, set: [is_default: false])
+      template
+      |> build_clear_default_query()
+      |> Repo.update_all(set: [is_default: false])
 
       # Set new default
       template
       |> EmailTemplate.changeset(%{is_default: true})
       |> Repo.update!()
     end)
+  end
+
+  defp build_clear_default_query(%EmailTemplate{type: "page"} = template) do
+    from(t in EmailTemplate,
+      where:
+        t.brand_id == ^template.brand_id and
+          t.type == ^template.type and
+          t.lark_preset == ^template.lark_preset and
+          t.is_default == true
+    )
+  end
+
+  defp build_clear_default_query(%EmailTemplate{} = template) do
+    from(t in EmailTemplate,
+      where:
+        t.brand_id == ^template.brand_id and
+          t.type == ^template.type and
+          t.is_default == true
+    )
   end
 
   @doc """

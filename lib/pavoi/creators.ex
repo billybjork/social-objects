@@ -135,7 +135,7 @@ defmodule Pavoi.Creators do
     # Creators with no email outreach logs and not opted out (no brand filter)
     from(c in query,
       left_join: ol in Pavoi.Outreach.OutreachLog,
-      on: ol.creator_id == c.id and ol.channel == "email",
+      on: ol.creator_id == c.id and ol.channel == :email,
       where: is_nil(ol.id),
       where: c.email_opted_out == false
     )
@@ -145,7 +145,7 @@ defmodule Pavoi.Creators do
     # Creators with no email outreach logs and not opted out (for specific brand)
     from(c in query,
       left_join: ol in Pavoi.Outreach.OutreachLog,
-      on: ol.creator_id == c.id and ol.channel == "email" and ol.brand_id == ^brand_id,
+      on: ol.creator_id == c.id and ol.channel == :email and ol.brand_id == ^brand_id,
       where: is_nil(ol.id),
       where: c.email_opted_out == false
     )
@@ -155,7 +155,7 @@ defmodule Pavoi.Creators do
     # Creators with at least one email outreach log and not opted out (no brand filter)
     from(c in query,
       join: ol in Pavoi.Outreach.OutreachLog,
-      on: ol.creator_id == c.id and ol.channel == "email",
+      on: ol.creator_id == c.id and ol.channel == :email,
       where: c.email_opted_out == false,
       distinct: true
     )
@@ -165,7 +165,7 @@ defmodule Pavoi.Creators do
     # Creators with at least one email outreach log and not opted out (for specific brand)
     from(c in query,
       join: ol in Pavoi.Outreach.OutreachLog,
-      on: ol.creator_id == c.id and ol.channel == "email" and ol.brand_id == ^brand_id,
+      on: ol.creator_id == c.id and ol.channel == :email and ol.brand_id == ^brand_id,
       where: c.email_opted_out == false,
       distinct: true
     )
@@ -191,7 +191,9 @@ defmodule Pavoi.Creators do
 
   # Helper to conditionally filter by brand_id without causing PostgreSQL type inference issues
   defp maybe_filter_by_brand(query, _field, nil), do: query
-  defp maybe_filter_by_brand(query, :brand_id, brand_id), do: where(query, [q], q.brand_id == ^brand_id)
+
+  defp maybe_filter_by_brand(query, :brand_id, brand_id),
+    do: where(query, [q], q.brand_id == ^brand_id)
 
   defp apply_added_after_filter(query, nil), do: query
 

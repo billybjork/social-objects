@@ -61,17 +61,17 @@ defmodule Pavoi.Workers.CreatorOutreachWorker do
     if creator.email && creator.email != "" do
       case Email.send_templated_email(creator, template) do
         {:ok, message_id} ->
-          Outreach.log_outreach(brand_id, creator.id, "email", "sent", provider_id: message_id)
+          Outreach.log_outreach(brand_id, creator.id, :email, :sent, provider_id: message_id)
           finalize_outreach(brand_id, creator, {:ok, message_id})
 
         {:error, reason} ->
           Logger.error("Failed to send email to creator #{creator.id}: #{reason}")
-          Outreach.log_outreach(brand_id, creator.id, "email", "failed", error_message: reason)
+          Outreach.log_outreach(brand_id, creator.id, :email, :failed, error_message: reason)
           {:error, "email_failed: #{reason}"}
       end
     else
       Logger.warning("Creator #{creator.id} has no email address, skipping email")
-      Outreach.log_outreach(brand_id, creator.id, "email", "failed", error_message: "no_email")
+      Outreach.log_outreach(brand_id, creator.id, :email, :failed, error_message: "no_email")
       {:error, "no_email"}
     end
   end

@@ -94,7 +94,7 @@ defmodule PavoiWeb.ReadmeLive.Index do
 
   defp get_last_email_sent(brand_id) do
     OutreachLog
-    |> where([ol], ol.brand_id == ^brand_id and ol.status == "sent")
+    |> where([ol], ol.brand_id == ^brand_id and ol.status == :sent)
     |> order_by([ol], desc: ol.sent_at)
     |> limit(1)
     |> select([ol], ol.sent_at)

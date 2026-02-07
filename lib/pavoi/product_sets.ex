@@ -10,7 +10,7 @@ defmodule Pavoi.ProductSets do
   alias Pavoi.ProductSets.{MessagePreset, ProductSet, ProductSetProduct, ProductSetState}
 
   # Default color for host messages
-  @default_message_color "amber"
+  @default_message_color :amber
 
   @doc """
   Returns the default color for host messages.
@@ -274,8 +274,15 @@ defmodule Pavoi.ProductSets do
   # Recursively ensures a slug is unique by appending a numeric suffix if needed.
   # On the first attempt (0), tries the base slug. If taken, appends -1, -2, etc.
   # Returns the first available slug. Example: "my-product-set" -> "my-product-set-2"
+  defp ensure_unique_slug(base_slug, 0) do
+    case Repo.get_by(ProductSet, slug: base_slug) do
+      nil -> base_slug
+      _ -> ensure_unique_slug(base_slug, 1)
+    end
+  end
+
   defp ensure_unique_slug(base_slug, attempt) do
-    slug = if attempt == 0, do: base_slug, else: "#{base_slug}-#{attempt}"
+    slug = "#{base_slug}-#{attempt}"
 
     case Repo.get_by(ProductSet, slug: slug) do
       nil -> slug
@@ -809,18 +816,16 @@ defmodule Pavoi.ProductSets do
          {:ok, psp} <- get_current_product_set_product(state),
          product <- Repo.preload(psp.product, :product_images),
          image_count when image_count > 0 <- length(product.product_images) do
-      new_index =
-        case direction do
-          :next -> rem(state.current_image_index + 1, image_count)
-          :previous -> rem(state.current_image_index - 1 + image_count, image_count)
-        end
-
+      new_index = calculate_cycled_index(state.current_image_index, image_count, direction)
       update_product_set_state(product_set_id, %{current_image_index: new_index})
     else
       0 -> {:error, :no_images}
       error -> error
     end
   end
+
+  defp calculate_cycled_index(current, count, :next), do: rem(current + 1, count)
+  defp calculate_cycled_index(current, count, :previous), do: rem(current - 1 + count, count)
 
   @doc """
   Sets the current image index directly for the product set.

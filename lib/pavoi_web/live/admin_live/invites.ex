@@ -170,7 +170,7 @@ defmodule PavoiWeb.AdminLive.Invites do
     Calendar.strftime(dt, "%b %d, %Y %H:%M")
   end
 
-  defp role_variant("owner"), do: :primary
-  defp role_variant("admin"), do: :success
+  defp role_variant(:owner), do: :primary
+  defp role_variant(:admin), do: :success
   defp role_variant(_), do: :default
 end

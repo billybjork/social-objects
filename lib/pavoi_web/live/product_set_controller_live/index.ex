@@ -41,7 +41,7 @@ defmodule PavoiWeb.ProductSetControllerLive.Index do
         total_products: length(product_set.product_set_products),
         host_message: nil,
         message_draft: "",
-        selected_color: "amber",
+        selected_color: :amber,
         message_panel_collapsed: true,
         message_presets: message_presets,
         show_preset_modal: false,
@@ -157,7 +157,7 @@ defmodule PavoiWeb.ProductSetControllerLive.Index do
 
   @impl true
   def handle_event("select_color", %{"color" => color}, socket) do
-    {:noreply, assign(socket, :selected_color, color)}
+    {:noreply, assign(socket, :selected_color, String.to_existing_atom(color))}
   end
 
   @impl true

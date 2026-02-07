@@ -306,100 +306,100 @@ defmodule PavoiWeb.ProductSetsLive.Index do
     {:noreply, socket}
   end
 
+  # Generation event handlers - only update UI for batch (session-wide) generation
   @impl true
-  def handle_info({:generation_started, generation}, socket) do
-    # Only show banner for batch (session-wide) generation
+  def handle_info({:generation_started, %{product_set_id: ps_id} = generation}, socket)
+      when not is_nil(ps_id) do
     socket =
-      if generation.product_set_id do
-        socket
-        |> assign(:current_generation, generation)
-        |> assign(:show_generation_modal, false)
-      else
-        socket
-      end
+      socket
+      |> assign(:current_generation, generation)
+      |> assign(:show_generation_modal, false)
 
     {:noreply, socket}
   end
 
   @impl true
-  def handle_info({:generation_progress, generation, _product_id, product_name}, socket) do
-    # Only update banner for batch (session-wide) generation
+  def handle_info({:generation_started, _generation}, socket), do: {:noreply, socket}
+
+  @impl true
+  def handle_info(
+        {:generation_progress, %{product_set_id: ps_id} = generation, _product_id, product_name},
+        socket
+      )
+      when not is_nil(ps_id) do
     socket =
-      if generation.product_set_id do
-        socket
-        |> assign(:current_generation, generation)
-        |> assign(:current_product_name, product_name)
-      else
-        socket
-      end
+      socket
+      |> assign(:current_generation, generation)
+      |> assign(:current_product_name, product_name)
 
     {:noreply, socket}
   end
 
   @impl true
-  def handle_info({:generation_completed, generation}, socket) do
-    # Update the generation status immediately so the banner shows completion (only for batch generation)
+  def handle_info({:generation_progress, _generation, _product_id, _product_name}, socket) do
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:generation_completed, %{product_set_id: ps_id} = generation}, socket)
+      when not is_nil(ps_id) do
     socket =
-      if generation.product_set_id do
-        socket
-        |> assign(:current_generation, generation)
-        |> assign(:current_product_name, nil)
-      else
-        socket
-      end
+      socket
+      |> assign(:current_generation, generation)
+      |> assign(:current_product_name, nil)
       |> assign(:generating_in_modal, false)
-
-    # Only reload sessions if this was a session-wide generation
-    # For single product generations, we don't need to reload the full list
-    socket =
-      if generation.product_set_id do
-        # Reload just the affected session, not all sessions
-        reload_single_product_set(socket, generation.product_set_id)
-      else
-        socket
-      end
-
-    # If a product modal is currently open, refresh it with updated talking points
-    socket =
-      if socket.assigns.editing_product do
-        product =
-          Catalog.get_product_with_images!(
-            socket.assigns.brand_id,
-            socket.assigns.editing_product.id
-          )
-
-        changes = %{
-          "original_price_cents" => format_cents_to_dollars(product.original_price_cents),
-          "sale_price_cents" => format_cents_to_dollars(product.sale_price_cents),
-          "talking_points_md" => product.talking_points_md
-        }
-
-        form = to_form(Product.changeset(product, changes))
-
-        socket
-        |> assign(:editing_product, product)
-        |> assign(:product_edit_form, form)
-      else
-        socket
-      end
+      |> reload_single_product_set(ps_id)
+      |> maybe_refresh_editing_product()
 
     {:noreply, socket}
   end
 
   @impl true
-  def handle_info({:generation_failed, generation, _reason}, socket) do
-    # Only show banner for batch (session-wide) generation failures
+  def handle_info({:generation_completed, _generation}, socket) do
     socket =
-      if generation.product_set_id do
-        socket
-        |> assign(:current_generation, generation)
-        |> assign(:current_product_name, nil)
-      else
-        socket
-      end
+      socket
+      |> assign(:generating_in_modal, false)
+      |> maybe_refresh_editing_product()
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:generation_failed, %{product_set_id: ps_id} = generation, _reason}, socket)
+      when not is_nil(ps_id) do
+    socket =
+      socket
+      |> assign(:current_generation, generation)
+      |> assign(:current_product_name, nil)
       |> assign(:generating_in_modal, false)
 
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:generation_failed, _generation, _reason}, socket) do
+    {:noreply, assign(socket, :generating_in_modal, false)}
+  end
+
+  # Refreshes the editing product modal if open with updated talking points
+  defp maybe_refresh_editing_product(%{assigns: %{editing_product: nil}} = socket), do: socket
+
+  defp maybe_refresh_editing_product(
+         %{assigns: %{editing_product: editing, brand_id: brand_id}} = socket
+       ) do
+    product = Catalog.get_product_with_images!(brand_id, editing.id)
+
+    changes = %{
+      "original_price_cents" => format_cents_to_dollars(product.original_price_cents),
+      "sale_price_cents" => format_cents_to_dollars(product.sale_price_cents),
+      "talking_points_md" => product.talking_points_md
+    }
+
+    form = to_form(Product.changeset(product, changes))
+
+    socket
+    |> assign(:editing_product, product)
+    |> assign(:product_edit_form, form)
   end
 
   @impl true
@@ -1913,20 +1913,14 @@ defmodule PavoiWeb.ProductSetsLive.Index do
   end
 
   # Get the best product ID for clipboard copy - prefer TikTok, fall back to Shopify numeric
-  defp get_best_product_id(product) do
-    cond do
-      product.tiktok_product_id && product.tiktok_product_id != "" ->
-        product.tiktok_product_id
+  defp get_best_product_id(%{tiktok_product_id: id}) when is_binary(id) and id != "", do: id
 
-      product.pid && product.pid != "" ->
-        # Extract numeric ID from Shopify GID like "gid://shopify/Product/8772010639613"
-        # Uses extract_shopify_numeric_id/1 imported from ViewHelpers
-        extract_shopify_numeric_id(product.pid)
-
-      true ->
-        nil
-    end
+  defp get_best_product_id(%{pid: pid}) when is_binary(pid) and pid != "" do
+    # Extract numeric ID from Shopify GID like "gid://shopify/Product/8772010639613"
+    extract_shopify_numeric_id(pid)
   end
+
+  defp get_best_product_id(_product), do: nil
 
   # Detect if input looks like product IDs rather than a text search
   # Returns true if input contains commas OR is a single numeric-like value (digits only, 10+ chars for TikTok IDs)

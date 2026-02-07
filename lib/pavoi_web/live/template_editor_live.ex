@@ -31,13 +31,13 @@ defmodule PavoiWeb.TemplateEditorLive do
 
   defp apply_action(socket, :new, params) do
     # Support ?type=page query param for page templates
-    template_type = params["type"] || "email"
+    template_type = if params["type"] == "page", do: :page, else: :email
     brand_id = socket.assigns.current_brand.id
-    template = %EmailTemplate{brand_id: brand_id, lark_preset: "jewelry", type: template_type}
+    template = %EmailTemplate{brand_id: brand_id, lark_preset: :jewelry, type: template_type}
     changeset = Communications.change_email_template(template)
 
     page_title =
-      if template_type == "page", do: "New Page Template", else: "New Email Template"
+      if template_type == :page, do: "New Page Template", else: "New Email Template"
 
     socket
     |> assign(:page_title, page_title)
@@ -53,7 +53,7 @@ defmodule PavoiWeb.TemplateEditorLive do
     changeset = Communications.change_email_template(template)
 
     page_title =
-      if template.type == "page", do: "Edit Page Template", else: "Edit Email Template"
+      if template.type == :page, do: "Edit Page Template", else: "Edit Email Template"
 
     socket
     |> assign(:page_title, page_title)

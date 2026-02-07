@@ -144,39 +144,43 @@ defmodule PavoiWeb.SendgridWebhookController do
     end
   end
 
-  defp engagement_updates("delivered", timestamp, log) do
-    base = if is_nil(log.delivered_at), do: %{delivered_at: timestamp}, else: %{}
-    Map.merge(base, %{status: "delivered"})
+  defp engagement_updates("delivered", timestamp, %{delivered_at: nil}) do
+    %{delivered_at: timestamp, status: :delivered}
   end
 
-  defp engagement_updates("open", timestamp, log) do
-    if is_nil(log.opened_at), do: %{opened_at: timestamp}, else: %{}
+  defp engagement_updates("delivered", _timestamp, _log), do: %{status: :delivered}
+
+  defp engagement_updates("open", timestamp, %{opened_at: nil}), do: %{opened_at: timestamp}
+  defp engagement_updates("open", _timestamp, _log), do: %{}
+
+  defp engagement_updates("click", timestamp, %{clicked_at: nil}), do: %{clicked_at: timestamp}
+  defp engagement_updates("click", _timestamp, _log), do: %{}
+
+  defp engagement_updates("bounce", timestamp, %{bounced_at: nil}) do
+    %{bounced_at: timestamp, status: :bounced}
   end
 
-  defp engagement_updates("click", timestamp, log) do
-    if is_nil(log.clicked_at), do: %{clicked_at: timestamp}, else: %{}
+  defp engagement_updates("bounce", _timestamp, _log), do: %{status: :bounced}
+
+  defp engagement_updates("dropped", _timestamp, _log), do: %{status: :failed}
+
+  defp engagement_updates("spamreport", timestamp, %{spam_reported_at: nil}) do
+    %{spam_reported_at: timestamp}
   end
 
-  defp engagement_updates("bounce", timestamp, log) do
-    base = if is_nil(log.bounced_at), do: %{bounced_at: timestamp}, else: %{}
-    Map.merge(base, %{status: "bounced"})
+  defp engagement_updates("spamreport", _timestamp, _log), do: %{}
+
+  defp engagement_updates("unsubscribe", timestamp, %{unsubscribed_at: nil}) do
+    %{unsubscribed_at: timestamp}
   end
 
-  defp engagement_updates("dropped", _timestamp, _log) do
-    %{status: "failed"}
+  defp engagement_updates("unsubscribe", _timestamp, _log), do: %{}
+
+  defp engagement_updates("group_unsubscribe", timestamp, %{unsubscribed_at: nil}) do
+    %{unsubscribed_at: timestamp}
   end
 
-  defp engagement_updates("spamreport", timestamp, log) do
-    if is_nil(log.spam_reported_at), do: %{spam_reported_at: timestamp}, else: %{}
-  end
-
-  defp engagement_updates("unsubscribe", timestamp, log) do
-    if is_nil(log.unsubscribed_at), do: %{unsubscribed_at: timestamp}, else: %{}
-  end
-
-  defp engagement_updates("group_unsubscribe", timestamp, log) do
-    if is_nil(log.unsubscribed_at), do: %{unsubscribed_at: timestamp}, else: %{}
-  end
+  defp engagement_updates("group_unsubscribe", _timestamp, _log), do: %{}
 
   defp engagement_updates(_event_type, _timestamp, _log), do: %{}
 
