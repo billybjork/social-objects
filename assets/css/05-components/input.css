@@ -1,147 +1,132 @@
 /* ============================================================================
-   INPUT COMPONENT
+   INPUT COMPONENT - Tailwind Migration
+   ============================================================================
+   Uses @apply for base styles while maintaining existing class API.
    ============================================================================ */
 
 .input {
-  width: 100%;
-  padding: var(--space-3) var(--space-4);
-  background-color: var(--color-surface-primary);
-  border: 1px solid var(--color-border-primary);
-  border-radius: var(--radius-md);
-  color: var(--color-text-primary);
-  font-size: var(--text-base);
+  @apply w-full py-3 px-4;
+  @apply bg-surface-primary;
+  @apply border border-border-primary rounded-md;
+  @apply text-text-primary text-base;
   transition: all var(--transition-fast);
 }
 
 .input:hover {
-  border-color: var(--color-border-focus);
+  @apply border-border-focus;
 }
 
 .input:focus {
-  outline: 2px solid var(--color-border-focus);
-  outline-offset: 2px;
-  border-color: var(--color-border-focus);
+  @apply outline-2 outline-border-focus outline-offset-2 border-border-focus;
 }
 
 .input::placeholder {
-  color: var(--color-text-tertiary);
+  @apply text-text-tertiary;
 }
 
 .input:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  background-color: var(--color-surface-secondary);
-  color: var(--color-text-secondary);
+  @apply opacity-60 cursor-not-allowed bg-surface-secondary text-text-secondary;
 }
 
 .input--error {
-  border-color: var(--color-accent-red);
+  @apply border-accent-red;
 }
 
 .input--error:focus {
-  outline-color: var(--color-accent-red);
+  @apply outline-accent-red;
 }
 
-/* Label */
+/* ============================================================================
+   LABEL
+   ============================================================================ */
+
 .label {
-  display: block;
-  margin-bottom: var(--space-2);
-  font-size: var(--text-sm);
-  font-weight: var(--font-medium);
-  color: var(--color-text-primary);
+  @apply block mb-2 text-sm font-medium text-text-primary;
 }
 
 .label:has(input[type="checkbox"]) {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
+  @apply flex items-center gap-2;
 }
 
-/* Form Group */
+/* ============================================================================
+   FORM GROUP
+   ============================================================================ */
+
 .form-group {
-  margin-bottom: var(--space-4);
+  @apply mb-4;
 }
 
-/* Select */
+/* ============================================================================
+   SELECT
+   ============================================================================ */
+
 .select {
-  width: 100%;
-  padding: var(--space-3) var(--space-5) var(--space-3) var(--space-4);
-  background-color: var(--color-surface-primary);
-  border: 1px solid var(--color-border-primary);
-  border-radius: var(--radius-md);
-  color: var(--color-text-primary);
-  font-size: var(--text-base);
-  cursor: pointer;
+  @apply w-full py-3 pr-5 pl-4;
+  @apply bg-surface-primary;
+  @apply border border-border-primary rounded-md;
+  @apply text-text-primary text-base;
+  @apply cursor-pointer;
   transition: all var(--transition-fast);
 }
 
 .select:hover {
-  border-color: var(--color-border-focus);
+  @apply border-border-focus;
 }
 
 .select:focus {
-  outline: 2px solid var(--color-border-focus);
-  outline-offset: 2px;
-  border-color: var(--color-border-focus);
+  @apply outline-2 outline-border-focus outline-offset-2 border-border-focus;
 }
 
 .select:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  background-color: var(--color-surface-secondary);
-  color: var(--color-text-secondary);
+  @apply opacity-60 cursor-not-allowed bg-surface-secondary text-text-secondary;
 }
 
-/* Textarea */
+/* ============================================================================
+   TEXTAREA
+   ============================================================================ */
+
 .textarea {
-  width: 100%;
-  padding: var(--space-3) var(--space-4);
-  background-color: var(--color-surface-primary);
-  border: 1px solid var(--color-border-primary);
-  border-radius: var(--radius-md);
-  color: var(--color-text-primary);
-  font-size: var(--text-base);
-  resize: vertical;
-  min-height: 100px;
+  @apply w-full py-3 px-4;
+  @apply bg-surface-primary;
+  @apply border border-border-primary rounded-md;
+  @apply text-text-primary text-base;
+  @apply resize-y min-h-[100px];
   transition: all var(--transition-fast);
 }
 
 .textarea:hover {
-  border-color: var(--color-border-focus);
+  @apply border-border-focus;
 }
 
 .textarea:focus {
-  outline: 2px solid var(--color-border-focus);
-  outline-offset: 2px;
-  border-color: var(--color-border-focus);
+  @apply outline-2 outline-border-focus outline-offset-2 border-border-focus;
 }
 
 .textarea:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  background-color: var(--color-surface-secondary);
-  color: var(--color-text-secondary);
-  resize: none;
+  @apply opacity-60 cursor-not-allowed bg-surface-secondary text-text-secondary resize-none;
 }
 
-/* Error message */
+/* ============================================================================
+   ERROR MESSAGE
+   ============================================================================ */
+
 .input-error {
-  display: block;
-  margin-top: var(--space-2);
-  font-size: var(--text-sm);
-  color: var(--color-accent-red);
+  @apply block mt-2 text-sm text-accent-red;
 }
 
-/* Size variants */
+/* ============================================================================
+   SIZE VARIANTS
+   ============================================================================ */
+
 .input--sm,
 select.input--sm {
-  padding: var(--space-2) var(--space-4) var(--space-2) var(--space-3);
-  font-size: var(--text-sm);
-  height: 36px;
-  line-height: 1.5;
+  @apply py-2 pl-3 pr-4 text-sm h-9 leading-normal;
 }
 
-/* Custom chevron for select dropdowns with controllable positioning */
+/* ============================================================================
+   CUSTOM SELECT CHEVRON
+   ============================================================================ */
+
 select.input,
 select.input--sm,
 .select {
@@ -149,15 +134,18 @@ select.input--sm,
   -webkit-appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right var(--space-3) center;
-  padding-right: var(--space-8);
+  background-position: right var(--spacing-3) center;
+  @apply pr-8;
 }
 
-/* Darker inputs in modals for better contrast */
+/* ============================================================================
+   MODAL CONTEXT - Darker inputs for better contrast
+   ============================================================================ */
+
 .modal .input,
 .modal .select,
 .modal .textarea {
-  background-color: var(--color-surface-tertiary);
+  @apply bg-surface-tertiary;
 }
 
 /* ============================================================================
@@ -165,52 +153,38 @@ select.input--sm,
    ============================================================================ */
 
 .search-input {
-  position: relative;
-  width: 100%;
+  @apply relative w-full;
 }
 
 .search-input form {
-  position: relative;
-  width: 100%;
+  @apply relative w-full;
 }
 
 .search-input__field {
-  padding-right: var(--space-10); /* Make room for the clear button */
+  @apply pr-10;
 }
 
 .search-input__clear {
-  position: absolute;
-  right: var(--space-2);
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  padding: 0;
+  @apply absolute right-2 top-1/2 -translate-y-1/2 z-10;
+  @apply flex items-center justify-center;
+  @apply w-6 h-6 p-0;
+  @apply border border-border-primary rounded-full;
+  @apply text-text-primary cursor-pointer;
   background-color: rgba(255, 255, 255, 0.1);
-  border: 1px solid var(--color-border-primary);
-  border-radius: var(--radius-full);
-  color: var(--color-text-primary);
-  cursor: pointer;
   transition: all var(--transition-fast);
 }
 
 .search-input__clear:hover {
+  @apply border-text-primary text-text-primary;
   background-color: rgba(255, 255, 255, 0.2);
-  border-color: var(--color-text-primary);
-  color: var(--color-text-primary);
 }
 
 .search-input__clear:active {
-  background-color: var(--color-surface-secondary);
+  @apply bg-surface-secondary;
 }
 
 .search-input__clear:focus-visible {
-  outline: 2px solid var(--color-border-focus);
-  outline-offset: 2px;
+  @apply outline-2 outline-border-focus outline-offset-2;
 }
 
 /* ============================================================================
@@ -218,63 +192,42 @@ select.input--sm,
    ============================================================================ */
 
 .secret-field__header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-bottom: var(--space-2);
+  @apply flex items-center gap-2 mb-2;
 }
 
 .secret-field__badge {
-  display: inline-flex;
-  align-items: center;
-  padding: var(--space-0-5) var(--space-2);
-  font-size: var(--text-xs);
-  font-weight: var(--font-medium);
-  color: var(--color-accent-green);
+  @apply inline-flex items-center py-0.5 px-2;
+  @apply text-xs font-medium text-accent-green;
+  @apply rounded-full;
   background-color: rgba(16, 185, 129, 0.1);
-  border-radius: var(--radius-full);
 }
 
 .secret-field__input-wrapper {
-  position: relative;
-  display: flex;
-  align-items: stretch;
+  @apply relative flex items-stretch;
 }
 
 .secret-field__input,
 .secret-field__textarea {
-  flex: 1;
-  padding-right: var(--space-10);
+  @apply flex-1 pr-10;
 }
 
 .secret-field__textarea {
-  min-height: 100px;
+  @apply min-h-[100px];
 }
 
 .secret-field__toggle {
-  position: absolute;
-  right: var(--space-2);
-  top: var(--space-2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  background: transparent;
-  border: none;
-  border-radius: var(--radius-md);
-  color: var(--color-text-tertiary);
-  cursor: pointer;
+  @apply absolute right-2 top-2;
+  @apply flex items-center justify-center;
+  @apply w-7 h-7 p-0;
+  @apply bg-transparent border-none rounded-md;
+  @apply text-text-tertiary cursor-pointer;
   transition: all var(--transition-fast);
 }
 
 .secret-field__toggle:hover {
-  background-color: var(--color-bg-hover);
-  color: var(--color-text-primary);
+  @apply bg-bg-hover text-text-primary;
 }
 
 .secret-field__toggle:focus-visible {
-  outline: 2px solid var(--color-border-focus);
-  outline-offset: 2px;
+  @apply outline-2 outline-border-focus outline-offset-2;
 }

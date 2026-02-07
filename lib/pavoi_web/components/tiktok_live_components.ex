@@ -202,10 +202,10 @@ defmodule PavoiWeb.TiktokLiveComponents do
               <td data-column-id="status">
                 <.stream_status_badge status={stream.status} />
               </td>
-              <td data-column-id="started" class="text-secondary">
+              <td data-column-id="started" class="text-text-secondary">
                 {format_stream_time(stream.started_at)}
               </td>
-              <td data-column-id="duration" class="text-right text-secondary">
+              <td data-column-id="duration" class="text-right text-text-secondary">
                 {format_duration(stream.started_at, stream.ended_at)}
               </td>
               <td data-column-id="viewers" class="text-right">
@@ -222,7 +222,7 @@ defmodule PavoiWeb.TiktokLiveComponents do
                 <%= if stream.gmv_cents do %>
                   <span class="text-green-500">{format_gmv(stream.gmv_cents)}</span>
                 <% else %>
-                  <span class="text-secondary">—</span>
+                  <span class="text-text-secondary">—</span>
                 <% end %>
               </td>
               <td data-column-id="comments" class="text-right">
@@ -317,13 +317,13 @@ defmodule PavoiWeb.TiktokLiveComponents do
                       @{@stream.unique_id}
                     </a>
                   <% else %>
-                    <span class="text-secondary">@{@stream.unique_id}</span>
+                    <span class="text-text-secondary">@{@stream.unique_id}</span>
                   <% end %>
                 </div>
                 <div class="stream-modal-header__status">
                   <div class="stream-modal-header__status-left">
                     <.stream_status_badge status={@stream.status} />
-                    <span class="text-secondary text-sm">
+                    <span class="text-text-secondary text-sm">
                       Started {format_relative_time(@stream.started_at)}
                     </span>
                   </div>
@@ -762,7 +762,7 @@ defmodule PavoiWeb.TiktokLiveComponents do
               </span>
             <% end %>
           </div>
-          <p class="text-secondary text-sm">
+          <p class="text-text-secondary text-sm">
             {length(@stream_stats)} data points recorded
           </p>
         </div>
@@ -1013,7 +1013,7 @@ defmodule PavoiWeb.TiktokLiveComponents do
                           {format_stream_option(comment.stream)}
                         </button>
                       <% else %>
-                        <span class="text-tertiary">Unknown</span>
+                        <span class="text-text-tertiary">Unknown</span>
                       <% end %>
                     </td>
                   <% end %>

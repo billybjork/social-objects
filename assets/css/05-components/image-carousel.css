@@ -1,65 +1,48 @@
-/* ============================================
-   Image Carousel Component
-   ============================================ */
+/* ============================================================================
+   IMAGE CAROUSEL COMPONENT - Tailwind Migration
+   ============================================================================
+   Uses @apply for base styles while maintaining existing class API.
+   ============================================================================ */
 
 .image-carousel {
-  position: relative;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  touch-action: pan-y; /* Only allow vertical scrolling, prevent horizontal pan */
-  user-select: none; /* Prevent text selection during drag */
+  @apply relative w-full flex flex-col select-none;
+  touch-action: pan-y;
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
 }
 
 .image-carousel__image-wrapper {
-  position: relative;
-  width: 100%;
-  overflow: hidden;
-  background-color: var(--color-bg-tertiary);
-  border-radius: var(--radius-md);
-  cursor: inherit; /* Inherit grab cursor from parent */
+  @apply relative w-full overflow-hidden bg-bg-tertiary rounded-md;
+  cursor: inherit;
 }
 
 .image-carousel__image {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  -webkit-user-drag: none; /* Prevent image dragging in WebKit browsers */
+  @apply w-full h-full object-contain;
+  -webkit-user-drag: none;
   -khtml-user-drag: none;
   -moz-user-drag: none;
   -o-user-drag: none;
   user-drag: none;
-  -webkit-touch-callout: none; /* Prevent callout on long press in iOS */
+  -webkit-touch-callout: none;
 }
 
 /* Prevent default image drag behavior in compact mode */
 .image-carousel--compact .image-carousel__image {
-  pointer-events: none;
+  @apply pointer-events-none;
 }
 
-/* ============================================
+/* ============================================================================
    Dot Indicators
-   ============================================ */
+   ============================================================================ */
 
 .image-carousel__dots {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-3) 0;
-  margin-top: var(--space-2);
+  @apply flex justify-center items-center gap-2 py-3 mt-2;
 }
 
 .image-carousel__dot {
-  padding: var(--space-1);
-  background: none;
-  border: none;
-  cursor: pointer;
+  @apply p-1 bg-transparent border-0 cursor-pointer rounded-full;
   transition: transform var(--transition-fast);
-  border-radius: 50%;
 }
 
 .image-carousel__dot:hover {
@@ -67,52 +50,38 @@
 }
 
 .image-carousel__dot:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+  @apply outline-2 outline-offset-2;
+  outline-color: var(--color-primary);
 }
 
 .image-carousel__dot-inner {
-  display: block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background-color: var(--color-text-tertiary);
-  opacity: 0.4;
+  @apply block w-2 h-2 rounded-full bg-text-tertiary opacity-40;
   transition: all var(--transition-fast);
 }
 
 .image-carousel__dot--active .image-carousel__dot-inner {
-  background-color: var(--color-primary);
-  opacity: 1;
+  @apply bg-primary opacity-100;
   transform: scale(1.4);
 }
 
 .image-carousel__dot:hover .image-carousel__dot-inner {
-  background-color: var(--color-primary);
-  opacity: 0.7;
+  @apply bg-primary opacity-70;
 }
 
-/* ============================================
+/* ============================================================================
    Mode Variations
-   ============================================ */
+   ============================================================================ */
 
 /* Compact mode - for product cards in grid */
 .image-carousel--compact .image-carousel__image-wrapper {
+  @apply flex gap-0 scrollbar-none;
   aspect-ratio: 1 / 1;
-  display: flex;
   overflow-x: auto;
   overflow-y: hidden;
   scroll-snap-type: x mandatory;
   scroll-behavior: smooth;
-  gap: 0;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE/Edge */
-}
-
-/* Hide scrollbar for Chrome/Safari */
-.image-carousel--compact .image-carousel__image-wrapper::-webkit-scrollbar {
-  display: none;
+  -ms-overflow-style: none;
 }
 
 .image-carousel--compact .image-carousel__image {
@@ -123,12 +92,7 @@
 
 /* Compact mode - dots overlaid on image */
 .image-carousel--compact .image-carousel__dots {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  margin: 0;
-  padding: var(--space-2);
+  @apply absolute bottom-0 left-0 right-0 m-0 p-2;
   background: linear-gradient(
     to top,
     rgba(0, 0, 0, 0.3) 0%,
@@ -139,8 +103,8 @@
 }
 
 .image-carousel--compact .image-carousel__dot-inner {
+  @apply opacity-100;
   background-color: rgba(255, 255, 255, 0.5);
-  opacity: 1;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
@@ -155,22 +119,15 @@
 
 /* Full mode - for modal/detail views with adjacent image peek */
 .image-carousel--full .image-carousel__image-wrapper {
+  @apply flex gap-3 scrollbar-none;
   aspect-ratio: 4 / 3;
   max-height: 500px;
-  display: flex;
   overflow-x: auto;
   overflow-y: hidden;
   scroll-snap-type: x mandatory;
   scroll-behavior: smooth;
-  gap: var(--space-3);
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE/Edge */
-}
-
-/* Hide scrollbar for Chrome/Safari */
-.image-carousel--full .image-carousel__image-wrapper::-webkit-scrollbar {
-  display: none;
+  -ms-overflow-style: none;
 }
 
 .image-carousel--full .image-carousel__image {
@@ -189,12 +146,7 @@
 }
 
 .image-carousel--full .image-carousel__dots {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  margin: 0;
-  padding: var(--space-3);
+  @apply absolute bottom-0 left-0 right-0 m-0 p-3;
   background: linear-gradient(
     to top,
     rgba(0, 0, 0, 0.3) 0%,
@@ -205,10 +157,8 @@
 }
 
 .image-carousel--full .image-carousel__dot-inner {
-  width: 10px;
-  height: 10px;
+  @apply w-2.5 h-2.5 opacity-100;
   background-color: rgba(255, 255, 255, 0.5);
-  opacity: 1;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
@@ -221,17 +171,11 @@
   background-color: rgba(255, 255, 255, 0.8);
 }
 
-/* ============================================
+/* ============================================================================
    Empty State
-   ============================================ */
+   ============================================================================ */
 
 .image-carousel__empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  @apply flex items-center justify-center bg-surface rounded-md text-text-tertiary text-sm;
   aspect-ratio: 1 / 1;
-  background-color: var(--color-surface);
-  border-radius: var(--radius-md);
-  color: var(--color-text-tertiary);
-  font-size: var(--text-sm);
 }

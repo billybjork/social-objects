@@ -1,126 +1,47 @@
 /* ============================================================================
-   LAYOUT COMPOSITIONS
+   LAYOUT COMPOSITIONS - Tailwind Migration
+   ============================================================================
+   Custom layout patterns that extend Tailwind's built-in utilities.
+   Tailwind provides: flex, grid, gap-*, items-*, justify-*, etc.
+   Keep only patterns not covered by Tailwind utilities.
    ============================================================================ */
 
-/* Container */
+/* ============================================================================
+   CONTAINER
+   ============================================================================
+   Tailwind has container, but we need our custom sizing modifiers.
+   ============================================================================ */
+
 .container {
-  width: 100%;
-  margin-left: auto;
-  margin-right: auto;
-  padding-left: var(--space-4);
-  padding-right: var(--space-4);
+  @apply w-full mx-auto px-4;
 }
 
 .container--sm {
-  max-width: 640px;
+  @apply max-w-screen-sm;
 }
 
 .container--md {
-  max-width: 768px;
+  @apply max-w-screen-md;
 }
 
 .container--lg {
-  max-width: 1024px;
+  @apply max-w-screen-lg;
 }
 
 .container--xl {
-  max-width: 1280px;
+  @apply max-w-screen-xl;
 }
 
 .container--2xl {
-  max-width: 1536px;
+  @apply max-w-[1536px];
 }
 
-/* Region - Vertical spacing */
-.region {
-  padding-top: var(--space-8);
-  padding-bottom: var(--space-8);
-}
+/* ============================================================================
+   APP SHELL
+   ============================================================================
+   Main layout structure for the app.
+   ============================================================================ */
 
-.region--lg {
-  padding-top: var(--space-16);
-  padding-bottom: var(--space-16);
-}
-
-/* Mobile: Reduce region top spacing to match page-header gaps */
-@media (max-width: 640px) {
-  .region {
-    padding-top: var(--space-3);
-    padding-bottom: var(--space-6);
-  }
-}
-
-/* Stack - Vertical layout with consistent spacing */
-.stack {
-  display: flex;
-  flex-direction: column;
-}
-
-.stack > * + * {
-  margin-top: var(--space-4);
-}
-
-.stack--sm > * + * {
-  margin-top: var(--space-2);
-}
-
-.stack--lg > * + * {
-  margin-top: var(--space-8);
-}
-
-/* Flex utilities */
-.flex {
-  display: flex;
-}
-
-.flex-col {
-  flex-direction: column;
-}
-
-.flex-row {
-  flex-direction: row;
-}
-
-.items-center {
-  align-items: center;
-}
-
-.justify-between {
-  justify-content: space-between;
-}
-
-.justify-center {
-  justify-content: center;
-}
-
-.gap-2 { gap: var(--space-2); }
-.gap-3 { gap: var(--space-3); }
-.gap-4 { gap: var(--space-4); }
-.gap-6 { gap: var(--space-6); }
-.gap-8 { gap: var(--space-8); }
-
-/* Grid */
-.grid {
-  display: grid;
-}
-
-.grid-cols-2 {
-  grid-template-columns: repeat(2, 1fr);
-}
-
-.grid-cols-3 {
-  grid-template-columns: repeat(3, 1fr);
-}
-
-.grid-cols-4 {
-  grid-template-columns: repeat(4, 1fr);
-}
-
-/* Responsive grid */
-@media (max-width: 768px) {
-  .grid-cols-2,
-  .grid-cols-3,
-  .grid-cols-4 {
-    grid-template-columns: 1fr;
-  }
+.app-content {
+  @apply pt-6;
 }

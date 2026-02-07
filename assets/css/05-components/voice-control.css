@@ -1,60 +1,44 @@
-/**
- * Voice Control Panel Component
- *
- * Styles for voice-specific elements within the controller panel.
- * Uses shared .controller-panel styles for the panel chrome (header, body, collapse).
- */
+/* ============================================================================
+   VOICE CONTROL PANEL COMPONENT - Tailwind Migration
+   ============================================================================
+   Styles for voice-specific elements within the controller panel.
+   Uses shared .controller-panel styles for the panel chrome (header, body, collapse).
+   ============================================================================ */
 
 /* Voice control hint text in header */
 .voice-control-hint {
+  @apply text-text-tertiary italic mr-auto;
   font-size: 12px;
-  color: var(--color-text-tertiary);
-  font-style: italic;
-  margin-right: auto;
 }
 
 .voice-control-hint--hidden {
-  display: none;
+  @apply hidden;
 }
 
 /* Voice control actions in header */
 .voice-control-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-right: var(--space-2);
+  @apply flex items-center gap-2 mr-2;
 }
 
 /* Toggle Button */
 .voice-toggle-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  background: var(--color-primary);
-  color: var(--color-text-inverse);
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
+  @apply flex items-center gap-2 py-2 px-4 bg-primary text-text-inverse border-0 rounded-md text-sm font-medium cursor-pointer;
   line-height: 1;
-  cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .voice-toggle-btn:hover:not(:disabled) {
+  @apply shadow-md;
   background: var(--color-accent-blue-hover);
   transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
 }
 
 .voice-toggle-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  @apply opacity-50 cursor-not-allowed;
 }
 
 .voice-toggle-btn.active {
-  background: var(--color-accent-red);
+  @apply bg-accent-red;
 }
 
 .voice-toggle-btn.active:hover:not(:disabled) {
@@ -73,131 +57,102 @@
 
 /* Voice panel body uses side-by-side layout for mic selection and status */
 .voice-control-panel .controller-panel__body {
-  display: flex;
-  gap: 12px;
-  align-items: stretch;
+  @apply flex gap-3 items-stretch;
 }
 
 @media (max-width: 320px) {
   .voice-control-panel .controller-panel__body {
-    flex-direction: column;
+    @apply flex-col;
   }
 }
 
 /* Microphone Selection */
 .mic-selection {
+  @apply flex min-w-0;
   flex: 1 1 50%;
-  min-width: 0;
-  display: flex;
 }
 
 .mic-selection select {
-  width: 100%;
-  height: 100%;
-  padding: 6px 32px 6px 10px;
+  @apply w-full h-full py-1.5 px-2.5 bg-surface-primary text-text-primary text-sm cursor-pointer;
   border: 1px solid var(--color-border-primary);
   border-radius: 6px;
-  background: var(--color-surface-primary);
-  color: var(--color-text-primary);
-  font-size: 13px;
-  cursor: pointer;
-  transition: border-color 0.2s ease;
+  padding-right: 32px;
   appearance: none;
   -webkit-appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
+  transition: border-color 0.2s ease;
 }
 
 .mic-selection select:hover {
-  border-color: var(--color-primary);
+  @apply border-primary;
 }
 
 .mic-selection select:focus {
-  outline: none;
+  @apply outline-none;
   border-color: var(--color-border-focus);
   box-shadow: 0 0 0 3px var(--color-primary-50);
 }
 
 /* Status Indicator */
 .voice-status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: 6px;
-  transition: all 0.3s ease;
-  position: relative;
-  min-height: 34px;
+  @apply flex items-center gap-2 py-2 px-2.5 rounded-md relative min-h-[34px] min-w-0;
   flex: 1 1 50%;
-  min-width: 0;
+  transition: all 0.3s ease;
 }
 
 .status-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
+  @apply w-2.5 h-2.5 rounded-full shrink-0;
 }
 
 .status-text {
-  font-size: 14px;
-  font-weight: 500;
-  flex-grow: 1;
+  @apply text-sm font-medium flex-grow;
 }
 
 /* Waveform Visualizer */
 .voice-waveform {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  padding: 0 12px;
+  @apply absolute inset-0 hidden items-center justify-center px-3;
 }
 
 .voice-status.status-listening .voice-waveform {
-  display: flex;
+  @apply flex;
 }
 
 .voice-status.status-listening .status-dot,
 .voice-status.status-listening .status-text {
-  display: none;
+  @apply hidden;
 }
 
 .voice-waveform canvas {
-  width: 100%;
-  height: 100%;
+  @apply w-full h-full;
   image-rendering: -webkit-optimize-contrast;
   image-rendering: crisp-edges;
 }
 
 /* Status States */
 .voice-status.status-loading {
+  @apply text-accent-blue;
   background: rgba(59, 130, 246, 0.1);
-  color: var(--color-accent-blue);
 }
 
 .voice-status.status-loading .status-dot {
-  background: var(--color-accent-blue);
+  @apply bg-accent-blue;
   animation: pulse 1.5s ease-in-out infinite;
 }
 
 .voice-status.status-ready {
+  @apply text-accent-green;
   background: rgba(16, 185, 129, 0.1);
-  color: var(--color-accent-green);
 }
 
 .voice-status.status-ready .status-dot {
-  background: var(--color-accent-green);
+  @apply bg-accent-green;
 }
 
 .voice-status.status-listening {
-  background: rgba(245, 158, 11, 0.1);
   color: var(--color-accent-amber);
+  background: rgba(245, 158, 11, 0.1);
 }
 
 .voice-status.status-listening .status-dot {
@@ -206,53 +161,46 @@
 }
 
 .voice-status.status-processing {
+  @apply text-accent-blue;
   background: rgba(59, 130, 246, 0.1);
-  color: var(--color-accent-blue);
 }
 
 .voice-status.status-processing .status-dot {
-  background: var(--color-accent-blue);
+  @apply bg-accent-blue;
   animation: spin 1s linear infinite;
 }
 
 .voice-status.status-success {
+  @apply text-accent-green;
   background: rgba(16, 185, 129, 0.1);
-  color: var(--color-accent-green);
 }
 
 .voice-status.status-success .status-dot {
-  background: var(--color-accent-green);
+  @apply bg-accent-green;
   animation: bounce 0.5s ease;
 }
 
 .voice-status.status-error {
+  @apply text-accent-red;
   background: rgba(239, 68, 68, 0.1);
-  color: var(--color-accent-red);
 }
 
 .voice-status.status-error .status-dot {
-  background: var(--color-accent-red);
+  @apply bg-accent-red;
 }
 
 .voice-status.status-stopped {
-  background: var(--color-bg-secondary);
-  color: var(--color-text-tertiary);
+  @apply bg-bg-secondary text-text-tertiary;
 }
 
 .voice-status.status-stopped .status-dot {
-  background: var(--color-text-tertiary);
+  @apply bg-text-tertiary;
 }
 
 /* Transcript Display */
 .voice-transcript {
-  padding: 10px;
-  background: var(--color-bg-secondary);
-  border-radius: 6px;
+  @apply p-2.5 bg-bg-secondary rounded-md text-text-secondary min-h-[40px] font-mono leading-normal;
   font-size: 13px;
-  color: var(--color-text-secondary);
-  min-height: 40px;
-  font-family: var(--font-mono);
-  line-height: 1.5;
 }
 
 /* Animations */

@@ -1,77 +1,55 @@
-/**
- * Public Product Set Page
- *
- * Read-only public view for shared product sets.
- * Minimal header with product set name and brand.
- */
+/* ============================================================================
+   PUBLIC PRODUCT SET PAGE - Tailwind Migration
+   ============================================================================
+   Read-only public view for shared product sets.
+   Uses @apply for base styles while maintaining existing class API.
+   ============================================================================ */
 
 .public-product-set {
-  min-height: 100vh;
-  background: var(--color-bg-primary);
+  @apply min-h-screen bg-bg-primary;
 }
 
 .public-product-set__header {
-  text-align: center;
-  padding: var(--space-8) var(--space-4);
+  @apply text-center py-8 px-4 bg-bg-secondary;
   border-bottom: 1px solid var(--color-border);
-  background: var(--color-bg-secondary);
 }
 
 .public-product-set__title {
-  font-size: var(--text-2xl);
-  font-weight: var(--font-bold);
-  color: var(--color-text-primary);
-  margin: 0;
+  @apply text-2xl font-bold text-text-primary m-0;
 }
 
 .public-product-set__brand {
-  font-size: var(--text-sm);
-  color: var(--color-text-secondary);
-  margin: var(--space-2) 0 0 0;
-  text-transform: uppercase;
+  @apply text-sm text-text-secondary mt-2 uppercase;
+  margin-bottom: 0;
   letter-spacing: 0.05em;
 }
 
 .public-product-set__content {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: var(--space-6) var(--space-4);
+  @apply max-w-[1400px] mx-auto p-6 px-4;
 }
 
 /* Error state */
 .public-product-set--error {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
+  @apply flex items-center justify-center min-h-screen;
 }
 
 .public-product-set__error-container {
-  text-align: center;
-  padding: var(--space-8);
-  max-width: 400px;
+  @apply text-center p-8 max-w-[400px];
 }
 
 .public-product-set__error-container h1 {
-  font-size: var(--text-2xl);
-  font-weight: var(--font-bold);
-  color: var(--color-text-primary);
-  margin: 0 0 var(--space-4) 0;
+  @apply text-2xl font-bold text-text-primary m-0 mb-4;
 }
 
 .public-product-set__error-container p {
-  color: var(--color-text-secondary);
-  margin: 0;
+  @apply text-text-secondary m-0;
 }
 
 /* Share URL container (used in share modal) */
 .share-url-container {
-  display: flex;
-  gap: var(--space-2);
+  @apply flex gap-2;
 }
 
 .share-url-container__input {
-  flex: 1;
-  font-family: monospace;
-  font-size: var(--text-sm);
+  @apply flex-1 font-mono text-sm;
 }

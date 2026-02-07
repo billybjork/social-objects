@@ -1,70 +1,51 @@
 /* ============================================================================
-   TOAST COMPONENT
+   TOAST COMPONENT - Tailwind Migration
    ============================================================================
    Base toast container for positioning notifications.
    The actual content styling is in alert.css.
+   Uses @apply for base styles while maintaining existing class API.
    ============================================================================ */
 
 /* Toast container - holds all top-right flash messages */
 .toast-container {
-  position: fixed;
-  top: var(--space-4);
-  right: var(--space-4);
+  @apply fixed top-4 right-4 flex flex-col gap-3 max-w-[420px] pointer-events-none;
   z-index: var(--z-toast);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  max-width: 420px;
-  pointer-events: none;
 }
 
 /* Individual toast within container */
 .toast-container .toast {
-  position: relative;
+  @apply relative pointer-events-auto;
   top: auto;
   right: auto;
   left: auto;
   bottom: auto;
-  pointer-events: auto;
   animation: toastSlideIn 0.3s cubic-bezier(0.21, 1.02, 0.73, 1);
 }
 
 /* Standalone toast (not in container) - bottom-left positioning */
 .toast:not(.toast-container .toast) {
-  position: fixed;
+  @apply fixed pointer-events-auto;
   z-index: var(--z-toast);
-  pointer-events: auto;
 }
 
 /* Bottom-left positioning (default for progress toasts outside container) */
 .toast:not(.toast--top-end):not(.toast-container .toast) {
-  left: var(--space-6);
-  bottom: var(--space-6);
-  max-width: 500px;
+  @apply left-6 bottom-6 max-w-[500px];
   animation: slideInLeft 0.3s ease-out;
 }
 
 /* Top-right positioning (for standalone flash messages) */
 .toast.toast--top-end:not(.toast-container .toast) {
-  top: var(--space-4);
-  right: var(--space-4);
+  @apply top-4 right-4 max-w-[420px];
   left: auto;
   bottom: auto;
-  max-width: 420px;
   animation: toastSlideIn 0.3s cubic-bezier(0.21, 1.02, 0.73, 1);
 }
 
 /* Progress toast content (uses different structure than alerts) */
 .toast__content {
-  padding: var(--space-3) var(--space-4);
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  background-color: var(--color-surface-primary);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
+  @apply p-3 px-4 flex items-center gap-3 bg-surface-primary rounded-lg shadow-lg text-text-primary;
   border: 1px solid var(--color-border-secondary);
-  color: var(--color-text-primary);
 }
 
 .toast__content--info {
@@ -84,105 +65,37 @@
 }
 
 .toast__text {
-  flex: 1;
-  font-size: var(--text-sm);
+  @apply flex-1 text-sm;
 }
 
 .toast__title {
-  font-weight: var(--font-semibold);
-  margin-bottom: var(--space-1);
+  @apply font-semibold mb-1;
 }
 
 .toast__details {
-  font-size: var(--text-xs);
-  color: var(--color-text-secondary);
-  margin-top: var(--space-1);
+  @apply text-xs text-text-secondary mt-1;
 }
 
 /* Spinner Animation */
 .spinner {
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
+  @apply w-5 h-5 shrink-0;
 }
 
 .spinner--spinning {
   animation: spin 1s linear infinite;
 }
 
-/* Animations */
-@keyframes slideInLeft {
-  from {
-    opacity: 0;
-    transform: translateX(-100%);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes toastSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(-8px) scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-/* Fade transitions for JS.hide/show */
-.fade-in-scale {
-  animation: fadeInScale 0.2s ease-out;
-}
-
-.fade-out-scale {
-  animation: fadeOutScale 0.2s ease-out;
-}
-
-@keyframes fadeInScale {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes fadeOutScale {
-  from {
-    opacity: 1;
-    transform: scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-}
-
 /* Responsive */
 @media (max-width: 640px) {
   .toast-container {
-    top: var(--space-3);
-    right: var(--space-3);
-    left: var(--space-3);
-    max-width: none;
+    @apply top-3 right-3 left-3 max-w-none;
   }
 
   .toast:not(.toast--top-end):not(.toast-container .toast) {
-    left: var(--space-4);
-    right: var(--space-4);
-    max-width: none;
+    @apply left-4 right-4 max-w-none;
   }
 
   .toast.toast--top-end:not(.toast-container .toast) {
-    top: var(--space-3);
-    right: var(--space-3);
-    left: var(--space-3);
-    max-width: none;
+    @apply top-3 right-3 left-3 max-w-none;
   }
 }

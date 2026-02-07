@@ -1,224 +1,158 @@
 /* ============================================================================
-   ADMIN PAGES
+   ADMIN PAGES - Tailwind Migration
+   ============================================================================
+   Uses @apply for base styles while maintaining existing class API.
    ============================================================================ */
 
 /* Admin Page Layout */
 .admin-page {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: var(--space-6);
-  width: 100%;
+  @apply max-w-[1200px] mx-auto p-6 w-full;
 }
 
 .admin-page__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  margin-bottom: var(--space-6);
-  padding-bottom: var(--space-4);
+  @apply flex items-center justify-between gap-4 mb-6 pb-4;
   border-bottom: 1px solid var(--color-border-secondary);
 }
 
 .admin-page__title {
-  font-size: var(--text-2xl);
-  font-weight: var(--font-semibold);
-  color: var(--color-text-primary);
-  margin: 0;
+  @apply text-2xl font-semibold text-text-primary m-0;
 }
 
 .admin-page__actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
+  @apply flex items-center gap-3;
 }
 
 /* Admin Page Header */
 .admin-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  margin-bottom: var(--space-6);
-  padding-bottom: var(--space-4);
+  @apply flex items-center justify-between gap-4 mb-6 pb-4;
   border-bottom: 1px solid var(--color-border-secondary);
 }
 
 .admin-header__title {
-  font-size: var(--text-2xl);
-  font-weight: var(--font-semibold);
-  color: var(--color-text-primary);
-  margin: 0;
+  @apply text-2xl font-semibold text-text-primary m-0;
 }
 
 .admin-header__actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
+  @apply flex items-center gap-3;
 }
 
 /* Admin Body */
 .admin-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
+  @apply flex flex-col gap-6;
 }
 
 /* Stat Cards */
 .stat-cards {
-  display: grid;
+  @apply grid gap-4;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: var(--space-4);
 }
 
 .stat-card {
-  background: var(--color-surface-primary);
+  @apply bg-surface-primary p-5 flex flex-col gap-1;
   border: 1px solid var(--color-border-secondary);
   border-radius: var(--radius-lg);
-  padding: var(--space-5);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
   transition: all var(--transition-base);
 }
 
 .stat-card:hover {
+  @apply shadow-sm;
   border-color: var(--color-border-primary);
-  box-shadow: var(--shadow-sm);
 }
 
 .stat-card__value {
-  font-size: var(--text-3xl);
-  font-weight: var(--font-bold);
-  color: var(--color-text-primary);
+  @apply text-3xl font-bold text-text-primary;
   line-height: 1;
 }
 
 .stat-card__label {
-  font-size: var(--text-sm);
-  color: var(--color-text-secondary);
-  margin-top: var(--space-1);
+  @apply text-sm text-text-secondary mt-1;
 }
 
 .stat-card__link {
-  font-size: var(--text-sm);
-  color: var(--color-accent-blue);
-  text-decoration: none;
-  margin-top: var(--space-3);
-  font-weight: var(--font-medium);
+  @apply text-sm text-accent-blue no-underline mt-3 font-medium;
 }
 
 .stat-card__link:hover {
-  text-decoration: underline;
+  @apply underline;
 }
 
 /* Admin Panel - card container for sections */
 .admin-panel {
-  background: var(--color-surface-primary);
+  @apply bg-surface-primary overflow-hidden;
   border: 1px solid var(--color-border-secondary);
   border-radius: var(--radius-lg);
-  overflow: hidden;
 }
 
 .admin-panel__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-4) var(--space-5);
+  @apply flex items-center justify-between py-4 px-5 bg-surface-secondary;
   border-bottom: 1px solid var(--color-border-secondary);
-  background: var(--color-surface-secondary);
 }
 
 .admin-panel__title {
-  font-size: var(--text-base);
-  font-weight: var(--font-semibold);
-  color: var(--color-text-primary);
-  margin: 0;
+  @apply text-base font-semibold text-text-primary m-0;
 }
 
 .admin-panel__body {
-  padding: var(--space-5);
+  @apply p-5;
 }
 
 .admin-panel__body--flush {
-  padding: 0;
+  @apply p-0;
 }
 
 /* Admin Table */
 .admin-table {
-  width: 100%;
+  @apply w-full;
   border-collapse: collapse;
 }
 
 .admin-table th,
 .admin-table td {
-  padding: var(--space-3) var(--space-4);
-  text-align: left;
+  @apply py-3 px-4 text-left;
   border-bottom: 1px solid var(--color-border-secondary);
 }
 
 .admin-table th {
-  background: var(--color-surface-secondary);
-  font-weight: var(--font-semibold);
-  font-size: var(--text-xs);
-  color: var(--color-text-secondary);
-  text-transform: uppercase;
+  @apply bg-surface-secondary font-semibold text-xs text-text-secondary uppercase;
   letter-spacing: 0.05em;
 }
 
 .admin-table td {
-  font-size: var(--text-sm);
-  color: var(--color-text-primary);
-  vertical-align: middle;
+  @apply text-sm text-text-primary align-middle;
 }
 
 .admin-table tbody tr:last-child td {
-  border-bottom: none;
+  @apply border-b-0;
 }
 
 .admin-table tbody tr:hover td {
-  background: var(--color-bg-hover);
+  @apply bg-bg-hover;
 }
 
 .admin-table__actions {
-  display: flex;
-  gap: var(--space-2);
-  justify-content: flex-end;
+  @apply flex gap-2 justify-end;
 }
 
 .admin-table__empty {
-  text-align: center;
-  color: var(--color-text-secondary);
-  padding: var(--space-8) var(--space-4) !important;
+  @apply text-center text-text-secondary p-8;
 }
 
 .admin-table code {
-  font-size: var(--text-xs);
-  padding: var(--space-1) var(--space-2);
-  background: var(--color-surface-secondary);
-  border-radius: var(--radius-sm);
-  color: var(--color-text-secondary);
+  @apply text-xs py-1 px-2 bg-surface-secondary rounded-sm text-text-secondary;
 }
 
 /* Badge */
 .badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px var(--space-2);
-  font-size: var(--text-xs);
-  font-weight: var(--font-medium);
-  border-radius: var(--radius-full);
-  text-transform: capitalize;
+  @apply inline-flex items-center py-0.5 px-2 text-xs font-medium rounded-full capitalize;
 }
 
 .badge--default {
-  background: var(--color-surface-secondary);
-  color: var(--color-text-secondary);
+  @apply bg-surface-secondary text-text-secondary;
 }
 
 .badge--success {
+  @apply text-accent-green;
   background: color-mix(in srgb, var(--color-accent-green) 15%, transparent);
-  color: var(--color-accent-green);
 }
 
 .badge--warning {
@@ -227,107 +161,85 @@
 }
 
 .badge--danger {
+  @apply text-accent-red;
   background: color-mix(in srgb, var(--color-accent-red) 15%, transparent);
-  color: var(--color-accent-red);
 }
 
 .badge--primary {
+  @apply text-accent-blue;
   background: color-mix(in srgb, var(--color-accent-blue) 15%, transparent);
-  color: var(--color-accent-blue);
 }
 
 /* Quick Actions */
 .quick-actions {
-  display: flex;
-  gap: var(--space-3);
-  flex-wrap: wrap;
+  @apply flex gap-3 flex-wrap;
 }
 
 /* Admin Form */
 .admin-form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
+  @apply flex flex-col gap-4;
 }
 
 .admin-form__row {
-  display: flex;
-  gap: var(--space-4);
-  align-items: flex-end;
-  flex-wrap: wrap;
+  @apply flex gap-4 items-end flex-wrap;
 }
 
 .admin-form__row > * {
-  flex: 1;
-  min-width: 150px;
+  @apply flex-1 min-w-[150px];
 }
 
 .admin-form__actions {
-  display: flex;
-  gap: var(--space-3);
-  justify-content: flex-end;
-  padding-top: var(--space-4);
+  @apply flex gap-3 justify-end pt-4 mt-2;
   border-top: 1px solid var(--color-border-secondary);
-  margin-top: var(--space-2);
 }
 
 /* Admin User Detail */
 .admin-detail {
-  display: grid;
-  gap: var(--space-6);
+  @apply grid gap-6;
 }
 
 .admin-detail__grid {
-  display: grid;
+  @apply grid gap-6;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: var(--space-6);
 }
 
 .admin-detail__field {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--space-3) 0;
+  @apply flex justify-between items-center py-3;
   border-bottom: 1px solid var(--color-border-secondary);
 }
 
 .admin-detail__field:last-child {
-  border-bottom: none;
+  @apply border-b-0;
 }
 
 .admin-detail__label {
-  font-size: var(--text-sm);
-  color: var(--color-text-secondary);
+  @apply text-sm text-text-secondary;
 }
 
 .admin-detail__value {
-  font-size: var(--text-sm);
-  color: var(--color-text-primary);
-  font-weight: var(--font-medium);
+  @apply text-sm text-text-primary font-medium;
 }
 
 /* Responsive */
 @media (max-width: 768px) {
   .admin-main {
-    padding: var(--space-4);
+    @apply p-4;
   }
 
   .admin-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--space-3);
+    @apply flex-col items-start gap-3;
   }
 
   .stat-cards {
-    grid-template-columns: 1fr;
+    @apply grid-cols-1;
   }
 
   .admin-table {
-    font-size: var(--text-xs);
+    @apply text-xs;
   }
 
   .admin-table th,
   .admin-table td {
-    padding: var(--space-2) var(--space-3);
+    @apply py-2 px-3;
   }
 }

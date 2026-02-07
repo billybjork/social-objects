@@ -1,152 +1,119 @@
 /* ============================================================================
-   AUTH PAGES LAYOUT
+   AUTH PAGES LAYOUT - Tailwind Migration
    ============================================================================
    Shared styles for login, confirmation, and other auth pages.
+   Uses @apply for base styles while maintaining existing class API.
    ============================================================================ */
 
 /* Auth page shell - fullscreen centered layout without navbar */
 .auth-page {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--color-bg-primary);
-  padding: var(--space-4);
+  @apply min-h-screen flex items-center justify-center bg-bg-primary p-4;
 }
 
 /* Auth card - centered container for auth content */
 .auth-card {
-  width: 100%;
-  max-width: 400px;
-  padding: var(--space-8);
-  background-color: var(--color-surface-primary);
+  @apply w-full max-w-[400px] p-8 bg-surface-primary shadow-xl;
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-xl);
 }
 
 .auth-card__logo {
-  display: flex;
-  justify-content: center;
-  margin-bottom: var(--space-6);
+  @apply flex justify-center mb-6;
 }
 
 .auth-card__logo img {
-  height: 48px;
-  width: 48px;
+  @apply h-12 w-12;
 }
 
 .auth-card__logo--light {
-  display: block;
+  @apply block;
 }
 
 .auth-card__logo--dark {
-  display: none;
+  @apply hidden;
 }
 
 .dark .auth-card__logo--light {
-  display: none;
+  @apply hidden;
 }
 
 .dark .auth-card__logo--dark {
-  display: block;
+  @apply block;
 }
 
 /* Auth header */
 .auth-header {
-  text-align: center;
-  margin-bottom: var(--space-6);
+  @apply text-center mb-6;
 }
 
 .auth-title {
-  font-size: var(--text-2xl);
-  font-weight: var(--font-bold);
-  color: var(--color-text-primary);
-  margin-bottom: var(--space-2);
+  @apply text-2xl font-bold text-text-primary mb-2;
 }
 
 .auth-subtitle {
-  color: var(--color-text-secondary);
-  font-size: var(--text-sm);
-  line-height: var(--leading-relaxed);
+  @apply text-text-secondary text-sm leading-relaxed;
 }
 
 /* Auth form */
 .auth-form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
+  @apply flex flex-col gap-4;
 }
 
 .auth-form .fieldset {
-  margin-bottom: 0;
+  @apply mb-0;
 }
 
 /* Auth button - full width variant */
 .auth-form .button {
-  width: 100%;
-  justify-content: center;
+  @apply w-full justify-center;
 }
 
 /* Auth button stack - multiple buttons with spacing */
 .auth-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  margin-top: var(--space-2);
+  @apply flex flex-col gap-3 mt-2;
 }
 
 .auth-buttons .button {
-  width: 100%;
-  justify-content: center;
+  @apply w-full justify-center;
 }
 
 /* Soft/secondary button variant for auth pages */
 .button--soft {
-  background-color: var(--color-bg-hover);
-  color: var(--color-text-primary);
+  @apply bg-bg-hover text-text-primary;
   border: 1px solid var(--color-border-primary);
 }
 
 .button--soft:hover:not(:disabled) {
-  background-color: var(--color-surface-secondary);
+  @apply bg-surface-secondary;
   border-color: var(--color-border-focus);
 }
 
 /* Auth info box - for dev mode notices, etc. */
 .auth-info {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  margin-bottom: var(--space-4);
+  @apply flex items-start gap-3 p-4 mb-4 text-accent-blue text-sm rounded-lg;
   background-color: rgba(59, 130, 246, 0.1);
   border: 1px solid var(--color-accent-blue);
-  border-radius: var(--radius-lg);
-  color: var(--color-accent-blue);
-  font-size: var(--text-sm);
 }
 
 .auth-info .icon,
-.auth-info [class^="hero-"] {
-  flex-shrink: 0;
-  color: var(--color-accent-blue);
+.auth-info [class^="hero-"],
+.auth-info svg {
+  @apply shrink-0 w-5 h-5 text-accent-blue;
 }
 
 .auth-info__content {
-  flex: 1;
+  @apply flex-1;
 }
 
 .auth-info__content p {
-  margin: 0;
+  @apply m-0;
 }
 
 .auth-info__content p + p {
-  margin-top: var(--space-2);
+  @apply mt-2;
 }
 
 .auth-info__content a {
-  color: var(--color-accent-blue);
-  text-decoration: underline;
+  @apply text-accent-blue underline;
 }
 
 .auth-info__content a:hover {
@@ -155,55 +122,40 @@
 
 /* Auth footer */
 .auth-footer {
-  margin-top: var(--space-6);
-  text-align: center;
-  font-size: var(--text-sm);
-  color: var(--color-text-tertiary);
+  @apply mt-6 text-center text-sm text-text-tertiary;
 }
 
 .auth-footer a {
-  color: var(--color-accent-blue);
-  text-decoration: none;
+  @apply text-accent-blue no-underline;
 }
 
 .auth-footer a:hover {
-  text-decoration: underline;
+  @apply underline;
 }
 
 /* Auth divider */
 .auth-divider {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  margin: var(--space-4) 0;
-  color: var(--color-text-tertiary);
-  font-size: var(--text-sm);
+  @apply flex items-center gap-4 my-4 text-text-tertiary text-sm;
 }
 
 .auth-divider::before,
 .auth-divider::after {
   content: "";
-  flex: 1;
-  height: 1px;
-  background-color: var(--color-border-secondary);
+  @apply flex-1 h-px bg-border-secondary;
 }
 
 /* Welcome message for confirmation page */
 .auth-welcome {
-  text-align: center;
-  margin-bottom: var(--space-6);
+  @apply text-center mb-6;
 }
 
 .auth-welcome__email {
-  font-weight: var(--font-semibold);
-  color: var(--color-text-primary);
-  word-break: break-all;
+  @apply font-semibold text-text-primary break-all;
 }
 
 /* Loading state on buttons */
 .auth-form .button[disabled] {
-  opacity: 0.7;
-  cursor: wait;
+  @apply opacity-70 cursor-wait;
 }
 
 /* Dark mode adjustments */
@@ -214,18 +166,15 @@
 /* Responsive */
 @media (max-width: 640px) {
   .auth-page {
-    padding: var(--space-4);
-    align-items: flex-start;
-    padding-top: var(--space-12);
+    @apply p-4 items-start pt-12;
   }
 
   .auth-card {
-    padding: var(--space-6);
-    box-shadow: var(--shadow-lg);
+    @apply p-6 shadow-lg;
   }
 
   .auth-title {
-    font-size: var(--text-xl);
+    @apply text-xl;
   }
 }
 
@@ -234,19 +183,10 @@
    ============================================================================ */
 
 .login-page {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--color-bg-primary);
-  padding: var(--space-4);
+  @apply min-h-screen flex items-center justify-center bg-bg-primary p-4;
 }
 
 .login-card {
-  width: 100%;
-  max-width: 400px;
-  padding: var(--space-8);
-  background-color: var(--color-surface-primary);
+  @apply w-full max-w-[400px] p-8 bg-surface-primary shadow-xl;
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-xl);
 }

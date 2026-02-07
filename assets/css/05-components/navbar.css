@@ -1,436 +1,332 @@
 /* ============================================================================
-   NAVBAR COMPONENT
+   NAVBAR COMPONENT - Tailwind Migration
+   ============================================================================
+   Uses @apply for base styles while maintaining existing class API.
    ============================================================================ */
 
 .navbar {
-  position: sticky;
-  top: 0;
+  @apply sticky top-0 flex items-center gap-6;
+  @apply min-h-[80px] py-4 px-6;
+  @apply bg-surface-primary border-b border-border-secondary shadow-sm;
   z-index: var(--z-sticky);
-  display: flex;
-  align-items: center;
-  gap: var(--space-6);
-  min-height: 80px;
-  padding: var(--space-4) var(--space-6);
-  background-color: var(--color-surface-primary);
-  border-bottom: 1px solid var(--color-border-secondary);
-  box-shadow: var(--shadow-sm);
 }
 
 .navbar__start {
-  display: flex;
-  align-items: center;
-  gap: var(--space-6);
+  @apply flex items-center gap-6;
 }
 
+/* ============================================================================
+   BRAND SWITCHER
+   ============================================================================ */
+
 .navbar__brand-switcher {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
+  @apply relative flex items-center gap-2;
 }
 
 .brand-switcher__label {
-  font-size: var(--text-sm);
-  font-weight: var(--font-semibold);
-  color: var(--color-text-primary);
-  white-space: nowrap;
+  @apply text-sm font-semibold text-text-primary whitespace-nowrap;
 }
 
 .brand-switcher__toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-1) var(--space-2);
-  border: 1px solid var(--color-border-secondary);
-  border-radius: var(--radius-md);
-  background-color: var(--color-surface-primary);
-  color: var(--color-text-primary);
-  font-size: var(--text-sm);
-  cursor: pointer;
+  @apply inline-flex items-center gap-2 py-1 px-2;
+  @apply border border-border-secondary rounded-md;
+  @apply bg-surface-primary text-text-primary text-sm cursor-pointer;
   transition: all var(--transition-base);
 }
 
 .brand-switcher__toggle:hover {
-  background-color: var(--color-bg-hover);
-  border-color: var(--color-border-primary);
+  @apply bg-bg-hover border-border-primary;
 }
 
 .brand-switcher__menu {
-  display: none;
-  position: absolute;
-  top: calc(100% + var(--space-2));
+  @apply hidden absolute flex-col items-stretch gap-1 p-2;
+  @apply min-w-[200px];
+  @apply bg-surface-primary border border-border-secondary rounded-md;
+  top: calc(100% + var(--spacing-2));
   left: 0;
-  min-width: 200px;
-  flex-direction: column;
-  align-items: stretch;
-  gap: var(--space-1);
-  padding: var(--space-2);
-  background-color: var(--color-surface-primary);
-  border: 1px solid var(--color-border-secondary);
-  border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
   z-index: var(--z-dropdown);
 }
 
-/* Invisible bridge to maintain hover when moving from toggle to menu */
 .brand-switcher__menu::before {
   content: "";
-  position: absolute;
-  top: calc(-1 * var(--space-2));
-  left: 0;
-  right: 0;
-  height: var(--space-2);
+  @apply absolute left-0 right-0;
+  top: calc(-1 * var(--spacing-2));
+  height: var(--spacing-2);
 }
 
-/* Hover to open - only on devices that support hover (not touch) */
 @media (hover: hover) {
   .navbar__brand-switcher:hover .brand-switcher__menu {
-    /* !important overrides any inline display styles from JS toggle */
     display: flex !important;
   }
 }
 
 .brand-switcher__item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-md);
-  text-decoration: none;
-  color: var(--color-text-primary);
-  font-size: var(--text-sm);
+  @apply flex items-center justify-between gap-2 py-2 px-3;
+  @apply rounded-md no-underline text-text-primary text-sm;
 }
 
 .brand-switcher__item:hover {
-  background-color: var(--color-bg-hover);
-  color: var(--color-text-primary);
+  @apply bg-bg-hover text-text-primary;
 }
 
 .brand-switcher__item--active {
-  background-color: var(--color-bg-hover);
-  font-weight: var(--font-semibold);
+  @apply bg-bg-hover font-semibold;
 }
+
+/* ============================================================================
+   NAVBAR END
+   ============================================================================ */
 
 .navbar__end {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  margin-left: auto;
+  @apply flex items-center gap-4 ml-auto;
 }
 
+/* ============================================================================
+   NAVBAR BRAND
+   ============================================================================ */
+
 .navbar__brand {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  font-size: var(--text-lg);
-  font-weight: var(--font-semibold);
-  color: var(--color-text-primary);
-  text-decoration: none;
+  @apply flex items-center gap-3 text-lg font-semibold text-text-primary no-underline;
 }
 
 .navbar__logo {
-  height: 36px;
-  width: 36px;
-  flex-shrink: 0;
+  @apply h-9 w-9 shrink-0;
 }
 
 .navbar__logo--light {
-  display: block;
+  @apply block;
 }
 
 .navbar__logo--dark {
-  display: none;
+  @apply hidden;
 }
 
 .dark .navbar__logo--light {
-  display: none;
+  @apply hidden;
 }
 
 .dark .navbar__logo--dark {
-  display: block;
+  @apply block;
 }
 
 .navbar__badge {
-  display: inline-flex;
-  align-items: center;
-  padding: var(--space-1) var(--space-2);
-  font-size: var(--text-xs);
-  font-weight: var(--font-semibold);
+  @apply inline-flex items-center py-1 px-2;
+  @apply text-xs font-semibold rounded-md;
   color: var(--color-text-on-primary);
   background: linear-gradient(135deg, var(--color-accent-blue) 0%, var(--color-accent-purple) 100%);
-  border-radius: var(--radius-md);
   letter-spacing: 0.02em;
-  text-transform: uppercase;
+  @apply uppercase;
 }
 
+/* ============================================================================
+   NAVBAR NAV
+   ============================================================================ */
+
 .navbar__nav {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  list-style: none;
-  margin: 0;
-  padding: 0;
+  @apply absolute left-1/2 -translate-x-1/2 flex items-center gap-4;
+  @apply list-none m-0 p-0;
 }
 
 .navbar__link {
-  padding: var(--space-2) var(--space-3);
-  color: var(--color-text-secondary);
-  text-decoration: none;
-  font-size: var(--text-sm);
-  font-weight: var(--font-medium);
-  border-radius: var(--radius-md);
+  @apply py-2 px-3 text-text-secondary no-underline text-sm font-medium rounded-md whitespace-nowrap;
   transition: all var(--transition-fast);
-  white-space: nowrap;
 }
 
 .navbar__link:hover {
-  color: var(--color-text-primary);
-  background-color: var(--color-bg-hover);
+  @apply text-text-primary bg-bg-hover;
 }
 
 .navbar__link--active {
-  color: var(--color-accent-blue);
-  background-color: var(--color-bg-hover);
+  @apply text-accent-blue bg-bg-hover;
 }
 
+/* ============================================================================
+   SYNC GROUP
+   ============================================================================ */
+
 .navbar__sync-group {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-1);
+  @apply flex flex-col items-center gap-1;
 }
 
 .navbar__sync-meta {
-  color: var(--color-text-secondary);
+  @apply text-text-secondary font-normal whitespace-nowrap;
   font-size: 11px;
-  font-weight: var(--font-normal);
-  white-space: nowrap;
 }
 
-/* Menu container - wrapper for trigger + dropdown */
+/* ============================================================================
+   MENU CONTAINER
+   ============================================================================ */
+
 .navbar__menu-container {
-  position: relative;
+  @apply relative;
 }
 
-/* Menu trigger button - always visible */
 .navbar__menu-trigger {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  background-color: transparent;
-  border: 1px solid var(--color-border-secondary);
-  border-radius: var(--radius-md);
-  color: var(--color-text-secondary);
+  @apply flex items-center justify-center w-9 h-9 p-0;
+  @apply bg-transparent border border-border-secondary rounded-md;
+  @apply text-text-secondary font-bold cursor-pointer;
   font-size: 20px;
-  font-weight: var(--font-bold);
-  cursor: pointer;
   transition: all var(--transition-base);
 }
 
 .navbar__menu-trigger:hover {
-  background-color: var(--color-bg-hover);
-  border-color: var(--color-border-primary);
-  color: var(--color-text-primary);
+  @apply bg-bg-hover border-border-primary text-text-primary;
 }
 
-/* Profile link - user icon button */
+/* ============================================================================
+   PROFILE LINK
+   ============================================================================ */
+
 .navbar__profile-link {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  background-color: transparent;
-  border: 1px solid var(--color-border-secondary);
-  border-radius: var(--radius-md);
-  color: var(--color-text-secondary);
-  cursor: pointer;
+  @apply flex items-center justify-center w-9 h-9 p-0;
+  @apply bg-transparent border border-border-secondary rounded-md;
+  @apply text-text-secondary cursor-pointer;
   transition: all var(--transition-base);
 }
 
 .navbar__profile-link:hover {
-  background-color: var(--color-bg-hover);
-  border-color: var(--color-border-primary);
-  color: var(--color-text-primary);
+  @apply bg-bg-hover border-border-primary text-text-primary;
 }
 
-/* Collapsible menu - dropdown style, hidden by default */
+/* ============================================================================
+   COLLAPSIBLE MENU
+   ============================================================================ */
+
 .navbar__menu {
-  display: none;
-  position: absolute;
-  right: 0;
-  top: calc(100% + var(--space-2));
-  min-width: 200px;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 0;
-  padding: var(--space-4) var(--space-3);
-  background-color: var(--color-surface-primary);
-  border: 1px solid var(--color-border-secondary);
-  border-radius: var(--radius-md);
+  @apply hidden absolute right-0 flex-col items-stretch gap-0;
+  @apply min-w-[200px] p-4 px-3;
+  @apply bg-surface-primary border border-border-secondary rounded-md;
+  top: calc(100% + var(--spacing-2));
   box-shadow: var(--shadow-lg);
   z-index: var(--z-dropdown);
 }
 
-/* Invisible bridge to maintain hover when moving from trigger to menu */
 .navbar__menu::before {
   content: "";
-  position: absolute;
-  top: calc(-1 * var(--space-2));
-  left: 0;
-  right: 0;
-  height: var(--space-2);
+  @apply absolute left-0 right-0;
+  top: calc(-1 * var(--spacing-2));
+  height: var(--spacing-2);
 }
 
-/* Hover to open - only on devices that support hover (not touch) */
 @media (hover: hover) {
   .navbar__menu-container:hover .navbar__menu {
-    /* !important overrides any inline display styles from JS toggle */
     display: flex !important;
   }
 }
 
 .navbar__menu .navbar__sync-group {
-  align-items: center;
-  margin-bottom: var(--space-2);
+  @apply items-center mb-2;
 }
 
 .navbar__menu .navbar__sync-group:last-of-type {
-  margin-bottom: 0;
+  @apply mb-0;
 }
 
 .navbar__menu .button {
-  justify-content: center;
+  @apply justify-center;
 }
 
 .navbar__menu .navbar__sync-meta {
-  padding: 0;
-  margin-top: var(--space-1);
+  @apply p-0 mt-1 text-center;
   font-size: 11px;
-  opacity: 0.7;
-  text-align: center;
+  @apply opacity-70;
 }
 
 .navbar__menu .theme-toggle {
-  align-self: center;
+  @apply self-center;
 }
+
+/* ============================================================================
+   MENU SECTIONS
+   ============================================================================ */
 
 .navbar__menu-section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-4) 0;
-  border-top: 1px solid var(--color-border-secondary);
+  @apply flex flex-col gap-2 py-4 border-t border-border-secondary;
 }
 
-/* First child section: no top border when nothing appears above it */
 .navbar__menu-section:first-child {
-  border-top: none;
-  padding-top: 0;
+  @apply border-t-0 pt-0;
 }
 
-/* Last section: no bottom padding to avoid double spacing with menu padding */
 .navbar__menu-section:last-of-type {
-  padding-bottom: var(--space-2);
+  @apply pb-2;
 }
 
 .navbar__menu-label {
+  @apply py-1 px-2 mb-1 text-text-tertiary uppercase;
   font-size: 11px;
-  text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--color-text-tertiary);
-  padding: var(--space-1) var(--space-2);
-  margin-bottom: var(--space-1);
 }
 
 .navbar__menu-user {
-  font-size: var(--text-sm);
-  color: var(--color-text-primary);
-  font-weight: var(--font-medium);
-  padding: var(--space-1) var(--space-2);
+  @apply text-sm text-text-primary font-medium py-1 px-2;
   word-break: break-all;
 }
 
 .navbar__menu-link {
-  display: block;
-  padding: var(--space-2);
-  border-radius: var(--radius-md);
-  text-decoration: none;
-  color: var(--color-text-secondary);
-  font-size: var(--text-sm);
+  @apply block p-2 rounded-md no-underline text-text-secondary text-sm;
   transition: all var(--transition-fast);
 }
 
 .navbar__menu-link:hover {
-  color: var(--color-text-primary);
-  background-color: var(--color-bg-hover);
+  @apply text-text-primary bg-bg-hover;
 }
 
 .navbar__menu-link:active {
-  background-color: var(--color-surface-secondary);
+  @apply bg-surface-secondary;
 }
 
-/* Capture form in navbar menu */
+/* ============================================================================
+   CAPTURE FORM
+   ============================================================================ */
+
 .navbar__capture-form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-2) 0;
+  @apply flex flex-col gap-2 py-2;
 }
 
 .navbar__capture-form .input {
-  width: 100%;
+  @apply w-full;
 }
 
 .navbar__capture-error {
-  color: var(--color-accent-red);
-  font-size: var(--text-xs);
+  @apply text-accent-red text-xs;
 }
 
-/* Mobile responsive - tighter spacing for narrower viewports */
+/* ============================================================================
+   MOBILE RESPONSIVE
+   ============================================================================ */
+
 @media (max-width: 768px) {
   .navbar {
-    gap: var(--space-4);
-    min-height: 64px;
-    padding: var(--space-3) var(--space-4);
+    @apply gap-4 min-h-[64px] py-3 px-4;
   }
 
   .navbar__start {
-    gap: var(--space-3);
+    @apply gap-3;
   }
 
   .navbar__brand {
-    font-size: var(--text-base);
-    gap: var(--space-2);
+    @apply text-base gap-2;
   }
 
   .brand-switcher__label {
-    font-size: var(--text-xs);
+    @apply text-xs;
   }
 
   .navbar__logo {
-    height: 28px;
-    width: 28px;
+    @apply h-7 w-7;
   }
 
   .navbar__nav {
-    gap: var(--space-2);
+    @apply gap-2;
   }
 
   .navbar__link {
-    padding: var(--space-1) var(--space-2);
-    font-size: var(--text-xs);
+    @apply py-1 px-2 text-xs;
   }
 
   .navbar__end {
-    gap: var(--space-2);
+    @apply gap-2;
   }
 }

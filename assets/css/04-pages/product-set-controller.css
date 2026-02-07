@@ -1,21 +1,18 @@
 /* ============================================================================
-   PRODUCT SET CONTROLLER VIEW
-   Mobile-optimized remote control for product set management
+   PRODUCT SET CONTROLLER VIEW - Tailwind Migration
+   ============================================================================
+   Mobile-optimized remote control for product set management.
+   Uses @apply for base styles while maintaining existing class API.
    ============================================================================ */
 
 /* ==========================================================================
    MAIN CONTAINER
-   Full viewport, vertical flex layout
    ========================================================================== */
 
 .controller-container {
+  @apply flex flex-col bg-bg-primary overflow-hidden;
   height: 100vh;
-  height: 100dvh; /* Dynamic viewport height (iOS safe) */
-  display: flex;
-  flex-direction: column;
-  background-color: var(--color-bg-primary);
-  overflow: hidden;
-  /* Safe area insets for notched devices */
+  height: 100dvh;
   padding-top: env(safe-area-inset-top);
   padding-right: env(safe-area-inset-right);
   padding-bottom: env(safe-area-inset-bottom);
@@ -27,114 +24,88 @@
    ========================================================================== */
 
 .controller-panel {
+  @apply shrink-0;
   background-color: var(--color-panel-bg);
   border: 1px solid var(--color-panel-border);
   border-left: none;
   border-right: none;
-  flex-shrink: 0;
 }
 
 .controller-panel__header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  background: transparent;
-  border: none;
-  width: 100%;
-  cursor: pointer;
-  user-select: none;
-  -webkit-tap-highlight-color: transparent;
+  @apply flex items-center gap-3 py-3 px-4 bg-transparent border-none w-full cursor-pointer select-none text-left;
   color: inherit;
   font-family: inherit;
-  text-align: left;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .controller-panel__header:active {
-  background-color: var(--color-bg-hover);
+  @apply bg-bg-hover;
 }
 
 .controller-panel__title {
-  flex: 1;
-  font-size: var(--text-sm);
-  font-weight: var(--font-semibold);
-  color: var(--color-text-primary);
+  @apply flex-1 text-sm font-semibold text-text-primary;
 }
 
 .controller-panel__chevron {
-  width: 20px;
-  height: 20px;
-  color: var(--color-text-tertiary);
+  @apply w-5 h-5 text-text-tertiary;
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Collapsed state */
 .controller-panel--collapsed .controller-panel__chevron {
   transform: rotate(180deg);
 }
 
 .controller-panel__body {
-  padding: 0 var(--space-4) var(--space-4);
-  max-height: 300px;
-  overflow: hidden;
-  opacity: 1;
+  @apply px-4 pb-4 max-h-[300px] overflow-hidden opacity-100;
+  padding-top: 0;
   transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
               opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
               padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .controller-panel--collapsed .controller-panel__body {
-  max-height: 0;
-  opacity: 0;
-  padding-top: 0;
-  padding-bottom: 0;
+  @apply max-h-0 opacity-0 p-0;
 }
 
 /* ==========================================================================
    MESSAGE PANEL
    ========================================================================== */
 
-/* Message Preview (shown in collapsed header when message is active) */
 .message-preview {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 6px 4px 10px;
+  @apply flex items-center gap-1.5 py-1 px-1.5 pl-2.5 max-w-[200px];
   border-radius: 12px;
-  max-width: 200px;
 }
 
 .message-preview__text {
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 1.2;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
+  @apply text-[11px] font-medium leading-tight overflow-hidden text-ellipsis whitespace-nowrap min-w-0;
 }
 
-/* Color variants for preview (matches host-message-banner colors in host-message.css) */
+/* Color variants for preview */
 .message-preview--amber {
   background-color: var(--color-accent-amber);
   color: #000;
 }
+
 .message-preview--blue {
   background-color: var(--color-accent-blue);
   color: #fff;
 }
+
 .message-preview--green {
   background-color: var(--color-accent-green);
   color: #fff;
 }
+
 .message-preview--red {
   background-color: var(--color-accent-red);
   color: #fff;
 }
+
 .message-preview--purple {
   background-color: var(--color-accent-purple);
   color: #fff;
 }
+
 .message-preview--gray {
   background-color: var(--color-text-secondary);
   color: #fff;
@@ -142,27 +113,16 @@
 
 /* Clear button inside preview bubble */
 .message-preview__clear {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  padding: 0;
+  @apply flex items-center justify-center w-4 h-4 p-0 border-none text-sm leading-none cursor-pointer shrink-0 opacity-80;
   background: rgba(0, 0, 0, 0.2);
-  border: none;
   border-radius: var(--radius-full);
   color: inherit;
-  font-size: 14px;
-  line-height: 1;
-  cursor: pointer;
   transition: background var(--transition-fast);
-  flex-shrink: 0;
-  opacity: 0.8;
 }
 
 .message-preview__clear:hover {
+  @apply opacity-100;
   background: rgba(0, 0, 0, 0.35);
-  opacity: 1;
 }
 
 .message-preview__clear:active {
@@ -170,56 +130,40 @@
 }
 
 .controller-message-form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
+  @apply flex flex-col gap-3;
 }
 
 .controller-message-input {
-  width: 100%;
-  padding: var(--space-3);
-  background-color: var(--color-surface-secondary);
+  @apply w-full p-3 bg-surface-secondary text-text-primary text-base resize-none min-h-[60px];
   border: 1px solid var(--color-border-primary);
   border-radius: var(--radius-md);
-  color: var(--color-text-primary);
-  font-size: var(--text-base);
   font-family: inherit;
-  resize: none;
-  min-height: 60px;
   transition: border-color var(--transition-fast);
 }
 
 .controller-message-input:focus {
-  outline: none;
+  @apply outline-none;
   border-color: var(--color-border-focus);
 }
 
 .controller-message-input::placeholder {
-  color: var(--color-text-tertiary);
+  @apply text-text-tertiary;
 }
 
 .controller-message-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
+  @apply flex items-center justify-between gap-3;
 }
 
 /* Inline Color Picker */
 .controller-color-picker {
-  display: flex;
-  gap: var(--space-1);
-  align-items: center;
+  @apply flex gap-1 items-center;
 }
 
 .controller-color-btn {
-  width: 22px;
-  height: 22px;
+  @apply w-[22px] h-[22px] cursor-pointer p-0;
   border-radius: var(--radius-full);
   border: 2px solid transparent;
-  cursor: pointer;
   transition: all var(--transition-fast);
-  padding: 0;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -228,31 +172,21 @@
 }
 
 .controller-color-btn--active {
+  @apply text-text-primary;
   border-color: var(--color-text-primary);
   transform: scale(1.1);
   box-shadow: 0 0 0 2px var(--color-bg-primary);
 }
 
-/* Color variants - now using shared .color-accent-- utilities from base.css */
-
 .controller-message-buttons {
-  display: flex;
-  gap: var(--space-2);
+  @apply flex gap-2;
 }
 
-/* Controller Buttons - matches voice toggle button size */
+/* Controller Buttons */
 .controller-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px 16px;
+  @apply flex items-center justify-center py-2 px-4 text-sm font-medium leading-none cursor-pointer border-none;
   border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1;
-  cursor: pointer;
   transition: all 0.2s ease;
-  border: none;
   -webkit-tap-highlight-color: transparent;
   font-family: inherit;
 }
@@ -271,115 +205,71 @@
 }
 
 .controller-btn--secondary {
-  background-color: var(--color-surface-secondary);
-  color: var(--color-text-primary);
+  @apply bg-surface-secondary text-text-primary;
   border: 1px solid var(--color-border-primary);
-  /* Adjust padding to account for border so size matches primary */
   padding: 7px 15px;
 }
 
 .controller-btn--secondary:active {
-  background-color: var(--color-bg-hover);
+  @apply bg-bg-hover;
 }
 
 /* ==========================================================================
    HEADER
-   Top bar with back button, product set name, and product count
    ========================================================================== */
 
 .controller-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
+  @apply flex items-center justify-between gap-3 py-3 px-4 shrink-0;
   background-color: var(--color-panel-bg);
   border-bottom: 1px solid var(--color-panel-border);
-  flex-shrink: 0;
 }
 
 .controller-back-link {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
+  @apply flex items-center justify-center w-8 h-8 text-text-secondary no-underline shrink-0;
   border-radius: var(--radius-md);
-  color: var(--color-text-secondary);
-  text-decoration: none;
   transition: all var(--transition-fast);
-  flex-shrink: 0;
 }
 
 .controller-back-link:hover,
 .controller-back-link:active {
-  background-color: var(--color-bg-hover);
-  color: var(--color-text-primary);
+  @apply bg-bg-hover text-text-primary;
 }
 
 .controller-back-icon {
-  width: 20px;
-  height: 20px;
+  @apply w-5 h-5;
 }
 
 .controller-header__title {
-  font-size: var(--text-sm);
-  font-weight: var(--font-semibold);
-  color: var(--color-text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-  min-width: 0;
+  @apply text-sm font-semibold text-text-primary overflow-hidden text-ellipsis whitespace-nowrap flex-1 min-w-0;
 }
 
 .controller-header__count {
-  font-size: var(--text-xs);
-  font-weight: var(--font-medium);
-  color: var(--color-text-tertiary);
-  flex-shrink: 0;
-  background-color: var(--color-bg-tertiary);
-  padding: var(--space-1) var(--space-2);
+  @apply text-xs font-medium text-text-tertiary shrink-0 bg-bg-tertiary py-1 px-2;
   border-radius: var(--radius-sm);
 }
 
 /* iOS-style toggle for product set notes */
 .controller-notes-toggle {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 0;
-  border: none;
-  background: none;
-  cursor: pointer;
-  flex-shrink: 0;
+  @apply flex items-center gap-2 p-0 border-none bg-transparent cursor-pointer shrink-0;
   -webkit-tap-highlight-color: transparent;
 }
 
 .controller-notes-toggle__label {
-  font-size: var(--text-xs);
-  font-weight: var(--font-medium);
-  color: var(--color-text-secondary);
-  white-space: nowrap;
+  @apply text-xs font-medium text-text-secondary whitespace-nowrap;
 }
 
 .controller-notes-toggle__track {
-  position: relative;
-  width: 44px;
-  height: 26px;
-  background-color: var(--color-bg-tertiary);
+  @apply relative w-11 h-[26px] bg-bg-tertiary shrink-0;
   border-radius: 13px;
   transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  flex-shrink: 0;
 }
 
 .controller-notes-toggle__thumb {
-  position: absolute;
+  @apply absolute bg-white;
   top: 2px;
   left: 2px;
   width: 22px;
   height: 22px;
-  background-color: white;
   border-radius: 50%;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -395,67 +285,38 @@
 
 /* ==========================================================================
    PRODUCTS SECTION
-   Takes remaining space, scrollable grid
    ========================================================================== */
 
 .controller-products {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  @apply flex-1 min-h-0 flex flex-col overflow-hidden;
 }
 
 .controller-products__grid {
-  flex: 1;
-  min-height: 0; /* Allow flex item to shrink below content size */
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: var(--space-3);
-
-  /* Grid that fills available width - 2 columns on narrow screens */
-  display: grid;
+  @apply flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 grid gap-2;
   grid-template-columns: repeat(2, 1fr);
-  gap: var(--space-2);
   align-content: start;
-  align-items: start; /* CRITICAL: Don't stretch grid items vertically - breaks aspect-ratio */
-
-  /* Smooth scrolling */
+  align-items: start;
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
 }
 
 /* ==========================================================================
    PRODUCT CARD
-   Compact: position badge + thumbnail + name
    ========================================================================== */
 
 .controller-product-card {
-  /* Reset button defaults aggressively for iOS */
+  @apply block relative overflow-hidden cursor-pointer p-0 m-0 w-full min-w-0 min-h-0 text-left;
   -webkit-appearance: none;
   appearance: none;
   font: inherit;
   border: none;
   background: none;
-  margin: 0;
-
-  /* Block display - NOT flex, to avoid align-items:stretch breaking aspect-ratio */
-  display: block;
-
-  position: relative;
   background-color: var(--color-surface-primary);
   border: 2px solid var(--color-border-secondary);
   border-radius: var(--radius-md);
-  overflow: hidden;
-  cursor: pointer;
-  padding: 0;
   transition: all var(--transition-fast);
   -webkit-tap-highlight-color: transparent;
-  width: 100%;
-  min-width: 0;
-  min-height: 0; /* Allow grid item to size based on content, not stretch */
-  height: min-content; /* Safari fix: forces height calc from aspect-ratio child */
-  text-align: left;
+  height: min-content;
 }
 
 .controller-product-card:active {
@@ -469,61 +330,33 @@
 
 /* Image container - guaranteed square */
 .controller-product-card__image-container {
-  display: block;
-  position: relative;
-  width: 100%;
+  @apply block relative w-full overflow-hidden;
   aspect-ratio: 1 / 1;
   background-color: var(--color-bg-tertiary);
-  overflow: hidden;
 }
 
 /* Position Badge */
 .controller-product-card__position {
-  position: absolute;
+  @apply absolute flex items-center justify-center min-w-[44px] h-11 px-2 text-white text-2xl font-bold z-[1];
   top: var(--space-1);
   left: var(--space-1);
-  min-width: 44px;
-  height: 44px;
-  padding: 0 var(--space-2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   background-color: rgba(0, 0, 0, 0.7);
-  color: white;
-  font-size: var(--text-2xl);
-  font-weight: var(--font-bold);
   border-radius: var(--radius-sm);
-  z-index: 1;
 }
 
 /* Image fills the container */
 .controller-product-card__image {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  @apply absolute top-0 left-0 w-full h-full object-cover;
 }
 
 /* Product Name */
 .controller-product-card__name {
-  padding: var(--space-1) var(--space-2);
-  font-size: var(--text-xs);
-  font-weight: var(--font-medium);
-  color: var(--color-text-primary);
+  @apply py-1 px-2 text-xs font-medium text-text-primary text-left overflow-hidden text-ellipsis;
   line-height: 1.3;
-  text-align: left;
-
-  /* Limit to 2 lines with ellipsis */
   display: -webkit-box;
   -webkit-line-clamp: 2;
   line-clamp: 2;
   -webkit-box-orient: vertical;
-  overflow: hidden;
-  text-overflow: ellipsis;
-
-  /* Ensure minimum height for short names */
   min-height: calc(var(--text-xs) * 1.3 * 2 + var(--space-1) * 2);
 }
 
@@ -534,7 +367,6 @@
 
 /* ==========================================================================
    VOICE CONTROL PANEL (Bottom)
-   Uses shared controller-panel styles, just needs positioning overrides
    ========================================================================== */
 
 .controller-panel--voice {
@@ -542,82 +374,62 @@
 }
 
 .controller-panel--voice .voice-control-panel {
-  position: relative;
+  @apply relative w-full bg-transparent border-none shadow-none;
   bottom: auto;
   right: auto;
   left: auto;
-  width: 100%;
   border-radius: 0;
-  border: none;
-  box-shadow: none;
-  background: transparent;
 }
 
 /* ==========================================================================
    RESPONSIVE ADJUSTMENTS
    ========================================================================== */
 
-/* Slightly larger screens - 3 columns, flexible sizing */
 @media (min-width: 400px) {
   .controller-products__grid {
+    @apply gap-3;
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: var(--space-3);
   }
 
   .controller-product-card__position {
-    min-width: 48px;
-    height: 48px;
-    font-size: var(--text-3xl);
+    @apply min-w-[48px] h-12 text-3xl;
   }
 }
 
-/* Tablet portrait - more columns possible */
 @media (min-width: 600px) {
   .controller-products__grid {
+    @apply gap-3;
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: var(--space-3);
   }
 
   .controller-product-card__position {
-    min-width: 56px;
-    height: 56px;
+    @apply min-w-[56px] h-14;
   }
 }
 
-/* Tablet landscape and larger */
 @media (min-width: 1024px) {
   .controller-products__grid {
+    @apply gap-4;
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: var(--space-4);
   }
 }
 
 /* ==========================================================================
    JUMP INDICATOR
-   Shows the number being typed for keyboard navigation
    ========================================================================== */
 
 .controller-jump-indicator {
-  position: fixed;
+  @apply fixed text-white text-5xl font-bold py-4 px-6 z-[9999] pointer-events-none opacity-0 min-w-[80px] text-center;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%) scale(0.8);
   background-color: rgba(0, 0, 0, 0.85);
-  color: white;
-  font-size: 48px;
-  font-weight: var(--font-bold);
-  padding: var(--space-4) var(--space-6);
   border-radius: var(--radius-lg);
-  z-index: 9999;
-  pointer-events: none;
-  opacity: 0;
   transition: opacity 0.15s ease, transform 0.15s ease;
-  min-width: 80px;
-  text-align: center;
 }
 
 .controller-jump-indicator.visible {
-  opacity: 1;
+  @apply opacity-100;
   transform: translate(-50%, -50%) scale(1);
 }
 
@@ -626,42 +438,29 @@
    ========================================================================== */
 
 body:has(.controller-container) .app-navbar {
-  display: none;
+  @apply hidden;
 }
 
 /* ===========================================================================
    MESSAGE PRESET MODAL CONTENT
-   Uses base modal component, these are preset-specific content styles
    =========================================================================== */
 
-/* Content spacing within modal body */
 .preset-modal-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
+  @apply flex flex-col gap-6;
 }
 
-/* Preset List */
 .preset-empty {
-  padding: var(--space-8);
-  text-align: center;
-  color: var(--color-text-secondary);
+  @apply p-8 text-center text-text-secondary;
 }
 
 .preset-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
+  @apply flex flex-col gap-3;
 }
 
 .preset-item {
-  display: flex;
-  align-items: stretch;
-  gap: var(--space-2);
-  background-color: var(--color-surface-secondary);
+  @apply flex items-stretch gap-2 bg-surface-secondary overflow-hidden;
   border: 1px solid var(--color-border-primary);
   border-radius: var(--radius-md);
-  overflow: hidden;
   transition: border-color var(--transition-fast);
 }
 
@@ -670,170 +469,118 @@ body:has(.controller-container) .app-navbar {
 }
 
 .preset-item__select {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  background: none;
-  border: none;
-  text-align: left;
-  cursor: pointer;
-  color: var(--color-text-primary);
+  @apply flex-1 flex items-center gap-3 p-4 bg-transparent border-none text-left cursor-pointer text-text-primary;
   transition: background-color var(--transition-fast);
 }
 
 .preset-item__select:hover {
-  background-color: var(--color-bg-hover);
+  @apply bg-bg-hover;
 }
 
 .preset-item__color {
-  width: 12px;
-  height: 100%;
+  @apply w-3 h-full shrink-0;
   border-radius: var(--radius-sm);
-  flex-shrink: 0;
 }
 
-/* Color variants now use shared .color-accent-- utilities from base.css */
-
 .preset-item__text {
-  flex: 1;
-  min-width: 0;
-  font-size: var(--text-base);
-  font-weight: var(--font-medium);
-  color: var(--color-text-primary);
-  text-align: left;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  @apply flex-1 min-w-0 text-base font-medium text-text-primary text-left overflow-hidden text-ellipsis whitespace-nowrap;
 }
 
 .preset-item__delete {
-  padding: 0 var(--space-4);
-  background: none;
-  border: none;
+  @apply px-4 bg-transparent border-none text-2xl text-text-tertiary cursor-pointer;
   border-left: 1px solid var(--color-border-primary);
-  font-size: var(--text-2xl);
-  color: var(--color-text-tertiary);
-  cursor: pointer;
   transition: all var(--transition-fast);
 }
 
 .preset-item__delete:hover {
+  @apply text-white;
   background-color: var(--color-accent-red);
-  color: white;
 }
 
 /* Create Preset Form */
 .preset-create {
+  @apply pt-6;
   border-top: 2px solid var(--color-border-primary);
-  padding-top: var(--space-6);
 }
 
 .preset-create h3 {
-  font-size: var(--text-lg);
-  font-weight: var(--font-semibold);
-  color: var(--color-text-primary);
-  margin: 0 0 var(--space-4) 0;
+  @apply text-lg font-semibold text-text-primary m-0 mb-4;
 }
 
-/* Preset textarea doesn't need large min-height */
 .preset-create .textarea {
   min-height: auto;
 }
 
 /* Color Selector */
 .color-selector {
-  display: grid;
+  @apply grid gap-3;
   grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-3);
 }
 
 .color-option {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-3);
+  @apply flex flex-col items-center gap-2 p-3 cursor-pointer;
   border: 2px solid var(--color-border-primary);
   border-radius: var(--radius-md);
-  cursor: pointer;
   transition: all var(--transition-fast);
 }
 
 .color-option:hover {
+  @apply bg-bg-hover;
   border-color: var(--color-text-secondary);
-  background-color: var(--color-bg-hover);
 }
 
 .color-option input[type="radio"] {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
+  @apply absolute opacity-0 pointer-events-none;
 }
 
 .color-option input[type="radio"]:checked + .color-swatch {
-  border-width: 3px;
   transform: scale(1.1);
+  border-width: 3px;
 }
 
 .color-option:has(input[type="radio"]:checked) {
+  @apply bg-bg-hover;
   border-color: var(--color-accent-blue);
-  background-color: var(--color-bg-hover);
 }
 
 .color-swatch {
-  width: 40px;
-  height: 40px;
+  @apply w-10 h-10;
   border-radius: var(--radius-md);
   border: 2px solid rgba(255, 255, 255, 0.2);
   transition: all var(--transition-fast);
 }
 
-/* Color variants now use shared .color-accent-- utilities from base.css */
-
 .color-label {
-  font-size: var(--text-xs);
-  font-weight: var(--font-medium);
-  color: var(--color-text-primary);
+  @apply text-xs font-medium text-text-primary;
 }
 
 .form-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: var(--space-4);
+  @apply flex justify-end mt-4;
 }
 
 /* ==========================================================================
    MESSAGE PANEL - MOBILE RESPONSIVE
-   Fix overflow of color picker and action buttons on narrow screens
    ========================================================================== */
 
 @media (max-width: 400px) {
-  /* Reduce color button size */
   .controller-color-btn {
-    width: 18px;
-    height: 18px;
+    @apply w-[18px] h-[18px];
   }
 
-  /* Reduce action button padding and font size */
   .controller-btn {
-    padding: 6px 12px;
-    font-size: 13px;
+    @apply py-1.5 px-3 text-[13px];
   }
 
-  /* Account for smaller border in secondary button */
   .controller-btn--secondary {
     padding: 5px 11px;
   }
 
-  /* Reduce gaps to save space */
   .controller-message-actions {
-    gap: var(--space-2);
+    @apply gap-2;
   }
 
   .controller-message-buttons {
-    gap: var(--space-1);
+    @apply gap-1;
   }
 }
 
@@ -843,51 +590,47 @@ body:has(.controller-container) .app-navbar {
 
 @media (max-width: 400px) {
   .preset-modal-body {
-    gap: var(--space-4);
+    @apply gap-4;
   }
 
-  /* Color selector: 2 columns on very small screens */
   .color-selector {
+    @apply gap-2;
     grid-template-columns: repeat(2, 1fr);
-    gap: var(--space-2);
   }
 
   .color-option {
-    padding: var(--space-2);
+    @apply p-2;
   }
 
   .color-swatch {
-    width: 32px;
-    height: 32px;
+    @apply w-8 h-8;
   }
 
   .preset-create {
-    padding-top: var(--space-4);
+    @apply pt-4;
   }
 
   .preset-create h3 {
-    font-size: var(--text-base);
+    @apply text-base;
   }
 
   .form-group {
-    margin-bottom: var(--space-3);
+    @apply mb-3;
   }
 
   .preset-empty {
-    padding: var(--space-4);
+    @apply p-4;
   }
 
   .preset-item__select {
-    padding: var(--space-3);
-    gap: var(--space-2);
+    @apply p-3 gap-2;
   }
 
   .preset-item__text {
-    font-size: var(--text-sm);
+    @apply text-sm;
   }
 
   .preset-item__delete {
-    padding: 0 var(--space-3);
-    font-size: var(--text-xl);
+    @apply px-3 text-xl;
   }
 }

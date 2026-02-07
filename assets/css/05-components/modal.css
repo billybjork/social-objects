@@ -1,234 +1,188 @@
 /* ============================================================================
-   MODAL COMPONENT
+   MODAL COMPONENT - Tailwind Migration
+   ============================================================================
+   Uses @apply for base styles while maintaining existing class API.
+   Animations are kept as keyframes (too complex for utilities).
    ============================================================================ */
 
 /* Base modal container - hidden by default, shown via JS */
 .modal {
-  position: fixed;
-  inset: 0;
+  @apply fixed inset-0;
   z-index: var(--z-modal);
 }
 
 .modal--hidden {
-  visibility: hidden;
-  pointer-events: none;
+  @apply invisible pointer-events-none;
 }
 
-/* Backdrop overlay */
+/* ============================================================================
+   BACKDROP
+   ============================================================================ */
+
 .modal__backdrop {
-  position: fixed;
-  inset: 0;
+  @apply fixed inset-0 opacity-100;
   background-color: rgba(0, 0, 0, 0.75);
-  opacity: 1;
   transition: opacity 300ms ease-out;
 }
 
-/* Hide backdrop when modal is hidden */
 .modal--hidden .modal__backdrop {
-  opacity: 0;
+  @apply opacity-0;
 }
 
-/* Main container for modal content */
+/* ============================================================================
+   CONTAINER & CENTERING
+   ============================================================================ */
+
 .modal__container {
-  position: fixed;
-  inset: 0;
-  overflow-y: auto;
+  @apply fixed inset-0 overflow-y-auto;
 }
 
-/* Centering wrapper */
 .modal__centering {
-  display: flex;
-  min-height: 100%;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-4);
+  @apply flex min-h-full items-center justify-center p-4;
 }
+
+/* ============================================================================
+   BOX (Main Content Area)
+   ============================================================================ */
 
 .modal__box {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  max-width: 600px;
-  max-height: 90vh;
-  background-color: var(--color-surface-primary);
-  border-radius: var(--radius-lg);
+  @apply relative flex flex-col;
+  @apply w-full max-w-[600px];
+  @apply max-h-[90vh];
+  @apply bg-surface-primary rounded-lg p-6;
+  @apply opacity-100;
   box-shadow: var(--shadow-xl);
-  padding: var(--space-6);
-  opacity: 1;
   transform: translateY(0);
   transition: opacity 300ms ease-out, transform 300ms ease-out;
 }
 
-/* When modal is hidden, animate the box out */
 .modal--hidden .modal__box {
-  opacity: 0;
+  @apply opacity-0;
   transform: translateY(20px);
 }
 
 /* Modifier for wider modals */
 .modal__box--wide {
-  max-width: 900px;
+  @apply max-w-[900px];
 }
 
 /* Modifier for product grid modals - sized for ~5 columns of products */
 .modal__box--product-grid {
-  max-width: 820px;
+  @apply max-w-[820px];
 }
 
+/* ============================================================================
+   HEADER
+   ============================================================================ */
+
 .modal__header {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-bottom: var(--space-6);
-  margin-bottom: var(--space-6);
-  border-bottom: 1px solid var(--color-border-secondary);
+  @apply shrink-0 flex items-center justify-between;
+  @apply pb-6 mb-6;
+  @apply border-b border-border-secondary;
 }
 
 .modal__title {
-  font-size: var(--text-xl);
-  font-weight: var(--font-semibold);
-  margin: 0;
-  padding-right: var(--space-8);
+  @apply text-xl font-semibold m-0 pr-8;
 }
 
+/* ============================================================================
+   CLOSE BUTTON
+   ============================================================================ */
+
 .modal__close {
-  position: absolute;
-  top: var(--space-4);
-  right: var(--space-4);
-  padding: var(--space-2);
-  color: var(--color-text-secondary);
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: var(--text-xl);
-  line-height: 1;
+  @apply absolute top-4 right-4;
+  @apply p-2;
+  @apply text-text-secondary bg-transparent border-none;
+  @apply cursor-pointer text-xl leading-none;
+  @apply z-[1];
   transition: color var(--transition-fast);
-  z-index: 1;
 }
 
 .modal__close:hover {
-  color: var(--color-text-primary);
+  @apply text-text-primary;
 }
 
+/* ============================================================================
+   BODY
+   ============================================================================ */
+
 .modal__body {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 0;
-  /* Smooth scrolling for better UX */
+  @apply flex-1 overflow-y-auto overflow-x-hidden p-0;
   scroll-behavior: smooth;
-  /* Minimum height to prevent collapsing */
   min-height: 0;
 }
 
+/* ============================================================================
+   FOOTER
+   ============================================================================ */
+
 .modal__footer {
-  flex-shrink: 0;
-  display: flex;
-  gap: var(--space-3);
-  justify-content: flex-end;
-  padding-top: var(--space-6);
-  margin-top: var(--space-6);
-  border-top: 1px solid var(--color-border-secondary);
+  @apply shrink-0 flex gap-3 justify-end;
+  @apply pt-6 mt-6;
+  @apply border-t border-border-secondary;
 }
 
-/* Animations */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
+/* ============================================================================
+   MOBILE RESPONSIVE
+   ============================================================================ */
 
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* ==========================================================================
-   MODAL - MOBILE RESPONSIVE
-   ========================================================================== */
-
-/* Mobile screens - account for safe areas and bottom navbar */
 @media (max-width: 640px) {
   .modal__centering {
-    padding: var(--space-3);
-    /* Account for safe areas (notch, home indicator) */
-    padding-top: max(var(--space-3), env(safe-area-inset-top));
-    /* Extra padding at bottom for navbar + safe area */
-    padding-bottom: calc(var(--space-16) + env(safe-area-inset-bottom));
-    /* Align to top on small screens for better content visibility */
-    align-items: flex-start;
-    padding-top: max(var(--space-6), env(safe-area-inset-top));
+    @apply p-3;
+    padding-top: max(var(--spacing-3), env(safe-area-inset-top));
+    padding-bottom: calc(var(--spacing-16) + env(safe-area-inset-bottom));
+    @apply items-start;
+    padding-top: max(var(--spacing-6), env(safe-area-inset-top));
   }
 
   .modal__box {
-    /* Use dynamic viewport height for better iOS behavior */
-    max-height: calc(100dvh - var(--space-16) - var(--space-6) - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-    padding: var(--space-4);
-    border-radius: var(--radius-md);
+    max-height: calc(100dvh - var(--spacing-16) - var(--spacing-6) - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    @apply p-4 rounded-md;
   }
 
   .modal__header {
-    padding-bottom: var(--space-4);
-    margin-bottom: var(--space-4);
+    @apply pb-4 mb-4;
   }
 
   .modal__title {
-    font-size: var(--text-lg);
-    padding-right: var(--space-6);
+    @apply text-lg pr-6;
   }
 
   .modal__close {
-    top: var(--space-3);
-    right: var(--space-3);
+    @apply top-3 right-3;
   }
 
   .modal__footer {
-    padding-top: var(--space-4);
-    margin-top: var(--space-4);
+    @apply pt-4 mt-4;
   }
 
-  /* Wide modals should still respect screen width */
   .modal__box--wide {
-    max-width: 100%;
+    @apply max-w-full;
   }
 }
 
 /* Very small screens - even tighter spacing */
 @media (max-width: 400px) {
   .modal__centering {
-    padding: var(--space-2);
-    padding-top: max(var(--space-4), env(safe-area-inset-top));
-    padding-bottom: calc(var(--space-14) + env(safe-area-inset-bottom));
+    @apply p-2;
+    padding-top: max(var(--spacing-4), env(safe-area-inset-top));
+    padding-bottom: calc(var(--spacing-14) + env(safe-area-inset-bottom));
   }
 
   .modal__box {
-    max-height: calc(100dvh - var(--space-14) - var(--space-4) - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-    padding: var(--space-3);
+    max-height: calc(100dvh - var(--spacing-14) - var(--spacing-4) - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    @apply p-3;
   }
 
   .modal__header {
-    padding-bottom: var(--space-3);
-    margin-bottom: var(--space-3);
+    @apply pb-3 mb-3;
   }
 
   .modal__title {
-    font-size: var(--text-base);
+    @apply text-base;
   }
 
   .modal__footer {
-    padding-top: var(--space-3);
-    margin-top: var(--space-3);
-    flex-wrap: wrap;
+    @apply pt-3 mt-3 flex-wrap;
   }
 }

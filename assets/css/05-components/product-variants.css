@@ -1,23 +1,23 @@
-/* Product Variants Component */
+/* ============================================================================
+   PRODUCT VARIANTS COMPONENT - Tailwind Migration
+   ============================================================================
+   Uses @apply for base styles while maintaining existing class API.
+   ============================================================================ */
 
 .product-variants {
-  margin-top: var(--space-6);
+  @apply mt-6;
 }
 
 .product-variants__title {
-  font-size: var(--text-base);
-  font-weight: var(--font-semibold);
-  color: var(--color-text-primary);
-  margin-bottom: var(--space-2);
+  @apply text-base font-semibold text-text-primary mb-2;
 }
 
-/* ===========================================================================
+/* ============================================================================
    GRID LAYOUT - Used for chip-based variant display
-   =========================================================================== */
+   ============================================================================ */
 
 .product-variants__grid-wrapper {
-  overflow: hidden;
-  position: relative;
+  @apply relative overflow-hidden;
   transition: max-height var(--transition-base);
 }
 
@@ -26,41 +26,29 @@
 }
 
 .product-variants__grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
+  @apply flex flex-wrap gap-2;
 }
 
 /* Variant Chip - Shared style for both modal and host view */
 .product-variant-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  padding: var(--space-1) var(--space-2);
-  background: var(--color-surface-secondary);
+  @apply inline-flex items-center gap-1 py-1 px-2 bg-surface-secondary rounded-md text-sm;
   border: 1px solid var(--color-border-secondary);
-  border-radius: var(--radius-md);
-  font-size: var(--text-sm);
 }
 
 .product-variant-chip__title {
-  font-weight: var(--font-medium);
-  color: var(--color-text-primary);
+  @apply font-medium text-text-primary;
 }
 
 .product-variant-chip__price {
-  color: var(--color-accent-gold);
+  @apply text-accent-gold;
 }
 
 .product-variant-chip__price-sale {
-  color: var(--color-success);
+  @apply text-success;
 }
 
 .product-variant-chip__price-original {
-  color: var(--color-text-tertiary);
-  text-decoration: line-through;
-  font-size: var(--text-xs);
-  margin-left: var(--space-1);
+  @apply text-text-tertiary text-xs line-through ml-1;
 }
 
 /* More Variants Container - uses display:contents to inherit parent grid gap */
@@ -70,26 +58,17 @@
 
 /* Hidden state - must use visibility approach since display:none breaks contents */
 .product-variants__more--hidden {
-  display: none;
+  @apply hidden;
 }
 
 /* Toggle Button */
 .product-variants__toggle {
-  width: fit-content;
-  margin-top: var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  font-size: var(--text-sm);
-  color: var(--color-primary);
-  background: transparent;
-  border: none;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
+  @apply w-fit mt-3 py-2 px-3 text-sm text-primary bg-transparent border-0 rounded-sm cursor-pointer text-center;
   transition: all 0.2s ease;
-  text-align: center;
 }
 
 .product-variants__toggle:hover {
-  background: var(--color-surface);
+  @apply bg-surface;
 }
 
 .product-variants__toggle:active {
@@ -98,8 +77,7 @@
 
 .product-variants__toggle::before {
   content: "▼ ";
-  display: inline-block;
-  margin-right: var(--space-1);
+  @apply inline-block mr-1;
   transition: transform 0.2s ease;
 }
 
@@ -109,73 +87,52 @@
 
 .product-variants__toggle--expanded::after {
   content: " (showing all)";
-  font-size: var(--text-xs);
-  color: var(--color-text-secondary);
-  margin-left: var(--space-1);
+  @apply text-xs text-text-secondary ml-1;
 }
 
-/* ===========================================================================
+/* ============================================================================
    COMPACT MODE - Host View specific adjustments
-   =========================================================================== */
+   ============================================================================ */
 
 .product-variants--compact {
-  margin-top: var(--space-3);
-  padding: var(--space-2);
-  flex-shrink: 0;                                     /* Stay anchored at bottom, don't shrink */
+  @apply mt-3 p-2 shrink-0;
 }
 
 .product-variants--compact .product-variants__title {
-  font-size: var(--text-sm);
-  margin-bottom: 0;
+  @apply text-sm mb-0;
 }
 
 /* Header row: title + expand button inline */
 .product-variants__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  margin-bottom: var(--space-1);
+  @apply flex items-center justify-between gap-2 mb-1;
 }
 
 /* Compact mode: limit to 1 row by default */
 .product-variants--compact .product-variants__grid-wrapper {
-  max-height: 2.2em;                                  /* Approximately 1 row of chips */
+  max-height: 2.2em;
 }
 
-/* ===========================================================================
+/* ============================================================================
    EXPAND BUTTON - Used in compact mode for showing all variants
-   =========================================================================== */
+   ============================================================================ */
+
 .product-variants__expand {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  padding: var(--space-1);
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  color: var(--color-text-tertiary);
+  @apply flex items-center justify-center shrink-0 p-1 bg-transparent border-0 cursor-pointer text-text-tertiary rounded-sm;
   transition: color var(--transition-fast);
-  border-radius: var(--radius-sm);
 }
 
 .product-variants__expand:hover {
-  color: var(--color-text-secondary);
-  background: var(--color-bg-tertiary);
+  @apply text-text-secondary bg-bg-tertiary;
 }
 
 .product-variants__expand-icon {
-  display: block;
-  width: 16px;
-  height: 16px;
-  position: relative;
+  @apply block w-4 h-4 relative;
 }
 
 /* Chevron down icon using CSS */
 .product-variants__expand-icon::before {
   content: "";
-  position: absolute;
+  @apply absolute;
   top: 50%;
   left: 50%;
   width: 6px;

@@ -48,29 +48,46 @@ select:focus {
 /* ============================================================================
    COLOR VARIANT UTILITIES
    ============================================================================
-   Shared accent color utilities used across components
+   Dynamic color classes for tag pickers and color swatches.
+   These use @apply because template color values are dynamic (e.g., #{color}).
    ============================================================================ */
 
-.color-accent--amber {
-  background-color: var(--color-accent-amber);
+.color-accent--amber { @apply bg-accent-amber; }
+.color-accent--blue { @apply bg-accent-blue; }
+.color-accent--green { @apply bg-accent-green; }
+.color-accent--red { @apply bg-accent-red; }
+.color-accent--purple { @apply bg-accent-purple; }
+.color-accent--gray { @apply bg-text-secondary; }
+
+/* ============================================================================
+   SCROLLBAR UTILITIES
+   ============================================================================
+   Consistent scrollbar styling across components.
+   Uses @utility for Tailwind v4 to enable @apply usage.
+   ============================================================================ */
+
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
-.color-accent--blue {
-  background-color: var(--color-accent-blue);
-}
-
-.color-accent--green {
-  background-color: var(--color-accent-green);
-}
-
-.color-accent--red {
-  background-color: var(--color-accent-red);
-}
-
-.color-accent--purple {
-  background-color: var(--color-accent-purple);
-}
-
-.color-accent--gray {
-  background-color: var(--color-text-secondary);
+@utility scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-primary) transparent;
+  &::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: var(--color-border-primary);
+    border-radius: 2px;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-border-secondary);
+  }
 }

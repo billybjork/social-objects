@@ -411,8 +411,8 @@ defmodule PavoiWeb.AdminComponents do
   defp format_datetime(%DateTime{} = dt), do: Calendar.strftime(dt, "%b %d, %Y %H:%M")
   defp format_datetime(%NaiveDateTime{} = dt), do: Calendar.strftime(dt, "%b %d, %Y %H:%M")
 
-  defp role_variant("owner"), do: :primary
-  defp role_variant("admin"), do: :success
+  defp role_variant(:owner), do: :primary
+  defp role_variant(:admin), do: :success
   defp role_variant(_), do: :default
 
   def secret_configured?(secrets_configured, key), do: MapSet.member?(secrets_configured, key)

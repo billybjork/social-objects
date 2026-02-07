@@ -502,13 +502,13 @@ defmodule PavoiWeb.CoreComponents do
 
   def header(assigns) do
     ~H"""
-    <header class="stack stack--sm">
+    <header class="flex flex-col gap-2">
       <div class={[@actions != [] && "flex flex--between flex--center"]}>
-        <div class="stack stack--xs">
+        <div class="flex flex-col gap-1">
           <h1 class="text-3xl font-bold">
             {render_slot(@inner_block)}
           </h1>
-          <p :if={@subtitle != []} class="text-secondary">
+          <p :if={@subtitle != []} class="text-text-secondary">
             {render_slot(@subtitle)}
           </p>
         </div>
@@ -623,7 +623,11 @@ defmodule PavoiWeb.CoreComponents do
       </div>
 
       <div class="navbar__end">
-        <.link navigate={~p"/users/settings"} class="navbar__profile-link" aria-label="Account settings">
+        <.link
+          navigate={~p"/users/settings"}
+          class="navbar__profile-link"
+          aria-label="Account settings"
+        >
           <svg
             class="size-5"
             viewBox="0 0 24 24"
@@ -651,126 +655,126 @@ defmodule PavoiWeb.CoreComponents do
             class="navbar__menu"
             phx-click-away={JS.hide(to: "#navbar-menu", transition: "fade-out")}
           >
-          <%= if @current_page == :streams and @stream_scan_enabled do %>
-            <div class="navbar__sync-group">
-              <.button
-                variant="primary"
-                size="sm"
-                phx-click="scan_streams"
-                class={@stream_scan_syncing && "button--disabled"}
-                disabled={@stream_scan_syncing}
-              >
-                {if @stream_scan_syncing, do: "Scanning...", else: "Scan Streams"}
-              </.button>
-              <div class="navbar__sync-meta">
-                Scanned: {if @stream_last_scan_at,
-                  do: format_relative_time(@stream_last_scan_at),
-                  else: "Never"}
+            <%= if @current_page == :streams and @stream_scan_enabled do %>
+              <div class="navbar__sync-group">
+                <.button
+                  variant="primary"
+                  size="sm"
+                  phx-click="scan_streams"
+                  class={@stream_scan_syncing && "button--disabled"}
+                  disabled={@stream_scan_syncing}
+                >
+                  {if @stream_scan_syncing, do: "Scanning...", else: "Scan Streams"}
+                </.button>
+                <div class="navbar__sync-meta">
+                  Scanned: {if @stream_last_scan_at,
+                    do: format_relative_time(@stream_last_scan_at),
+                    else: "Never"}
+                </div>
+              </div>
+            <% end %>
+            <%= if @current_page == :streams and not @stream_scan_enabled do %>
+              <form phx-submit="start_capture" class="navbar__capture-form">
+                <input
+                  type="text"
+                  name="unique_id"
+                  placeholder="@username"
+                  class="input input--sm"
+                  value={@capture_input}
+                  disabled={@capture_loading}
+                />
+                <.button
+                  type="submit"
+                  variant="primary"
+                  size="sm"
+                  disabled={@capture_loading}
+                >
+                  {if @capture_loading, do: "Connecting...", else: "Capture"}
+                </.button>
+                <%= if @capture_error do %>
+                  <span class="navbar__capture-error">{@capture_error}</span>
+                <% end %>
+              </form>
+            <% end %>
+            <%= if @current_page == :product_sets do %>
+              <div class="navbar__sync-group">
+                <.button
+                  variant="primary"
+                  size="sm"
+                  phx-click="trigger_shopify_sync"
+                  class={@syncing && "button--disabled"}
+                  disabled={@syncing}
+                >
+                  {if @syncing, do: "Syncing...", else: "Sync Shopify"}
+                </.button>
+                <div class="navbar__sync-meta">
+                  {if @last_sync_at,
+                    do: format_relative_time(@last_sync_at),
+                    else: "Never synced"}
+                </div>
+              </div>
+              <div class="navbar__sync-group">
+                <.button
+                  variant="primary"
+                  size="sm"
+                  phx-click="trigger_tiktok_sync"
+                  class={@tiktok_syncing && "button--disabled"}
+                  disabled={@tiktok_syncing}
+                >
+                  {if @tiktok_syncing, do: "Syncing...", else: "Sync TikTok"}
+                </.button>
+                <div class="navbar__sync-meta">
+                  {if @tiktok_last_sync_at,
+                    do: format_relative_time(@tiktok_last_sync_at),
+                    else: "Never synced"}
+                </div>
+              </div>
+            <% end %>
+            <%= if @current_page == :creators do %>
+              <div class="navbar__sync-group">
+                <.button
+                  variant="primary"
+                  size="sm"
+                  phx-click="trigger_bigquery_sync"
+                  class={@bigquery_syncing && "button--disabled"}
+                  disabled={@bigquery_syncing}
+                >
+                  {if @bigquery_syncing, do: "Syncing...", else: "Sync Shop Orders"}
+                </.button>
+                <div class="navbar__sync-meta">
+                  {if @bigquery_last_sync_at,
+                    do: format_relative_time(@bigquery_last_sync_at),
+                    else: "Never synced"}
+                </div>
+              </div>
+              <div class="navbar__sync-group">
+                <.button
+                  variant="primary"
+                  size="sm"
+                  phx-click="trigger_enrichment_sync"
+                  class={@enrichment_syncing && "button--disabled"}
+                  disabled={@enrichment_syncing}
+                >
+                  {if @enrichment_syncing, do: "Syncing...", else: "Sync Creator Profiles"}
+                </.button>
+                <div class="navbar__sync-meta">
+                  {if @enrichment_last_sync_at,
+                    do: format_relative_time(@enrichment_last_sync_at),
+                    else: "Never synced"}
+                </div>
+              </div>
+            <% end %>
+            <div :if={@is_admin && @current_page != :admin} class="navbar__menu-section">
+              <div class="navbar__sync-group">
+                <.button navigate={~p"/admin"} variant="outline" size="sm">
+                  Admin
+                </.button>
               </div>
             </div>
-          <% end %>
-          <%= if @current_page == :streams and not @stream_scan_enabled do %>
-            <form phx-submit="start_capture" class="navbar__capture-form">
-              <input
-                type="text"
-                name="unique_id"
-                placeholder="@username"
-                class="input input--sm"
-                value={@capture_input}
-                disabled={@capture_loading}
-              />
-              <.button
-                type="submit"
-                variant="primary"
-                size="sm"
-                disabled={@capture_loading}
-              >
-                {if @capture_loading, do: "Connecting...", else: "Capture"}
-              </.button>
-              <%= if @capture_error do %>
-                <span class="navbar__capture-error">{@capture_error}</span>
-              <% end %>
-            </form>
-          <% end %>
-          <%= if @current_page == :product_sets do %>
-            <div class="navbar__sync-group">
-              <.button
-                variant="primary"
-                size="sm"
-                phx-click="trigger_shopify_sync"
-                class={@syncing && "button--disabled"}
-                disabled={@syncing}
-              >
-                {if @syncing, do: "Syncing...", else: "Sync Shopify"}
-              </.button>
-              <div class="navbar__sync-meta">
-                {if @last_sync_at,
-                  do: format_relative_time(@last_sync_at),
-                  else: "Never synced"}
-              </div>
-            </div>
-            <div class="navbar__sync-group">
-              <.button
-                variant="primary"
-                size="sm"
-                phx-click="trigger_tiktok_sync"
-                class={@tiktok_syncing && "button--disabled"}
-                disabled={@tiktok_syncing}
-              >
-                {if @tiktok_syncing, do: "Syncing...", else: "Sync TikTok"}
-              </.button>
-              <div class="navbar__sync-meta">
-                {if @tiktok_last_sync_at,
-                  do: format_relative_time(@tiktok_last_sync_at),
-                  else: "Never synced"}
-              </div>
-            </div>
-          <% end %>
-          <%= if @current_page == :creators do %>
-            <div class="navbar__sync-group">
-              <.button
-                variant="primary"
-                size="sm"
-                phx-click="trigger_bigquery_sync"
-                class={@bigquery_syncing && "button--disabled"}
-                disabled={@bigquery_syncing}
-              >
-                {if @bigquery_syncing, do: "Syncing...", else: "Sync Shop Orders"}
-              </.button>
-              <div class="navbar__sync-meta">
-                {if @bigquery_last_sync_at,
-                  do: format_relative_time(@bigquery_last_sync_at),
-                  else: "Never synced"}
-              </div>
-            </div>
-            <div class="navbar__sync-group">
-              <.button
-                variant="primary"
-                size="sm"
-                phx-click="trigger_enrichment_sync"
-                class={@enrichment_syncing && "button--disabled"}
-                disabled={@enrichment_syncing}
-              >
-                {if @enrichment_syncing, do: "Syncing...", else: "Sync Creator Profiles"}
-              </.button>
-              <div class="navbar__sync-meta">
-                {if @enrichment_last_sync_at,
-                  do: format_relative_time(@enrichment_last_sync_at),
-                  else: "Never synced"}
-              </div>
-            </div>
-          <% end %>
-          <div :if={@is_admin && @current_page != :admin} class="navbar__menu-section">
-            <div class="navbar__sync-group">
-              <.button navigate={~p"/admin"} variant="outline" size="sm">
-                Admin
-              </.button>
+            <div class="navbar__menu-section">
+              <.theme_toggle />
             </div>
           </div>
-          <div class="navbar__menu-section">
-            <.theme_toggle />
-          </div>
-        </div>
         </div>
       </div>
     </nav>

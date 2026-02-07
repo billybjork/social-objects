@@ -1,24 +1,19 @@
 /* ============================================================================
-   PRODUCT SET CARD COMPONENT
+   PRODUCT SET CARD COMPONENT - Tailwind Migration
+   ============================================================================
+   Uses @apply for base styles. Animations and nth-child selectors preserved.
    ============================================================================ */
+
 .product-set-card {
-  background-color: var(--color-surface-primary);
-  border-radius: var(--radius-lg);
-  padding: var(--space-6);
+  @apply bg-surface-primary rounded-lg p-6 cursor-pointer;
+  @apply border border-border-secondary;
   transition: all var(--transition-base);
-  border: 1px solid var(--color-border-secondary);
-  cursor: pointer;
-
-  /* Fade in + slide up animation for initial load and infinite scroll */
   animation: fadeInSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
-
-  /* Padding from top when scrolling to expanded product set - accounts for sticky navbar (80px) + spacing */
   scroll-margin-top: 96px;
 }
 
 .product-set-card:hover {
-  border-color: var(--color-border-primary);
-  box-shadow: var(--shadow-sm);
+  @apply border-border-primary shadow-sm;
 }
 
 /* Staggered animation delays for top-to-bottom effect */
@@ -36,141 +31,111 @@
 .product-set-card:nth-child(12) { animation-delay: 0.88s; }
 .product-set-card:nth-child(n+13) { animation-delay: 0.88s; }
 
-/* Disable animation when searching for instant results */
-.product-sets-list--searching .product-set-card {
-  animation: none;
-}
-
+/* Disable animation when searching */
+.product-sets-list--searching .product-set-card,
 .product-sets-list--searching .product-set-card__thumbnail {
   animation: none;
 }
 
-/* Empty state */
+/* ============================================================================
+   EMPTY STATE
+   ============================================================================ */
+
 .product-set-card__empty-state {
-  text-align: center;
-  padding: var(--space-8);
-  color: var(--color-text-secondary);
+  @apply text-center p-8 text-text-secondary;
 }
 
-/* Header area - contains title group and actions */
+/* ============================================================================
+   HEADER
+   ============================================================================ */
+
 .product-set-card__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: var(--space-6);
-  position: relative; /* For collapse button positioning */
+  @apply flex justify-between items-start gap-6 relative;
 }
 
-/* Title group */
 .product-set-card__title-group {
-  flex: 1;
-  min-width: 0; /* Allow text truncation if needed */
+  @apply flex-1 min-w-0;
 }
 
-/* Title row - title and badge side by side */
 .product-set-card__title-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  margin-bottom: var(--space-3);
+  @apply flex items-center gap-3 mb-3;
 }
 
 .product-set-card__title {
-  font-size: var(--text-xl);
-  font-weight: var(--font-semibold);
-  color: var(--color-text-primary);
-  margin: 0;
+  @apply text-xl font-semibold text-text-primary m-0;
 }
 
-/* Meta information - horizontal layout */
+/* ============================================================================
+   META INFORMATION
+   ============================================================================ */
+
 .product-set-card__meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-4);
-  margin-bottom: var(--space-3);
+  @apply flex flex-wrap gap-4 mb-3;
 }
 
 .product-set-card__meta-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  font-size: var(--text-sm);
-  color: var(--color-text-secondary);
+  @apply flex items-center gap-1 text-sm text-text-secondary;
 }
 
 .product-set-card__meta-item--link {
-  color: var(--color-primary);
-  text-decoration: none;
+  @apply text-primary no-underline;
   transition: color 0.15s ease;
 }
 
 .product-set-card__meta-item--link:hover {
+  @apply underline;
   color: var(--color-primary-hover);
-  text-decoration: underline;
 }
 
 .product-set-card__notes {
-  font-size: var(--text-sm);
-  color: var(--color-text-secondary);
-  margin-top: var(--space-2);
+  @apply text-sm text-text-secondary mt-2 pr-12;
   line-height: 1.5;
-  padding-right: var(--space-12); /* Space for collapse button */
 }
 
-/* Content switcher - container for thumbnails and products */
+/* ============================================================================
+   CONTENT SWITCHER
+   ============================================================================ */
+
 .product-set-card__content-switcher {
-  position: relative;
-  margin-top: var(--space-4);
-  width: 100%;
-  /* No min-height - let content determine size */
+  @apply relative mt-4 w-full;
 }
 
-/* Thumbnails preview - horizontal scrollable film strip */
+/* ============================================================================
+   THUMBNAILS PREVIEW
+   ============================================================================ */
+
 .product-set-card__thumbnails {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  overflow-x: auto;
+  @apply flex gap-1.5 items-center overflow-x-auto;
   padding: 4px 0 8px 0;
-
-  /* Smooth scrolling */
   scroll-behavior: smooth;
-  -webkit-overflow-scrolling: touch; /* iOS momentum scrolling */
-
-  /* Modern thin scrollbar */
+  -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
   scrollbar-color: var(--color-border-secondary) transparent;
-
-  /* Expand on close - start while products are fading for smooth handoff */
   max-height: 200px;
-  opacity: 1;
+  @apply opacity-100;
   transition: max-height 0.3s ease-out 0.12s, opacity 0.3s ease-out 0.12s, padding 0.3s ease-out 0.12s;
 }
 
-/* Collapse thumbnails when product set is expanded */
 .product-set-card__content-switcher--expanded .product-set-card__thumbnails {
   max-height: 0;
-  opacity: 0;
+  @apply opacity-0 overflow-hidden pointer-events-none;
   padding-top: 0;
   padding-bottom: 0;
-  overflow: hidden;
-  pointer-events: none;
   transition: max-height 0.3s ease-out, opacity 0.25s ease-out, padding 0.3s ease-out;
 }
 
-/* Webkit scrollbar styling (Chrome, Safari, Edge) */
+/* Webkit scrollbar styling */
 .product-set-card__thumbnails::-webkit-scrollbar {
   height: 6px;
 }
 
 .product-set-card__thumbnails::-webkit-scrollbar-track {
-  background: transparent;
-  border-radius: 3px;
+  @apply bg-transparent rounded;
 }
 
 .product-set-card__thumbnails::-webkit-scrollbar-thumb {
   background-color: var(--color-border-secondary);
-  border-radius: 3px;
+  @apply rounded;
   transition: background-color var(--transition-base);
 }
 
@@ -179,35 +144,22 @@
 }
 
 .product-set-card__thumbnail {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius-md);
-  border: 2px solid var(--color-surface-primary);
-  object-fit: cover;
-  flex-shrink: 0; /* Prevent thumbnails from shrinking */
+  @apply w-12 h-12 rounded-md shrink-0 object-cover;
+  @apply border-2 border-surface-primary;
+  @apply bg-bg-tertiary opacity-100;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  background-color: var(--color-bg-tertiary);
-
-  /* Default visible state (animation will override on initial load) */
-  opacity: 1;
   transform: translateY(0) scale(1);
-
-  /* Smooth transition for expand/collapse and hover effects */
   transition: opacity 0.25s ease-out 0.12s, transform 0.25s ease-out, box-shadow var(--transition-base);
-
-  /* Fade in animation on initial load (has priority over opacity declaration) */
   animation: fadeInThumbnail 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .product-set-card__thumbnail:hover {
   transform: translateY(-4px) scale(1.05);
-  z-index: 10;
+  @apply z-10;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-/* Staggered thumbnail fade in - LEFT to RIGHT
-   Delayed to start during latter half of parent card's fade-in (0.35s)
-   Parent card takes 0.6s to fade in, thumbnails start at 0.35s when card is ~60% visible */
+/* Staggered thumbnail fade in - LEFT to RIGHT */
 .product-set-card__thumbnail:nth-child(1) { animation-delay: 0.35s; }
 .product-set-card__thumbnail:nth-child(2) { animation-delay: 0.4s; }
 .product-set-card__thumbnail:nth-child(3) { animation-delay: 0.45s; }
@@ -216,14 +168,14 @@
 .product-set-card__thumbnail:nth-child(6) { animation-delay: 0.6s; }
 .product-set-card__thumbnail:nth-child(n+7) { animation-delay: 0.65s; }
 
-/* Hide thumbnails when expanded - slide DOWN and fade */
+/* Hide thumbnails when expanded */
 .product-set-card__content-switcher--expanded .product-set-card__thumbnail {
-  opacity: 0;
+  @apply opacity-0;
   transform: translateY(12px) scale(0.9);
   transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow var(--transition-base);
 }
 
-/* Staggered thumbnail exit - LEFT to RIGHT */
+/* Staggered thumbnail exit */
 .product-set-card__content-switcher--expanded .product-set-card__thumbnail:nth-child(1) { transition-delay: 0s; }
 .product-set-card__content-switcher--expanded .product-set-card__thumbnail:nth-child(2) { transition-delay: 0.05s; }
 .product-set-card__content-switcher--expanded .product-set-card__thumbnail:nth-child(3) { transition-delay: 0.10s; }
@@ -232,215 +184,137 @@
 .product-set-card__content-switcher--expanded .product-set-card__thumbnail:nth-child(6) { transition-delay: 0.25s; }
 .product-set-card__content-switcher--expanded .product-set-card__thumbnail:nth-child(n+7) { transition-delay: 0.30s; }
 
-/* Products wrapper - contains product list and collapse button */
+/* ============================================================================
+   PRODUCTS WRAPPER
+   ============================================================================ */
+
 .product-set-card__products-wrapper {
-  display: grid;
+  @apply grid overflow-hidden pointer-events-none;
   grid-template-rows: 0fr;
-  overflow: hidden;
-  pointer-events: none;
-  /* Collapse grid while items fade, extend slightly for smooth handoff to thumbnails */
   transition: grid-template-rows 0.3s ease-in;
 }
 
 .product-set-card__products-wrapper > * {
-  min-height: 0; /* Allow grid collapse */
+  min-height: 0;
 }
 
-/* Show products when expanded */
 .product-set-card__content-switcher--expanded .product-set-card__products-wrapper {
   grid-template-rows: 1fr;
-  pointer-events: auto;
-  /* Start expanding early to overlap with thumbnail collapse - prevents height contraction */
+  @apply pointer-events-auto;
   transition: grid-template-rows 0.4s ease-out 0.1s;
 }
 
-/* Products inner wrapper */
 .product-set-card__products-inner {
-  position: relative;
-  width: 100%;
+  @apply relative w-full;
 }
 
-/* Session notes image in expanded view */
+/* ============================================================================
+   NOTES IMAGE
+   ============================================================================ */
+
 .product-set-card__notes-image {
-  margin-bottom: var(--space-4);
-  text-align: center;
-  opacity: 0;
+  @apply mb-4 text-center opacity-0;
   transform: translateY(-8px);
   transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
-/* Fade in and slide down when expanded */
 .product-set-card__content-switcher--expanded .product-set-card__notes-image {
-  opacity: 1;
+  @apply opacity-100;
   transform: translateY(0);
   transition-delay: 0.15s;
 }
 
 .product-set-card__notes-image img {
-  max-width: 100%;
+  @apply max-w-full rounded-md cursor-pointer;
   max-height: 200px;
   object-fit: contain;
-  border-radius: var(--radius-md);
-  cursor: pointer;
 }
 
 .product-set-card__notes-image img:hover {
-  opacity: 0.9;
+  @apply opacity-90;
   transition: opacity 0.15s ease;
 }
 
-/* Collapse button wrapper - positioned in header at bottom right */
+/* ============================================================================
+   COLLAPSE BUTTON
+   ============================================================================ */
+
 .product-set-card__collapse-btn-wrapper {
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  z-index: 10;
-  display: flex;
-  gap: var(--space-2);
-  align-items: center;
-  opacity: 0;
+  @apply absolute bottom-0 right-0 z-10 flex gap-2 items-center opacity-0;
   transform: translateY(4px);
   animation: fadeInButton 0.25s ease-out forwards;
   animation-delay: 0.45s;
 }
 
-/* Actions - buttons on the right */
 .product-set-card__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  align-items: flex-start;
-  flex-shrink: 0;
-  cursor: default; /* Override card's pointer cursor for button area */
+  @apply flex flex-wrap gap-2 items-start shrink-0 cursor-default;
 }
 
 @keyframes fadeInButton {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-/* Collapse button */
-.product-set-card__collapse-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  background-color: var(--color-surface-primary);
-  border: 1px solid var(--color-border-secondary);
-  border-radius: var(--radius-md);
-  color: var(--color-text-secondary);
+.product-set-card__collapse-btn,
+.product-set-card__undo-btn {
+  @apply flex items-center justify-center;
+  @apply w-8 h-8 p-0;
+  @apply bg-surface-primary border border-border-secondary rounded-md;
+  @apply text-text-secondary cursor-pointer shrink-0;
   font-size: 14px;
-  cursor: pointer;
-  transition: all var(--transition-base);
-  flex-shrink: 0;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all var(--transition-base);
 }
 
 .product-set-card__collapse-btn svg {
-  width: 16px;
-  height: 16px;
+  @apply w-4 h-4;
 }
 
-.product-set-card__collapse-btn:hover {
-  background-color: var(--color-bg-hover);
-  border-color: var(--color-border-primary);
-  color: var(--color-text-primary);
-}
-
-.product-set-card__collapse-btn:active {
-  transform: translateY(1px);
-}
-
-/* Undo button */
-.product-set-card__undo-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  background-color: var(--color-surface-primary);
-  border: 1px solid var(--color-border-secondary);
-  border-radius: var(--radius-md);
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  transition: all var(--transition-base);
-  flex-shrink: 0;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
+.product-set-card__collapse-btn:hover,
 .product-set-card__undo-btn:hover {
-  background-color: var(--color-bg-hover);
-  border-color: var(--color-border-primary);
-  color: var(--color-text-primary);
+  @apply bg-bg-hover border-border-primary text-text-primary;
 }
 
+.product-set-card__collapse-btn:active,
 .product-set-card__undo-btn:active {
   transform: translateY(1px);
 }
 
-/* Product list - grid layout for cards */
+/* ============================================================================
+   PRODUCT LIST
+   ============================================================================ */
+
 .product-set-card__product-list {
-  display: grid;
+  @apply grid gap-4 w-full;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: var(--space-4);
-  width: 100%;
 }
 
-/* Product item - horizontal card layout */
 .product-set-card__product-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3);
-  background-color: var(--color-bg-secondary);
-  border: 1px solid var(--color-border-secondary);
-  border-radius: var(--radius-md);
-  cursor: grab;
-  user-select: none;
-
-  /* Default hidden state */
-  opacity: 0;
+  @apply flex items-center gap-3 p-3;
+  @apply bg-bg-secondary border border-border-secondary rounded-md;
+  @apply cursor-grab select-none opacity-0;
   transform: translateY(-12px);
-
-  /* Fast transition for closing - finish before thumbnails appear */
   transition: opacity 0.15s ease-in, transform 0.15s ease-in, background-color var(--transition-base), border-color var(--transition-base);
   transition-delay: 0s;
 }
 
-/* Product link - wraps clickable product content */
 .product-set-card__product-link {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  flex: 1;
-  min-width: 0; /* Allow text truncation */
-  text-decoration: none;
-  color: inherit;
-  cursor: pointer;
+  @apply flex items-center gap-3 flex-1 min-w-0;
+  @apply no-underline text-inherit cursor-pointer;
 }
 
 .product-set-card__product-link:hover {
-  opacity: 0.8;
+  @apply opacity-80;
 }
 
-/* Show products when expanded - using transitions instead of animations */
+/* Show products when expanded */
 .product-set-card__content-switcher--expanded .product-set-card__product-item {
-  opacity: 1;
+  @apply opacity-100;
   transform: translateY(0);
-  /* Slower transition for opening with smooth easing */
   transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), background-color var(--transition-base), border-color var(--transition-base);
 }
 
-/* Stagger transition delays for product items - overlaps with thumbnail exit for smooth flow (left to right) */
+/* Stagger transition delays for product items */
 .product-set-card__content-switcher--expanded .product-set-card__product-item:nth-child(1) { transition-delay: 0.25s; }
 .product-set-card__content-switcher--expanded .product-set-card__product-item:nth-child(2) { transition-delay: 0.31s; }
 .product-set-card__content-switcher--expanded .product-set-card__product-item:nth-child(3) { transition-delay: 0.37s; }
@@ -450,145 +324,95 @@
 .product-set-card__content-switcher--expanded .product-set-card__product-item:nth-child(n+7) { transition-delay: 0.61s; }
 
 .product-set-card__product-item:hover {
-  border-color: var(--color-border-primary);
-  background-color: var(--color-bg-hover);
+  @apply border-border-primary bg-bg-hover;
 }
 
 .product-set-card__product-position {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  background-color: var(--color-surface-primary);
-  border: 1px solid var(--color-border-primary);
-  border-radius: var(--radius-md);
-  font-size: var(--text-sm);
-  font-weight: var(--font-semibold);
-  color: var(--color-text-secondary);
-  flex-shrink: 0;
+  @apply flex items-center justify-center w-8 h-8;
+  @apply bg-surface-primary border border-border-primary rounded-md;
+  @apply text-sm font-semibold text-text-secondary shrink-0;
 }
 
 .product-set-card__product-image {
-  width: 64px;
-  height: 64px;
+  @apply w-16 h-16 rounded-sm shrink-0 bg-bg-tertiary;
   object-fit: contain;
-  border-radius: var(--radius-sm);
-  flex-shrink: 0;
-  background-color: var(--color-bg-tertiary);
 }
 
 .product-set-card__product-name {
-  flex: 1;
-  font-size: var(--text-base);
-  font-weight: var(--font-medium);
-  color: var(--color-text-primary);
-  margin: 0;
+  @apply flex-1 text-base font-medium text-text-primary m-0 min-w-0;
   line-height: 1.4;
-  min-width: 0; /* Allow text truncation */
-
-  /* Limit to 2 lines with ellipsis */
   display: -webkit-box;
   -webkit-line-clamp: 2;
   line-clamp: 2;
   -webkit-box-orient: vertical;
-  overflow: hidden;
+  @apply overflow-hidden;
   text-overflow: ellipsis;
 }
 
-/* Add product button */
-.product-set-card__add-product-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100px;
-  padding: var(--space-3);
-  background-color: var(--color-bg-secondary);
-  border: 2px dashed var(--color-border-secondary);
-  border-radius: var(--radius-md);
-  font-size: var(--text-2xl);
-  font-weight: var(--font-light);
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  opacity: 0;
-  transform: translateY(-12px);
+/* ============================================================================
+   ADD PRODUCT BUTTON
+   ============================================================================ */
 
-  /* Fast transition for closing - match product items */
+.product-set-card__add-product-btn {
+  @apply flex items-center justify-center p-3;
+  @apply bg-bg-secondary rounded-md;
+  @apply text-2xl font-light text-text-secondary cursor-pointer;
+  @apply opacity-0;
+  min-height: 100px;
+  border: 2px dashed var(--color-border-secondary);
+  transform: translateY(-12px);
   transition: opacity 0.15s ease-in, transform 0.15s ease-in, background-color var(--transition-base), border-color var(--transition-base);
   transition-delay: 0s;
 }
 
 .product-set-card__add-product-btn:hover {
-  border-color: var(--color-border-primary);
-  background-color: var(--color-bg-hover);
-  color: var(--color-text-primary);
+  @apply border-border-primary bg-bg-hover text-text-primary;
 }
 
-/* Show add button when parent is expanded - appears after product items */
 .product-set-card__content-switcher--expanded .product-set-card__add-product-btn {
-  opacity: 1;
+  @apply opacity-100;
   transform: translateY(0);
   transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), background-color var(--transition-base), border-color var(--transition-base);
   transition-delay: 0.67s;
 }
 
-/* Product actions - buttons on the right */
+/* ============================================================================
+   PRODUCT ACTIONS
+   ============================================================================ */
+
 .product-set-card__product-actions {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+  @apply flex flex-col gap-1 items-center justify-center shrink-0;
 }
 
 .product-set-card__product-actions .button {
-  position: relative;
-  z-index: 1;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  font-size: 1rem;
-  line-height: 1;
+  @apply relative z-[1] w-8 h-8 flex items-center justify-center shrink-0;
+  @apply text-base leading-none;
 }
 
 /* Ensure product set card is above others when menu is open */
 .product-set-card:has(.menu-container:hover),
 .product-set-card:has(.product-set-menu.fade-in) {
-  position: relative;
-  z-index: 100;
+  @apply relative z-[100];
 }
 
-/* Three-dots menu */
+/* ============================================================================
+   THREE-DOTS MENU
+   ============================================================================ */
+
 .menu-container {
-  position: relative;
-  display: inline-block;
+  @apply relative inline-block;
 }
 
 .menu-trigger {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  background-color: transparent;
-  border: 1px solid var(--color-border-secondary);
-  border-radius: var(--radius-md);
-  color: var(--color-text-secondary);
+  @apply flex items-center justify-center w-9 h-9 p-0;
+  @apply bg-transparent border border-border-secondary rounded-md;
+  @apply text-text-secondary font-bold cursor-pointer;
   font-size: 20px;
-  font-weight: var(--font-bold);
-  cursor: pointer;
   transition: all var(--transition-base);
 }
 
 .menu-trigger:hover {
-  background-color: var(--color-bg-hover);
-  border-color: var(--color-border-primary);
-  color: var(--color-text-primary);
+  @apply bg-bg-hover border-border-primary text-text-primary;
 }
 
 .menu-trigger:active {
@@ -596,43 +420,31 @@
 }
 
 .menu-trigger[aria-expanded="true"] {
-  background-color: var(--color-bg-hover);
-  border-color: var(--color-border-primary);
+  @apply bg-bg-hover border-border-primary;
 }
 
 .product-set-menu {
-  display: none;
-  position: absolute;
-  right: 0;
-  top: calc(100% + var(--space-2));
-  min-width: 180px;
-  background-color: var(--color-surface-primary);
-  border: 1px solid var(--color-border-secondary);
-  border-radius: var(--radius-md);
+  @apply hidden absolute right-0 min-w-[180px];
+  @apply bg-surface-primary border border-border-secondary rounded-md;
+  @apply p-0.5;
+  top: calc(100% + var(--spacing-2));
   box-shadow: var(--shadow-lg);
-  padding: var(--space-1) 0;
   z-index: 9999;
 }
 
-/* Invisible bridge to maintain hover when moving from trigger to menu */
 .product-set-menu::before {
   content: "";
-  position: absolute;
-  top: calc(-1 * var(--space-2));
-  left: 0;
-  right: 0;
-  height: var(--space-2);
+  @apply absolute left-0 right-0;
+  top: calc(-1 * var(--spacing-2));
+  height: var(--spacing-2);
 }
 
-/* Hover to open - only on devices that support hover (not touch) */
 @media (hover: hover) {
   .menu-container:hover .product-set-menu {
-    /* !important overrides any inline display styles from JS toggle */
     display: block !important;
   }
 }
 
-/* LiveView transition classes */
 .product-set-menu.fade-in {
   animation: fadeInMenu 0.2s ease-out;
 }
@@ -642,67 +454,35 @@
 }
 
 @keyframes fadeInMenu {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes fadeOutMenu {
-  from {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  to {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-8px); }
 }
 
 @keyframes fadeInSlideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes fadeInThumbnail {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .product-set-menu__item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  width: 100%;
-  padding: var(--space-2) var(--space-3);
-  background-color: transparent;
-  border: none;
-  border-radius: var(--radius-sm);
-  color: var(--color-text-primary);
-  font-size: var(--text-sm);
-  text-align: left;
-  text-decoration: none;
-  cursor: pointer;
+  @apply flex items-center gap-2 w-full py-2 px-3;
+  @apply bg-transparent border-none rounded-sm;
+  @apply text-text-primary text-sm text-left cursor-pointer whitespace-nowrap;
+  @apply no-underline;
   transition: background-color var(--transition-base);
-  white-space: nowrap;
 }
 
 .product-set-menu__item:hover {
-  background-color: var(--color-bg-hover);
+  @apply bg-bg-hover;
 }
 
 .product-set-menu__item:active {
@@ -710,7 +490,7 @@
 }
 
 .product-set-menu__item--danger {
-  color: var(--color-accent-red);
+  @apply text-accent-red;
 }
 
 .product-set-menu__item--danger:hover {
@@ -718,116 +498,91 @@
 }
 
 .product-set-menu__divider {
-  height: 1px;
+  @apply h-px my-2;
   background-color: var(--color-border-secondary);
-  margin: var(--space-2) 0;
 }
 
 /* ============================================================================
    DRAG AND DROP (SORTABLE)
-   Styles for drag-and-drop product reordering
    ============================================================================ */
 
-/* Sortable states - applied by SortableJS during drag operations */
-
-/* Ghost: placeholder where item will be dropped */
 .sortable-ghost {
-  opacity: 0.4;
-  background-color: var(--color-bg-hover);
+  @apply opacity-40 bg-bg-hover rounded-md;
   border: 2px dashed var(--color-border-primary);
-  border-radius: var(--radius-md);
 }
 
 .sortable-ghost * {
-  visibility: hidden;
+  @apply invisible;
 }
 
-/* Drag: item being dragged */
 .sortable-drag {
-  opacity: 1;
+  @apply opacity-100 cursor-grabbing z-[1000];
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
   transform: rotate(2deg);
-  cursor: grabbing;
-  z-index: 1000;
 }
 
-/* Chosen: item when selected for drag */
 .sortable-chosen {
-  cursor: grabbing;
-  user-select: none;
+  @apply cursor-grabbing select-none;
 }
 
-/* Prevent text selection during drag */
 .product-set-card__product-list.sortable-drag-active {
-  user-select: none;
+  @apply select-none;
 }
 
-/* Responsive adjustments */
+/* ============================================================================
+   RESPONSIVE - MOBILE
+   ============================================================================ */
+
 @media (max-width: 768px) {
-  /* Reduce card padding on mobile */
   .product-set-card {
-    padding: var(--space-4);
+    @apply p-4;
   }
 
-  /* Make title smaller and more compact */
   .product-set-card__title {
-    font-size: var(--text-lg);
+    @apply text-lg;
   }
 
   .product-set-card__title-row {
-    margin-bottom: 0;
+    @apply mb-0;
   }
 
-  /* Make meta items more compact, positioned below buttons in grid */
   .product-set-card__meta {
     grid-column: 1 / -1;
     grid-row: 3;
-    gap: var(--space-3);
-    font-size: var(--text-xs);
+    @apply gap-3 text-xs;
   }
 
   .product-set-card__meta-item {
-    gap: var(--space-1);
+    @apply gap-1;
   }
 
-  /* Hide icons on mobile to save space */
   .product-set-card__meta-item .size-4 {
-    display: none;
+    @apply hidden;
   }
 
-  /* Header becomes grid so we can reorder children across containers */
   .product-set-card__header {
-    display: grid;
+    @apply grid gap-2 items-start;
     grid-template-columns: auto auto 1fr;
-    row-gap: var(--space-2);
-    column-gap: var(--space-2);
-    align-items: start;
+    row-gap: var(--spacing-2);
   }
 
-  /* Flatten title-group and actions so their children participate in the header grid */
-  .product-set-card__title-group {
-    display: contents;
-  }
-
+  .product-set-card__title-group,
   .product-set-card__actions {
     display: contents;
   }
 
-  /* Title spans full width, with padding to clear the menu trigger */
   .product-set-card__title-row {
     grid-column: 1 / -1;
     grid-row: 1;
-    padding-right: 44px;
+    @apply pr-11;
   }
 
-  /* Menu trigger sits top-right, overlapping the title row's padding area */
   .product-set-card__actions > .menu-container {
     grid-column: 3;
     grid-row: 1;
-    justify-self: end;
+    @apply justify-self-end;
   }
 
-  /* Buttons side by side in row 2 */
   .product-set-card__actions > .button:nth-child(1) {
     grid-column: 1;
     grid-row: 2;
@@ -838,121 +593,91 @@
     grid-row: 2;
   }
 
-  /* Compact buttons */
   .product-set-card__actions .button--sm {
-    padding: var(--space-1) var(--space-2);
-    font-size: var(--text-xs);
-    white-space: nowrap;
+    @apply py-1 px-2 text-xs whitespace-nowrap;
   }
 
-  /* Square menu trigger matching navbar style */
   .menu-trigger {
-    width: 36px;
-    height: 36px;
+    @apply w-9 h-9;
     font-size: 16px;
   }
 
-  /* Notes text smaller, positioned below meta in grid */
   .product-set-card__notes {
     grid-column: 1 / -1;
     grid-row: 4;
-    font-size: var(--text-xs);
-    padding-right: 0;
+    @apply text-xs pr-0;
   }
 
-  /* Thumbnails slightly smaller on mobile */
   .product-set-card__thumbnail {
-    width: 44px;
-    height: 44px;
+    @apply w-11 h-11;
   }
 
-  /* Product list single column */
   .product-set-card__product-list {
     grid-template-columns: 1fr;
   }
 
-  /* Smaller product images in expanded view */
   .product-set-card__product-image {
-    width: 56px;
-    height: 56px;
+    @apply w-14 h-14;
   }
 
   .product-set-card__product-name {
-    font-size: var(--text-sm);
+    @apply text-sm;
   }
 }
 
 /* ============================================================================
    LINKED STREAM THUMBNAILS
-   Stream thumbnails shown in expanded product set view
    ============================================================================ */
 
 .product-set-card__streams {
-  margin-bottom: var(--space-4);
-  opacity: 0;
+  @apply mb-4 opacity-0;
   transform: translateY(-8px);
   transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
-/* Fade in and slide down when expanded */
 .product-set-card__content-switcher--expanded .product-set-card__streams {
-  opacity: 1;
+  @apply opacity-100;
   transform: translateY(0);
   transition-delay: 0.1s;
 }
 
 .product-set-card__streams-label {
-  display: block;
-  font-size: var(--text-sm);
-  font-weight: var(--font-medium);
-  color: var(--color-text-secondary);
-  margin-bottom: var(--space-2);
+  @apply block text-sm font-medium text-text-secondary mb-2;
 }
 
 .product-set-card__streams-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
+  @apply flex flex-wrap gap-3;
 }
 
 .product-set-card__stream-thumb {
-  position: relative;
-  display: block;
-  text-decoration: none;
-  border-radius: var(--radius-md);
-  overflow: hidden;
+  @apply relative block no-underline rounded-md overflow-hidden;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .product-set-card__stream-thumb:hover {
+  @apply shadow-md;
   transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
 }
 
-/* Override stream-thumbnail styles for this context - preserve aspect ratio */
 .product-set-card__stream-thumb .stream-thumbnail {
-  width: auto;
-  height: auto;
+  @apply w-auto h-auto;
   max-width: 120px;
   max-height: 160px;
   aspect-ratio: auto;
 }
 
 .product-set-card__stream-thumb .stream-thumbnail__image {
-  width: auto;
-  height: auto;
+  @apply w-auto h-auto;
   max-width: 120px;
   max-height: 160px;
   object-fit: contain;
 }
 
 .product-set-card__stream-thumb .stream-thumbnail__placeholder {
-  width: 80px;
+  @apply w-20;
   height: 120px;
 }
 
 .product-set-card__stream-status {
-  position: absolute;
-  bottom: var(--space-1);
-  left: var(--space-1);
+  @apply absolute bottom-1 left-1;
 }

@@ -1,144 +1,131 @@
 /* ============================================================================
-   BUTTON COMPONENT
+   BUTTON COMPONENT - Tailwind Migration
+   ============================================================================
+   Uses @apply for base styles while maintaining existing class API.
    ============================================================================ */
 
 .button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-6);
-  font-size: var(--text-base);
-  font-weight: var(--font-medium);
-  line-height: 1;
-  border-radius: var(--radius-md);
-  border: 1px solid transparent;
+  @apply inline-flex items-center justify-center gap-2;
+  @apply py-3 px-6;
+  @apply text-base font-medium leading-none;
+  @apply rounded-md border border-transparent;
+  @apply cursor-pointer whitespace-nowrap;
+  @apply no-underline;
   transition: all var(--transition-fast);
-  cursor: pointer;
-  white-space: nowrap;
-  text-decoration: none; /* Remove underline for links */
 }
 
 .button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  @apply opacity-50 cursor-not-allowed;
 }
 
 /* Override default link styles when used with button class */
 a.button {
-  color: inherit; /* Use button's color, not link color */
+  @apply text-inherit;
 }
 
 a.button:hover {
-  color: inherit; /* Don't change to link hover color */
+  @apply text-inherit;
 }
 
-/* Variants */
+/* ============================================================================
+   VARIANTS
+   ============================================================================ */
+
 .button--primary {
-  background-color: var(--color-accent-blue);
-  color: var(--color-text-inverse); /* Always white, regardless of theme */
+  @apply bg-accent-blue text-text-inverse;
 }
 
 .button--primary:hover:not(:disabled) {
-  background-color: var(--color-accent-blue-hover);
-  color: var(--color-text-inverse); /* Keep white on hover */
+  @apply bg-accent-blue-hover text-text-inverse;
 }
 
 /* Ensure links with primary button class have white text */
 a.button--primary,
 a.button--primary:hover,
 a.button--primary:visited {
-  color: var(--color-text-inverse); /* Always white for primary button links */
+  @apply text-text-inverse;
 }
 
 .button--success {
-  background-color: var(--color-accent-green);
-  color: var(--color-text-inverse);
+  @apply bg-accent-green text-text-inverse;
 }
 
 .button--success:hover:not(:disabled) {
-  background-color: var(--color-accent-green-hover);
+  @apply bg-accent-green-hover;
 }
 
 .button--error {
-  background-color: var(--color-accent-red);
-  color: var(--color-text-inverse);
+  @apply bg-accent-red text-text-inverse;
 }
 
 .button--error:hover:not(:disabled) {
-  background-color: var(--color-accent-red-hover);
+  @apply bg-accent-red-hover;
 }
 
 .button--ghost {
-  background-color: transparent;
-  color: var(--color-text-primary);
+  @apply bg-transparent text-text-primary;
 }
 
 .button--ghost:hover:not(:disabled) {
-  background-color: var(--color-bg-hover);
+  @apply bg-bg-hover;
 }
 
 .button--outline {
-  background-color: transparent;
-  border-color: var(--color-border-primary);
-  color: var(--color-text-primary);
+  @apply bg-transparent border-border-primary text-text-primary;
 }
 
 .button--outline:hover:not(:disabled) {
-  background-color: var(--color-bg-hover);
+  @apply bg-bg-hover;
 }
 
 .button--outline-error {
-  background-color: transparent;
-  border-color: var(--color-accent-red);
-  color: var(--color-accent-red);
+  @apply bg-transparent border-accent-red text-accent-red;
 }
 
 .button--outline-error:hover:not(:disabled) {
-  background-color: var(--color-accent-red);
-  color: var(--color-text-inverse);
+  @apply bg-accent-red text-text-inverse;
 }
 
 .button--ghost-error {
-  background-color: transparent;
-  color: var(--color-accent-red);
+  @apply bg-transparent text-accent-red;
 }
 
 .button--ghost-error:hover:not(:disabled) {
   background-color: rgba(239, 68, 68, 0.1);
 }
 
-/* Sizes */
+/* ============================================================================
+   SIZES
+   ============================================================================ */
+
 .button--xs {
-  padding: var(--space-1) var(--space-3);
-  font-size: var(--text-xs);
+  @apply py-1 px-3 text-xs;
 }
 
 .button--sm {
-  padding: var(--space-2) var(--space-4);
-  font-size: var(--text-sm);
+  @apply py-2 px-4 text-sm;
 }
 
 .button--lg {
-  padding: var(--space-4) var(--space-8);
-  font-size: var(--text-lg);
+  @apply py-4 px-8 text-lg;
 }
 
-/* Circle variant */
+/* ============================================================================
+   CIRCLE VARIANT
+   ============================================================================ */
+
 .button--circle {
-  border-radius: var(--radius-full);
-  padding: var(--space-3);
-  aspect-ratio: 1;
+  @apply rounded-full p-3 aspect-square;
 }
 
 .button--circle.button--xs {
-  padding: var(--space-1);
+  @apply p-1;
 }
 
 .button--circle.button--sm {
-  padding: var(--space-2);
+  @apply p-2;
 }
 
 .button--circle.button--lg {
-  padding: var(--space-4);
+  @apply p-4;
 }

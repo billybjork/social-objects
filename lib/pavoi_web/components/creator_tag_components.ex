@@ -315,12 +315,12 @@ defmodule PavoiWeb.CreatorTagComponents do
         <%= if @available_tags == [] do %>
           <div class="batch-tag-picker__empty">
             <p>No tags available.</p>
-            <p class="text-secondary text-sm">
+            <p class="text-text-secondary text-sm">
               Create tags by clicking on the Tags column in the table.
             </p>
           </div>
         <% else %>
-          <p class="text-secondary" style="margin-bottom: var(--space-3);">
+          <p class="text-text-secondary" style="margin-bottom: var(--space-3);">
             Select tags to add to the selected creators:
           </p>
           <div class="batch-tag-picker__list">
@@ -376,7 +376,7 @@ defmodule PavoiWeb.CreatorTagComponents do
       <div class="modal__body">
         <%= if is_nil(@results) do %>
           <%!-- Phase 1: Input --%>
-          <p class="text-secondary batch-select-modal__description">
+          <p class="text-text-secondary batch-select-modal__description">
             Paste TikTok handles below. Supports usernames, @handles, and TikTok profile URLs.
             Separate with commas, spaces, or newlines.
           </p>

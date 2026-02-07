@@ -6,7 +6,7 @@
 >
   <div
     id="creators-page"
-    class="container container--xl region creators-index"
+    class="container container--xl py-8 max-sm:pt-3 max-sm:pb-6 creators-index"
     phx-hook="CsvDownload"
   >
     <.page_tabs active_tab={@page_tab}>
@@ -435,7 +435,7 @@
                   <% else %>
                     <div class="template-card__subject">
                       <strong>Lark Community:</strong> {String.capitalize(
-                        template.lark_preset || "jewelry"
+                        to_string(template.lark_preset || :jewelry)
                       )}
                     </div>
                   <% end %>
@@ -457,14 +457,14 @@
     <div class="modal__body">
       <%!-- Confirmation Summary --%>
       <div class="confirmation-summary mb-4 p-4 bg-surface-secondary rounded-lg">
-        <div class="flex items-center gap-3 mb-2">
+        <div class="flex items-baseline gap-3 mb-2">
           <span class="text-2xl font-semibold">{@sendable_selected_count}</span>
-          <span class="text-secondary">
+          <span class="text-text-secondary">
             email{if @sendable_selected_count != 1, do: "s"} will be sent
           </span>
         </div>
         <%= if @sendable_selected_count < MapSet.size(@selected_ids) do %>
-          <p class="text-sm text-secondary">
+          <p class="text-sm text-text-secondary">
             <span class="text-warning-600">
               {MapSet.size(@selected_ids) - @sendable_selected_count}
             </span>
@@ -474,13 +474,13 @@
       </div>
 
       <%= unless @outreach_email_enabled do %>
-        <div class="alert-box alert-box--warning">
+        <div class="mb-3 p-3 rounded-lg border border-amber-500 bg-amber-50 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
           Email sending is currently in test mode. Messages will not deliver to recipients.
         </div>
       <% end %>
 
       <%= if @outreach_email_override && @outreach_email_override != "" do %>
-        <div class="alert-box alert-box--info">
+        <div class="mb-3 p-3 rounded-lg border border-sky-400 bg-cyan-50 text-sky-700 dark:bg-sky-400/15 dark:text-sky-300">
           All emails will be routed to {@outreach_email_override} (original recipient is
           still logged).
         </div>
@@ -489,7 +489,7 @@
       <%!-- Email Template Selection --%>
       <div class="mb-4">
         <div class="flex items-center justify-between mb-2">
-          <label class="label mb-0">Email Template</label>
+          <span class="text-sm font-medium text-text-primary">Email Template</span>
           <button
             type="button"
             phx-click="go_to_templates"
@@ -499,7 +499,7 @@
           </button>
         </div>
         <%= if Enum.empty?(@available_templates) do %>
-          <div class="alert-box alert-box--warning">
+          <div class="mb-3 p-3 rounded-lg border border-amber-500 bg-amber-50 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
             No email templates found.
             <button type="button" phx-click="go_to_templates" class="link">Create one</button>
           </div>

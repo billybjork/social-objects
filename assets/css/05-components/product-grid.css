@@ -1,94 +1,65 @@
 /* ============================================================================
-   PRODUCT GRID COMPONENT
-   Reusable grid for displaying products in different contexts (browse/select)
+   PRODUCT GRID COMPONENT - Tailwind Migration
+   ============================================================================
+   Reusable grid for displaying products in different contexts (browse/select).
+   Uses @apply for base styles while maintaining existing class API.
    ============================================================================ */
 
 .product-grid {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
+  @apply flex flex-col gap-4;
 }
 
 .product-grid__header {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding-bottom: var(--space-3);
-  margin-bottom: var(--space-4);
+  @apply flex flex-col gap-3 pb-3 mb-4;
   border-bottom: 1px solid var(--color-border-secondary);
 }
 
 /* Match modal background for select mode - no divider */
 .product-grid--select .product-grid__header {
-  background-color: var(--color-surface-primary);
-  border-bottom: none;
-  padding-bottom: 0;
-  margin-bottom: var(--space-3);
+  @apply bg-surface-primary border-b-0 pb-0 mb-3;
 }
 
 /* Match page background for browse mode */
 .product-grid--browse .product-grid__header {
-  background-color: var(--color-bg-primary);
-  flex-direction: row;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-4);
+  @apply bg-bg-primary flex-row items-center flex-wrap gap-4;
 }
 
 .product-grid__controls {
-  display: flex;
-  gap: var(--space-2);
-  width: 100%;
-  flex-wrap: wrap;
+  @apply flex gap-2 w-full flex-wrap;
 }
 
 .product-grid__search {
-  flex: 1;
-  min-width: 200px;
-  max-width: 400px;
+  @apply flex-1 min-w-[200px] max-w-[400px];
 }
 
 /* Dark background for search in select mode (modals) */
 .product-grid--select .product-grid__search .input {
-  background-color: var(--color-bg-secondary);
+  @apply bg-bg-secondary;
 }
 
 .product-grid__sort {
-  flex-shrink: 0;
-  min-width: 180px;
+  @apply shrink-0 min-w-[180px];
 }
 
 .product-grid__status {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  flex-shrink: 0;
+  @apply flex items-center gap-4 shrink-0;
 }
 
 .product-grid__count {
-  color: var(--color-text-secondary);
-  font-weight: var(--font-normal);
-  font-size: var(--text-base);
-  white-space: nowrap;
-  flex-shrink: 0;
+  @apply text-text-secondary font-normal text-base whitespace-nowrap shrink-0;
 }
 
 .product-grid__enter-hint {
-  color: var(--color-text-tertiary);
-  font-size: var(--text-sm);
-  white-space: nowrap;
-  flex-shrink: 0;
+  @apply text-text-tertiary text-sm whitespace-nowrap shrink-0;
 }
 
 @media (max-width: 480px) {
   .product-grid__header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: var(--space-2);
+    @apply flex-col items-stretch gap-2;
   }
 
   .product-grid__status {
-    justify-content: space-between;
+    @apply justify-between;
   }
 }
 
@@ -97,93 +68,50 @@
    ============================================================================ */
 
 .product-grid--select .product-grid__grid {
-  display: grid;
+  @apply grid gap-3 p-2 rounded-md bg-surface-primary min-h-min;
   grid-template-columns: repeat(auto-fill, minmax(120px, 140px));
-  gap: var(--space-3);
-  padding: var(--space-2);
   border: 1px solid var(--color-border-secondary);
-  border-radius: var(--radius-md);
-  background-color: var(--color-surface-primary);
-  /* Allow grid to grow naturally for infinite scroll */
-  min-height: min-content;
 }
 
 .product-card-select {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-3);
-  background-color: var(--color-bg-secondary);
+  @apply relative flex flex-col items-center gap-2 p-3 bg-bg-secondary rounded-md cursor-pointer;
   border: 2px solid var(--color-border-secondary);
-  border-radius: var(--radius-md);
-  cursor: pointer;
   transition: all var(--transition-fast);
 }
 
 .product-card-select:hover {
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-sm);
+  @apply border-primary shadow-sm;
   transform: translateY(-2px);
 }
 
 .product-card-select--selected {
-  border-color: var(--color-primary);
-  background-color: var(--color-primary-50);
-  box-shadow: var(--shadow-md);
+  @apply border-primary bg-primary-50 shadow-md;
 }
 
 .product-card-select__checkmark {
-  position: absolute;
-  top: var(--space-2);
-  right: var(--space-2);
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  background-color: var(--color-accent-green);
-  color: white;
-  border-radius: 50%;
+  @apply absolute top-2 right-2 z-10 flex items-center justify-center w-6 h-6 bg-accent-green text-white rounded-full font-bold;
   box-shadow: 0 2px 8px color-mix(in srgb, var(--color-accent-green) 40%, transparent);
-  font-weight: bold;
   transition: opacity var(--transition-fast);
 }
 
 .product-card-select__checkmark--hidden {
-  opacity: 0;
-  pointer-events: none;
+  @apply opacity-0 pointer-events-none;
 }
 
 .product-card-select__image {
-  width: 100%;
+  @apply w-full rounded-sm bg-bg-tertiary;
   aspect-ratio: 1;
   object-fit: contain;
-  border-radius: var(--radius-sm);
-  background-color: var(--color-bg-tertiary);
 }
 
 .product-card-select__image-placeholder {
-  width: 100%;
+  @apply w-full flex items-center justify-center bg-bg-tertiary rounded-sm text-text-tertiary text-xs;
   aspect-ratio: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--color-bg-tertiary);
-  border-radius: var(--radius-sm);
-  color: var(--color-text-tertiary);
-  font-size: var(--text-xs);
 }
 
 .product-card-select__name {
-  font-size: var(--text-sm);
-  font-weight: var(--font-medium);
-  text-align: center;
+  @apply text-sm font-medium text-center m-0 overflow-hidden;
   line-height: 1.2;
-  margin: 0;
-  overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -196,113 +124,69 @@
    ============================================================================ */
 
 .product-grid--browse .product-grid__grid {
-  display: grid;
+  @apply grid gap-4 p-0;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: var(--space-4);
-  padding: 0;
 }
 
 .product-card-browse {
-  display: flex;
-  flex-direction: column;
-  background-color: var(--color-surface-primary);
+  @apply flex flex-col bg-surface-primary rounded-md cursor-pointer overflow-hidden;
   border: 1px solid var(--color-border-secondary);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  /* Only transition properties not being animated */
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
-  overflow: hidden;
-
-  /* Fade in + slide up animation - delay applied inline per component */
   animation: fadeInSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .product-card-browse:hover {
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-md);
+  @apply border-primary shadow-md;
   transform: translateY(-2px);
 }
 
 .product-card-browse__image {
-  width: 100%;
+  @apply w-full block bg-bg-tertiary;
   aspect-ratio: 1;
   object-fit: contain;
-  display: block;
-  background-color: var(--color-bg-tertiary);
 }
 
 .product-card-browse__image-placeholder {
-  width: 100%;
+  @apply w-full flex items-center justify-center bg-bg-tertiary text-text-tertiary text-xs;
   aspect-ratio: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--color-bg-tertiary);
-  color: var(--color-text-tertiary);
-  font-size: var(--text-xs);
 }
 
 .product-card-browse__info {
-  padding: var(--space-3);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+  @apply p-3 flex flex-col gap-2;
 }
 
 .product-card-browse__name {
-  font-size: var(--text-base);
-  font-weight: var(--font-medium);
-  margin: 0;
+  @apply text-base font-medium m-0;
   line-height: 1.3;
 }
 
 .product-card-browse__pricing {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: var(--text-sm);
+  @apply flex items-center gap-2 text-sm;
 }
 
 .product-card-browse__price {
-  color: var(--color-text-primary);
-  font-weight: var(--font-semibold);
+  @apply text-text-primary font-semibold;
 }
 
 .product-card-browse__price-original {
-  color: var(--color-text-secondary);
-  text-decoration: line-through;
+  @apply text-text-secondary line-through;
   text-decoration-thickness: 1px;
   text-underline-offset: 2px;
 }
 
 .product-card-browse__price-sale {
-  color: var(--color-accent-red);
-  font-weight: var(--font-semibold);
+  @apply text-accent-red font-semibold;
 }
 
 /* Image container for position overlay */
 .product-card-browse__image-container {
-  position: relative;
-  width: 100%;
+  @apply relative w-full;
 }
 
 /* Position badge overlay */
 .product-card-browse__position {
-  position: absolute;
-  top: var(--space-2);
-  left: var(--space-2);
-  min-width: 32px;
-  height: 32px;
-  padding: 0 var(--space-2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  @apply absolute top-2 left-2 min-w-8 h-8 px-2 flex items-center justify-center text-white text-lg font-bold rounded-sm z-[2];
   background-color: rgba(0, 0, 0, 0.7);
-  color: white;
-  font-size: var(--text-lg);
-  font-weight: var(--font-bold);
-  border-radius: var(--radius-sm);
-  z-index: 2;
 }
 
 /* ============================================================================
@@ -310,45 +194,34 @@
    ============================================================================ */
 
 .product-grid__grid {
-  display: grid;
-  width: 100%;
+  @apply grid w-full;
 }
 
 .product-grid__empty {
+  @apply text-center text-text-secondary p-8;
   grid-column: 1 / -1;
-  text-align: center;
-  color: var(--color-text-secondary);
-  padding: var(--space-8);
 }
 
 .product-grid__loader {
+  @apply flex justify-center;
   grid-column: 1 / -1;
-  display: flex;
-  justify-content: center;
 }
 
 /* Disable animation when searching for instant results */
 .product-grid--searching .product-card-browse {
+  @apply opacity-100;
   animation: none;
-  opacity: 1;
   transform: translateY(0);
 }
 
 /* Custom infinite scroll trigger element */
 infinite-scroll-trigger {
+  @apply flex justify-center p-4;
   grid-column: 1 / -1;
-  display: flex;
-  justify-content: center;
-  padding: var(--space-4);
 }
 
 .product-grid__loading-indicator {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--color-text-secondary);
-  font-size: var(--text-sm);
+  @apply flex flex-col items-center gap-2 text-text-secondary text-sm;
 }
 
 /* Note: @keyframes fadeInSlideUp is defined in card.css */
@@ -358,95 +231,68 @@ infinite-scroll-trigger {
    ============================================================================ */
 
 .product-context-menu {
-  position: fixed;
-  z-index: 1000;
-  min-width: 160px;
-  padding: var(--space-1);
-  background-color: var(--color-surface-primary);
+  @apply fixed min-w-[160px] p-1 bg-surface-primary rounded-md shadow-lg z-[1000];
   border: 1px solid var(--color-border-secondary);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
 }
 
 .product-context-menu__item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  width: 100%;
-  padding: var(--space-2) var(--space-3);
-  font-size: var(--text-sm);
-  color: var(--color-text-primary);
-  background: none;
-  border: none;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  text-align: left;
+  @apply flex items-center gap-2 w-full py-2 px-3 text-sm text-text-primary bg-transparent border-0 rounded-sm cursor-pointer text-left;
 }
 
 .product-context-menu__item:hover {
-  background-color: var(--color-bg-secondary);
+  @apply bg-bg-secondary;
 }
 
 .product-context-menu__item svg {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
+  @apply w-4 h-4 shrink-0;
 }
 
 /* Mobile responsive - maximize space efficiency */
 @media (max-width: 640px) {
   .product-grid {
-    gap: var(--space-3);
+    @apply gap-3;
   }
 
   .product-grid__header {
-    gap: var(--space-2);
-    padding-bottom: var(--space-2);
-    padding-top: 0;
+    @apply gap-2 pb-2 pt-0;
   }
 
   .product-grid__controls {
-    gap: var(--space-2);
-    flex-wrap: nowrap;
+    @apply gap-2 flex-nowrap;
   }
 
   .product-grid__search {
+    @apply min-w-0 max-w-full;
     flex: 1 1 100%;
-    min-width: 0;
-    max-width: 100%;
   }
 
   .product-grid__sort {
+    @apply min-w-[140px] max-w-[180px];
     flex: 0 0 auto;
-    min-width: 140px;
-    max-width: 180px;
   }
 
   /* Smaller min-width to ensure 2 columns on narrow viewports */
   .product-grid--browse .product-grid__grid {
+    @apply gap-2;
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: var(--space-2);
   }
 
   /* Smaller card padding */
   .product-card-browse__info {
-    padding: var(--space-2);
-    gap: var(--space-1);
+    @apply p-2 gap-1;
   }
 
   .product-card-browse__name {
-    font-size: var(--text-sm);
+    @apply text-sm;
   }
 
   .product-card-browse__pricing {
-    font-size: var(--text-xs);
+    @apply text-xs;
   }
 
   /* Smaller position badge on mobile */
   .product-card-browse__position {
-    min-width: 28px;
-    height: 28px;
-    font-size: var(--text-base);
+    @apply min-w-7 h-7 text-base;
   }
 }
 
@@ -454,33 +300,28 @@ infinite-scroll-trigger {
 @media (min-width: 640px) {
   /* Larger position badge on desktop */
   .product-card-browse__position {
-    min-width: 36px;
-    height: 36px;
-    font-size: var(--text-xl);
+    @apply min-w-9 h-9 text-xl;
   }
+
   .product-grid--select .product-grid__header {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
+    @apply flex-row items-center justify-between;
   }
 
   .product-grid--select .product-grid__controls {
-    flex-wrap: nowrap;
+    @apply flex-nowrap min-w-0;
     flex: 0 0 50%;
-    min-width: 0;
   }
 
   .product-grid--select .product-grid__search {
-    min-width: 300px;
-    max-width: none;
+    @apply min-w-[300px] max-w-none;
   }
 
   .product-grid__controls {
-    flex-wrap: nowrap;
+    @apply flex-nowrap;
   }
 
   .product-grid__sort {
-    min-width: 200px;
+    @apply min-w-[200px];
   }
 
   .product-grid--browse .product-grid__grid {

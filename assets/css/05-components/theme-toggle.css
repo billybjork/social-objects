@@ -1,30 +1,18 @@
 /* ============================================================================
-   THEME TOGGLE COMPONENT
+   THEME TOGGLE COMPONENT - Tailwind Migration
+   ============================================================================
+   Uses @apply for base styles while maintaining existing class API.
    ============================================================================ */
-
-/**
- * Theme toggle button for switching between light and dark modes.
- * Uses sun/moon emoji icons that show/hide based on current theme.
- */
 
 /* Theme toggle button */
 .theme-toggle {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  padding: 0;
-  background-color: transparent;
+  @apply relative inline-flex items-center justify-center w-10 h-10 p-0 bg-transparent rounded-full cursor-pointer;
   border: 1px solid var(--color-border-primary);
-  border-radius: 50%;
-  cursor: pointer;
   transition: background-color 200ms ease, border-color 200ms ease, transform 150ms ease;
 }
 
 .theme-toggle:hover {
-  background-color: var(--color-bg-hover);
+  @apply bg-bg-hover;
   border-color: var(--color-border-focus);
 }
 
@@ -33,52 +21,43 @@
 }
 
 .theme-toggle:focus-visible {
-  outline: 2px solid var(--color-border-focus);
-  outline-offset: 2px;
+  @apply outline-2 outline-offset-2;
+  outline-color: var(--color-border-focus);
 }
 
 /* Icon container */
 .theme-toggle__icon {
-  position: absolute;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  @apply absolute flex items-center justify-center text-text-primary;
   font-size: 1.125rem;
   line-height: 1;
   transition: opacity 200ms ease, transform 200ms ease;
-  color: var(--color-text-primary);
 }
 
 /* Sun icon - visible in LIGHT mode (shows current mode) */
 .theme-toggle__icon--sun {
-  opacity: 1;
+  @apply opacity-100;
   transform: rotate(0deg) scale(1.4);
 }
 
 .dark .theme-toggle__icon--sun {
-  opacity: 0;
+  @apply opacity-0;
   transform: rotate(90deg) scale(0.8);
 }
 
 /* Moon icon - visible in DARK mode (shows current mode) */
 .theme-toggle__icon--moon {
-  opacity: 0;
+  @apply opacity-0;
   transform: rotate(-90deg) scale(0.8);
 }
 
 .dark .theme-toggle__icon--moon {
-  opacity: 1;
+  @apply opacity-100;
   transform: rotate(0deg) scale(1);
 }
 
 /* ============================================================================
    GLOBAL THEME TRANSITIONS
    ============================================================================ */
-
-/**
- * Smooth color transitions when switching themes.
- * Applied to all elements that use theme-dependent colors.
- */
 
 /* Transition for color properties */
 *,
@@ -107,7 +86,5 @@ input,
 textarea,
 select,
 [role="button"] {
-  /* These elements have specific transitions defined in their component CSS */
-  /* Color transitions are added on top of existing transitions */
   transition-property: color, background-color, border-color, box-shadow, transform, opacity;
 }

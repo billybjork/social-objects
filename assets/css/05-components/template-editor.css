@@ -1,110 +1,81 @@
-/**
- * Template Editor - Minimal overrides for GrapesJS
- * Let GrapesJS handle its own layout - we just provide sizing and theme colors.
- */
+/* ============================================================================
+   TEMPLATE EDITOR - Tailwind Migration
+   ============================================================================
+   Minimal overrides for GrapesJS.
+   Let GrapesJS handle its own layout - we just provide sizing and theme colors.
+   Uses @apply for base styles while maintaining existing class API.
+   ============================================================================ */
 
-/* ============================================
-   Page Layout
-   ============================================ */
+/* Page Layout */
 .template-editor-page {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  background: var(--color-surface);
+  @apply flex flex-col h-screen bg-surface;
 }
 
 /* The form wraps everything - needs to flex too */
 .template-editor-page > form {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
+  @apply flex flex-col flex-1 min-h-0;
 }
 
 .template-editor-header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-3) var(--space-4);
+  @apply flex items-center gap-4 py-3 px-4 bg-surface shrink-0;
   border-bottom: 1px solid var(--color-border);
-  background: var(--color-surface);
-  flex-shrink: 0;
 }
 
 .template-editor-back {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  color: var(--color-text-secondary);
-  text-decoration: none;
-  font-size: var(--text-sm);
-  padding: var(--space-2);
-  border-radius: var(--radius-md);
+  @apply flex items-center gap-1 text-text-secondary no-underline text-sm p-2 rounded-md;
 }
 
 .template-editor-back:hover {
-  background: var(--color-surface-secondary);
+  @apply bg-surface-secondary;
   color: var(--color-text);
 }
 
 .template-editor-fields {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--space-3);
-  flex: 1;
+  @apply flex items-end gap-3 flex-1;
 }
 
 .template-editor-field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+  @apply flex flex-col gap-1;
 }
 
 .template-editor-field label {
-  font-size: var(--text-xs);
-  color: var(--color-text-secondary);
-  font-weight: var(--font-medium);
+  @apply text-xs text-text-secondary font-medium;
 }
 
 .template-editor-field .input {
-  padding: var(--space-2) var(--space-3);
-  min-width: 150px;
+  @apply py-2 px-3 min-w-[150px];
 }
 
 .template-editor-field--grow {
-  flex: 1;
-  min-width: 200px;
+  @apply flex-1 min-w-[200px];
 }
 
 .template-editor-field--grow .input {
-  width: 100%;
+  @apply w-full;
 }
 
 .template-editor-actions {
-  display: flex;
-  gap: var(--space-2);
-  flex-shrink: 0;
+  @apply flex gap-2 shrink-0;
 }
 
-/* ============================================
+/* ============================================================================
    GrapesJS Container
    Use position:absolute so GrapesJS can use 100% height
    (percentage heights don't work with flex-based parents)
-   ============================================ */
+   ============================================================================ */
+
 .template-editor-container {
-  flex: 1;
-  min-height: 0;
-  position: relative;
+  @apply flex-1 min-h-0 relative;
 }
 
 .template-editor-container .gjs-editor {
-  position: absolute;
-  inset: 0;
+  @apply absolute inset-0;
 }
 
-/* ============================================
+/* ============================================================================
    Theme Colors Only
-   ============================================ */
+   ============================================================================ */
+
 .template-editor-container .gjs-one-bg {
   background-color: #373d49;
 }

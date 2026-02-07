@@ -1,123 +1,83 @@
 /* ============================================================================
-   PRODUCT SET INDEX LAYOUT
-   Base layout for the product sets list page
+   PRODUCT SET INDEX LAYOUT - Tailwind Migration
+   ============================================================================
+   Uses @apply for base styles while maintaining existing class API.
    ============================================================================ */
 
 .product-set-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--space-4) var(--space-6);
-  background-color: var(--color-surface-primary);
+  @apply flex justify-between items-center p-4 px-6 bg-surface-primary gap-4;
   border-radius: var(--radius-lg);
-  gap: var(--space-4);
 }
 
 .product-set-title {
-  font-size: var(--text-2xl);
-  font-weight: var(--font-bold);
-  color: var(--color-text-primary);
-  margin: 0;
+  @apply text-2xl font-bold text-text-primary m-0;
 }
 
 .product-set-info {
-  display: flex;
-  align-items: center;
-  gap: var(--space-6);
+  @apply flex items-center gap-6;
 }
 
 /* Product selection section */
 .product-selection-section {
-  margin-top: var(--space-6);
+  @apply mt-6;
 }
 
 .product-selection-heading {
-  font-size: 0.875rem;
-  font-weight: 600;
-  margin-bottom: var(--space-2);
+  @apply text-sm font-semibold mb-2;
 }
 
 .product-selection-placeholder {
-  margin-top: var(--space-4);
+  @apply mt-4;
 }
 
-/* ==========================================================================
+/* ============================================================================
    PRODUCT SET NOTES IMAGE UPLOAD
-   ========================================================================== */
+   ============================================================================ */
 
 .product-set-notes-image {
-  margin-top: var(--space-4);
+  @apply mt-4;
 }
 
 .product-set-notes-image__label {
-  display: block;
-  font-size: var(--text-sm);
-  font-weight: var(--font-medium);
-  color: var(--color-text-secondary);
-  margin-bottom: var(--space-2);
+  @apply block text-sm font-medium text-text-secondary mb-2;
 }
 
 .product-set-notes-image__input {
-  display: block;
-  width: 100%;
-  padding: var(--space-3);
+  @apply block w-full p-3 bg-bg-secondary text-text-secondary text-sm cursor-pointer rounded-md;
   border: 2px dashed var(--color-border-primary);
-  border-radius: var(--radius-md);
-  background-color: var(--color-bg-secondary);
-  color: var(--color-text-secondary);
-  font-size: var(--text-sm);
-  cursor: pointer;
   transition: border-color var(--transition-fast), background-color var(--transition-fast);
 }
 
 .product-set-notes-image__input:hover {
-  border-color: var(--color-primary);
-  background-color: var(--color-bg-hover);
+  @apply bg-bg-hover border-primary;
 }
 
 .product-set-notes-image__input:focus {
-  outline: none;
-  border-color: var(--color-primary);
+  @apply outline-none border-primary;
   box-shadow: 0 0 0 3px var(--color-primary-alpha);
 }
 
 /* Upload preview */
 .product-set-notes-image__preview {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  margin-top: var(--space-3);
-  padding: var(--space-3);
-  background-color: var(--color-bg-secondary);
+  @apply flex items-center gap-3 mt-3 p-3 bg-bg-secondary rounded-md;
   border: 1px solid var(--color-border-primary);
-  border-radius: var(--radius-md);
 }
 
 .product-set-notes-image__preview-img {
-  width: 80px;
-  height: 80px;
-  object-fit: cover;
-  border-radius: var(--radius-sm);
-  flex-shrink: 0;
+  @apply w-20 h-20 object-cover rounded-sm shrink-0;
 }
 
 .product-set-notes-image__preview-info {
-  flex: 1;
-  min-width: 0;
+  @apply flex-1 min-w-0;
 }
 
 .product-set-notes-image__preview-name {
-  display: block;
-  font-size: var(--text-sm);
-  color: var(--color-text-primary);
-  white-space: nowrap;
-  overflow: hidden;
+  @apply block text-sm text-text-primary whitespace-nowrap overflow-hidden mb-2;
   text-overflow: ellipsis;
-  margin-bottom: var(--space-2);
 }
 
 .product-set-notes-image__progress {
-  width: 100%;
+  @apply w-full;
   height: 6px;
   border-radius: 3px;
   appearance: none;
@@ -125,81 +85,55 @@
 }
 
 .product-set-notes-image__progress::-webkit-progress-bar {
-  background-color: var(--color-bg-tertiary);
+  @apply bg-bg-tertiary;
   border-radius: 3px;
 }
 
 .product-set-notes-image__progress::-webkit-progress-value {
-  background-color: var(--color-primary);
+  @apply bg-primary;
   border-radius: 3px;
 }
 
 .product-set-notes-image__progress::-moz-progress-bar {
-  background-color: var(--color-primary);
+  @apply bg-primary;
   border-radius: 3px;
 }
 
 .product-set-notes-image__remove {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  background: none;
+  @apply flex items-center justify-center w-7 h-7 p-0 bg-transparent rounded-full text-text-tertiary text-lg cursor-pointer shrink-0;
   border: 1px solid var(--color-border-primary);
-  border-radius: 50%;
-  color: var(--color-text-tertiary);
-  font-size: var(--text-lg);
-  cursor: pointer;
   transition: all var(--transition-fast);
-  flex-shrink: 0;
 }
 
 .product-set-notes-image__remove:hover {
-  border-color: var(--color-error);
   color: var(--color-error);
+  border-color: var(--color-error);
   background-color: var(--color-error-bg);
 }
 
 .product-set-notes-image__error {
-  margin-top: var(--space-2);
-  font-size: var(--text-sm);
+  @apply mt-2 text-sm;
   color: var(--color-error);
 }
 
 /* Current image display (edit mode) */
 .product-set-notes-image__current {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3);
-  background-color: var(--color-bg-secondary);
+  @apply flex flex-col items-center gap-3 p-3 bg-bg-secondary rounded-md;
   border: 1px solid var(--color-border-primary);
-  border-radius: var(--radius-md);
 }
 
 .product-set-notes-image__current-img {
-  max-width: 100%;
-  max-height: 200px;
-  object-fit: contain;
-  border-radius: var(--radius-sm);
+  @apply max-w-full max-h-[200px] object-contain rounded-sm;
 }
 
 .product-set-notes-image__remove-current {
-  padding: var(--space-2) var(--space-3);
-  font-size: var(--text-sm);
+  @apply py-2 px-3 text-sm bg-transparent rounded-md cursor-pointer;
   color: var(--color-error);
-  background: none;
   border: 1px solid var(--color-error);
-  border-radius: var(--radius-md);
-  cursor: pointer;
   transition: all var(--transition-fast);
 }
 
 .product-set-notes-image__remove-current:hover {
+  @apply text-white;
   background-color: var(--color-error);
-  color: white;
 }
-

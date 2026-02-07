@@ -1,57 +1,51 @@
 /* ============================================================================
-   SETTINGS PAGE LAYOUT
+   SETTINGS PAGE LAYOUT - Tailwind Migration
    ============================================================================
    Styles for brand settings, user settings, and configuration pages.
+   Uses @apply for base styles while maintaining existing class API.
    ============================================================================ */
 
 /* Settings container */
 .settings-page {
-  max-width: 800px;
-  margin: 0 auto;
+  @apply max-w-[800px] mx-auto;
 }
 
 /* Settings section - groups of related settings */
 .settings-section {
-  padding: var(--space-6) 0;
+  @apply py-6;
   border-bottom: 1px solid var(--color-border-secondary);
 }
 
 .settings-section:first-child {
-  padding-top: 0;
+  @apply pt-0;
 }
 
 .settings-section:last-child,
 .settings-section:last-of-type {
-  border-bottom: none;
+  @apply border-b-0;
 }
 
 .settings-section__header {
-  margin-bottom: var(--space-4);
+  @apply mb-4;
 }
 
 .settings-section__title {
-  font-size: var(--text-lg);
-  font-weight: var(--font-semibold);
-  color: var(--color-text-primary);
-  margin: 0;
+  @apply text-lg font-semibold text-text-primary m-0;
 }
 
 .settings-section__description {
-  font-size: var(--text-sm);
-  color: var(--color-text-secondary);
-  margin-top: var(--space-1);
+  @apply text-sm text-text-secondary mt-1;
 }
 
 /* Settings form grid - 2 column layout for form fields */
 .settings-grid {
-  display: grid;
-  gap: var(--space-4);
+  @apply grid gap-4;
   grid-template-columns: repeat(2, 1fr);
 }
 
 @media (max-width: 640px) {
   .settings-grid {
-    grid-template-columns: 1fr;
+    @apply grid-cols-1;
   }
 }
 
@@ -62,9 +56,7 @@
 
 /* Settings fieldset - wrapper for label + input */
 .settings-field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+  @apply flex flex-col gap-2;
 }
 
 .settings-field--full {
@@ -73,86 +65,61 @@
 
 /* Settings action row - OAuth buttons, external links */
 .settings-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-3);
-  margin-top: var(--space-2);
+  @apply flex flex-wrap items-center gap-3 mt-2;
 }
 
 .settings-actions__hint {
-  font-size: var(--text-sm);
-  color: var(--color-text-tertiary);
+  @apply text-sm text-text-tertiary;
 }
 
 /* Settings form footer - save button */
 .settings-footer {
-  display: flex;
-  justify-content: flex-end;
-  padding-top: var(--space-6);
-  margin-top: var(--space-2);
+  @apply flex justify-end pt-6 mt-2;
 }
 
 /* Status indicator for connected services */
 .settings-status {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: var(--text-sm);
-  color: var(--color-text-secondary);
+  @apply inline-flex items-center gap-2 text-sm text-text-secondary;
 }
 
 .settings-status--connected {
-  color: var(--color-accent-green);
+  @apply text-accent-green;
 }
 
 .settings-status--disconnected {
-  color: var(--color-text-tertiary);
+  @apply text-text-tertiary;
 }
 
 .settings-status__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: var(--radius-full);
+  @apply w-2 h-2 rounded-full;
   background-color: currentColor;
 }
 
 /* OAuth/Integration card - for external service connections */
 .settings-integration {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  padding: var(--space-4);
-  background-color: var(--color-surface-secondary);
-  border-radius: var(--radius-lg);
+  @apply flex items-center justify-between gap-4 p-4 bg-surface-secondary;
   border: 1px solid var(--color-border-secondary);
+  border-radius: var(--radius-lg);
 }
 
 .settings-integration__info {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+  @apply flex flex-col gap-1;
 }
 
 .settings-integration__name {
-  font-weight: var(--font-medium);
-  color: var(--color-text-primary);
+  @apply font-medium text-text-primary;
 }
 
 .settings-integration__status {
-  font-size: var(--text-sm);
-  color: var(--color-text-secondary);
+  @apply text-sm text-text-secondary;
 }
 
 @media (max-width: 640px) {
   .settings-integration {
-    flex-direction: column;
-    align-items: stretch;
+    @apply flex-col items-stretch;
   }
 
   .settings-integration .button {
-    width: 100%;
-    justify-content: center;
+    @apply w-full justify-center;
   }
 }

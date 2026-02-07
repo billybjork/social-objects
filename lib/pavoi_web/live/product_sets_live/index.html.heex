@@ -12,7 +12,7 @@
 
   <div
     id="product-sets-container"
-    class="container container--xl region product-sets-index"
+    class="container container--xl py-8 max-sm:pt-3 max-sm:pb-6 product-sets-index"
     phx-hook="ProductContextMenu"
     phx-window-keydown={
       JS.push("escape_pressed") |> JS.hide(to: ".product-set-menu", transition: "fade-out")
@@ -58,7 +58,7 @@
         <div
           id="product-sets-list"
           class={[
-            "stack stack--lg",
+            "flex flex-col gap-8",
             @search_touched && "product-sets-list--searching"
           ]}
           phx-viewport-bottom={
@@ -488,7 +488,7 @@
                               phx-click="remove_product"
                               phx-value-product-set-product-id={sp.id}
                               aria-label="Remove product"
-                              class="text-error"
+                              class="text-accent-red"
                             >
                               ×
                             </.button>
@@ -670,7 +670,7 @@
         for={@product_set_form}
         phx-change="validate_product_set"
         phx-submit="save_product_set"
-        class="stack"
+        class="flex flex-col gap-4"
       >
         <input
           type="hidden"
@@ -793,7 +793,7 @@
         for={@product_set_edit_form}
         phx-change="validate_edit_product_set"
         phx-submit="update_product_set"
-        class="stack"
+        class="flex flex-col gap-4"
       >
         <.input
           field={@product_set_edit_form[:name]}

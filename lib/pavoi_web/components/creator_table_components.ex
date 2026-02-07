@@ -347,7 +347,7 @@ defmodule PavoiWeb.CreatorTableComponents do
                       <% creator.tiktok_username -> %>
                         <span class="creator-cell__username">@{creator.tiktok_username}</span>
                       <% true -> %>
-                        <span class="creator-cell__username text-secondary">-</span>
+                        <span class="creator-cell__username text-text-secondary">-</span>
                     <% end %>
                     <%= if creator.tiktok_nickname do %>
                       <span class="creator-cell__nickname">{creator.tiktok_nickname}</span>
@@ -356,7 +356,7 @@ defmodule PavoiWeb.CreatorTableComponents do
                 </div>
               </td>
               <%!-- 4. Email --%>
-              <td data-column-id="email" class="text-secondary">{creator.email || "-"}</td>
+              <td data-column-id="email" class="text-text-secondary">{creator.email || "-"}</td>
               <%!-- 5. Tags --%>
               <td data-column-id="tags" class="col-tags" phx-click="stop_propagation">
                 <.tag_cell creator={creator} />
@@ -411,7 +411,7 @@ defmodule PavoiWeb.CreatorTableComponents do
                 {format_gmv(creator.total_commission_cents)}
               </td>
               <%!-- 12. Last Sample --%>
-              <td data-column-id="last_sample" class="text-right text-secondary">
+              <td data-column-id="last_sample" class="text-right text-text-secondary">
                 {format_relative_time(creator.last_sample_at)}
               </td>
             </tr>
@@ -598,11 +598,11 @@ defmodule PavoiWeb.CreatorTableComponents do
               <td>{(sample.brand && sample.brand.name) || "-"}</td>
               <td>{sample.quantity}</td>
               <td>
-                <span class={["status-badge", "status-badge--#{sample.status || "pending"}"]}>
-                  {sample.status || "pending"}
+                <span class={["status-badge", "status-badge--#{sample.status || :pending}"]}>
+                  {sample.status || :pending}
                 </span>
               </td>
-              <td class="text-secondary">
+              <td class="text-text-secondary">
                 {if sample.ordered_at,
                   do: Calendar.strftime(sample.ordered_at, "%b %d, %Y"),
                   else: "-"}
@@ -663,19 +663,19 @@ defmodule PavoiWeb.CreatorTableComponents do
               </td>
               <td class="text-right">
                 <%= if purchase.is_sample_order do %>
-                  <span class="text-secondary">Sample</span>
+                  <span class="text-text-secondary">Sample</span>
                 <% else %>
                   {format_currency(purchase.total_amount_cents, purchase.currency)}
                 <% end %>
               </td>
               <td>
                 <%= if purchase.line_items && length(purchase.line_items) > 0 do %>
-                  <span class="text-secondary">{length(purchase.line_items)} items</span>
+                  <span class="text-text-secondary">{length(purchase.line_items)} items</span>
                 <% else %>
-                  <span class="text-secondary">-</span>
+                  <span class="text-text-secondary">-</span>
                 <% end %>
               </td>
-              <td class="text-secondary">
+              <td class="text-text-secondary">
                 {if purchase.ordered_at,
                   do: Calendar.strftime(purchase.ordered_at, "%b %d, %Y"),
                   else: "-"}
@@ -761,7 +761,7 @@ defmodule PavoiWeb.CreatorTableComponents do
               <td class="text-right">{format_gmv(video.gmv_cents)}</td>
               <td class="text-right">{video.items_sold || 0}</td>
               <td class="text-right">{format_number(video.impressions)}</td>
-              <td class="text-secondary">
+              <td class="text-text-secondary">
                 {if video.posted_at, do: Calendar.strftime(video.posted_at, "%b %d, %Y"), else: "-"}
               </td>
             </tr>
@@ -826,7 +826,7 @@ defmodule PavoiWeb.CreatorTableComponents do
           <%= for snapshot <- @snapshots do %>
             <tr>
               <td>{Calendar.strftime(snapshot.snapshot_date, "%b %d, %Y")}</td>
-              <td class="text-secondary">{snapshot.source || "-"}</td>
+              <td class="text-text-secondary">{snapshot.source || "-"}</td>
               <td class="text-right">{format_number(snapshot.follower_count)}</td>
               <td class="text-right">{format_gmv(snapshot.gmv_cents)}</td>
               <td class="text-right">{format_gmv(snapshot.emv_cents)}</td>
@@ -1053,7 +1053,7 @@ defmodule PavoiWeb.CreatorTableComponents do
     ~H"""
     <div class="contact-tab">
       <%= if @editing && @form do %>
-        <.form for={@form} phx-submit="save_contact" phx-change="validate_contact" class="stack">
+        <.form for={@form} phx-submit="save_contact" phx-change="validate_contact" class="flex flex-col gap-4">
           <div class="contact-form-grid">
             <.input field={@form[:email]} type="email" label="Email" />
             <.input field={@form[:phone]} type="tel" label="Phone" />
