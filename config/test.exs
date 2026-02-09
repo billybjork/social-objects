@@ -53,3 +53,8 @@ config :phoenix_live_view,
 
 # Avoid external live checks during tests
 config :pavoi, :verify_stream_live_status, false
+
+# Disable OpenAI retries in tests to avoid delays
+config :pavoi, Pavoi.AI.OpenAIClient,
+  max_retries: 1,
+  initial_backoff_ms: 0
