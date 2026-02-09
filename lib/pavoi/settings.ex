@@ -236,6 +236,44 @@ defmodule Pavoi.Settings do
   end
 
   @doc """
+  Returns Shopify include tags for a brand.
+
+  When set, only products with at least one of these tags will be synced.
+  Returns an empty list if not configured (no filtering).
+  """
+  def get_shopify_include_tags(brand_id) do
+    parse_csv_setting(get_setting(brand_id, "shopify_include_tags"))
+  end
+
+  @doc """
+  Sets Shopify include tags for a brand.
+
+  Accepts a list of tag strings or a comma-separated string.
+  """
+  def set_shopify_include_tags(brand_id, tags) do
+    set_csv_setting(brand_id, "shopify_include_tags", tags)
+  end
+
+  @doc """
+  Returns Shopify exclude tags for a brand.
+
+  When set, products with any of these tags will be skipped during sync.
+  Returns an empty list if not configured (no filtering).
+  """
+  def get_shopify_exclude_tags(brand_id) do
+    parse_csv_setting(get_setting(brand_id, "shopify_exclude_tags"))
+  end
+
+  @doc """
+  Sets Shopify exclude tags for a brand.
+
+  Accepts a list of tag strings or a comma-separated string.
+  """
+  def set_shopify_exclude_tags(brand_id, tags) do
+    set_csv_setting(brand_id, "shopify_exclude_tags", tags)
+  end
+
+  @doc """
   Returns BigQuery project id for a brand, falling back to app config.
   """
   def get_bigquery_project_id(brand_id) do
@@ -384,5 +422,35 @@ defmodule Pavoi.Settings do
       {:ok, datetime, _offset} -> datetime
       {:error, _} -> nil
     end
+  end
+
+  defp parse_csv_setting(nil), do: []
+  defp parse_csv_setting(""), do: []
+
+  defp parse_csv_setting(value) when is_binary(value) do
+    value
+    |> String.split(",")
+    |> Enum.map(&String.trim/1)
+    |> Enum.map(&String.downcase/1)
+    |> Enum.reject(&(&1 == ""))
+  end
+
+  defp set_csv_setting(brand_id, key, tags) when is_list(tags) do
+    tags_string =
+      tags
+      |> Enum.map(&String.trim(to_string(&1)))
+      |> Enum.map(&String.downcase/1)
+      |> Enum.reject(&(&1 == ""))
+      |> Enum.join(",")
+
+    if tags_string == "" do
+      delete_setting(brand_id, key)
+    else
+      set_setting(brand_id, key, tags_string)
+    end
+  end
+
+  defp set_csv_setting(brand_id, key, tags) when is_binary(tags) do
+    set_csv_setting(brand_id, key, String.split(tags, ","))
   end
 end

@@ -681,3 +681,15 @@
 .product-set-card__stream-status {
   @apply absolute bottom-1 left-1;
 }
+
+/* ============================================================================
+   ARCHIVED PRODUCT INDICATOR
+   ============================================================================ */
+
+.product-archived-badge {
+  @apply inline-flex items-center px-2 py-0.5 ml-2;
+  @apply bg-amber-500/20 text-amber-600 dark:text-amber-400;
+  @apply text-xs font-medium rounded-full;
+  @apply whitespace-nowrap;
+  vertical-align: middle;
+}

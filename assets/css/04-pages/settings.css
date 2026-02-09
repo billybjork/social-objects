@@ -123,3 +123,50 @@
     @apply w-full justify-center;
   }
 }
+
+/* Settings notice - informational/warning messages */
+.settings-notice {
+  @apply flex items-start gap-2 p-3 text-sm rounded-lg mb-4;
+  border: 1px solid var(--color-border-secondary);
+  background-color: var(--color-surface-secondary);
+}
+
+.settings-notice--info {
+  @apply bg-accent-blue/10;
+  border-color: var(--color-accent-blue);
+}
+
+.settings-notice__icon {
+  @apply flex-shrink-0;
+}
+
+.settings-notice__text {
+  @apply text-text-secondary;
+}
+
+.settings-notice__text strong {
+  @apply text-text-primary;
+}
+
+/* Settings subsection - nested grouping within a section */
+.settings-subsection {
+  @apply mt-4 pt-4;
+  border-top: 1px solid var(--color-border-secondary);
+}
+
+.settings-subsection__title {
+  @apply text-sm font-semibold text-text-primary mb-1;
+}
+
+.settings-subsection__description {
+  @apply text-sm text-text-tertiary mb-3;
+}
+
+/* Settings hint - help text below inputs */
+.settings-hint {
+  @apply text-sm text-text-tertiary mt-2;
+}
+
+.settings-hint strong {
+  @apply text-text-secondary;
+}

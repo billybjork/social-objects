@@ -210,6 +210,7 @@ defmodule PavoiWeb.AdminComponents do
   attr :form, :any, required: true
   attr :secrets_configured, :any, required: true
   attr :visible_secrets, :any, required: true
+  attr :shared_shopify_brands, :list, default: []
   attr :tiktok_oauth_url, :string, required: true
   attr :on_cancel, :any, required: true
 
@@ -345,6 +346,13 @@ defmodule PavoiWeb.AdminComponents do
               <h2 class="settings-section__title">Shopify</h2>
               <p class="settings-section__description">Shopify store connection for product sync.</p>
             </div>
+            <div :if={@shared_shopify_brands != []} class="settings-notice settings-notice--info">
+              <span class="settings-notice__icon">ℹ️</span>
+              <span class="settings-notice__text">
+                Shared Shopify store with: <strong>{Enum.map_join(@shared_shopify_brands, ", ", & &1.name)}</strong>.
+                Use tag filters below to sync different products to each brand.
+              </span>
+            </div>
             <div class="settings-grid">
               <.input
                 field={@form[:shopify_store_name]}
@@ -367,6 +375,32 @@ defmodule PavoiWeb.AdminComponents do
                 visible={secret_visible?(@visible_secrets, "shopify_client_secret")}
               />
             </div>
+            <div class="settings-subsection">
+              <h3 class="settings-subsection__title">Product Filters</h3>
+              <p class="settings-subsection__description">
+                Filter which products sync to this brand. Useful when multiple brands share one Shopify store.
+              </p>
+              <div class="settings-grid">
+                <.input
+                  field={@form[:shopify_include_tags]}
+                  type="text"
+                  label="Include Tags"
+                  placeholder="active, featured"
+                />
+                <.input
+                  field={@form[:shopify_exclude_tags]}
+                  type="text"
+                  label="Exclude Tags"
+                  placeholder="discontinued, hidden"
+                />
+              </div>
+              <p class="settings-hint">
+                <strong>Include:</strong>
+                Only sync products with at least one of these tags. <strong>Exclude:</strong>
+                Skip products with any of these tags.
+                Leave both empty to sync all products.
+              </p>
+            </div>
           </section>
 
           <section class="settings-section">
@@ -386,7 +420,18 @@ defmodule PavoiWeb.AdminComponents do
               <a href={@tiktok_oauth_url} class="button button--outline" target="_blank">
                 Connect TikTok Shop
               </a>
-              <span class="settings-actions__hint">Opens TikTok authorization in a new tab.</span>
+              <button
+                type="button"
+                class="button button--outline"
+                phx-hook="CopyToClipboard"
+                id="copy-tiktok-oauth-url"
+                data-copy-text={@tiktok_oauth_url}
+              >
+                Copy Link
+              </button>
+              <span class="settings-actions__hint">
+                Send the link to the TikTok Shop owner to authorize.
+              </span>
             </div>
           </section>
         </.form>

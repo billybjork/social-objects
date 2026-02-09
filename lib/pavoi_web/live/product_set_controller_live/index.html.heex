@@ -154,11 +154,15 @@
             class={[
               "controller-product-card",
               @current_product_set_product && @current_product_set_product.id == sp.id &&
-                "controller-product-card--active"
+                "controller-product-card--active",
+              Pavoi.Catalog.Product.archived?(sp.product) && "controller-product-card--archived"
             ]}
             phx-click="jump_to_product"
             phx-value-position={sp.position}
             data-haptic="true"
+            title={
+              if Pavoi.Catalog.Product.archived?(sp.product), do: "Archived product", else: nil
+            }
           >
             <div class="controller-product-card__image-container">
               <span class="controller-product-card__position">{sp.position}</span>

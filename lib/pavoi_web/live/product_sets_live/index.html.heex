@@ -3,6 +3,10 @@
   current_scope={@current_scope}
   current_brand={@current_brand}
   current_page={@current_page}
+  syncing={@syncing}
+  last_sync_at={@last_sync_at}
+  tiktok_syncing={@tiktok_syncing}
+  tiktok_last_sync_at={@tiktok_last_sync_at}
 >
   <%!-- AI Generation Progress Banner --%>
   <.generation_progress_banner
@@ -477,6 +481,14 @@
 
                             <p class="product-set-card__product-name">
                               {sp.featured_name || sp.product.name}
+                              <%= if Pavoi.Catalog.Product.archived?(sp.product) do %>
+                                <span
+                                  class="product-archived-badge"
+                                  title="This product has been archived"
+                                >
+                                  Archived
+                                </span>
+                              <% end %>
                             </p>
                           </div>
 

@@ -49,6 +49,10 @@ defmodule Pavoi.Catalog.Product do
     field :size_range, :string
     field :has_size_variants, :boolean, default: false
 
+    # Archive fields (soft delete)
+    field :archived_at, :utc_datetime
+    field :archive_reason, :string
+
     belongs_to :brand, Pavoi.Catalog.Brand
     has_many :product_images, Pavoi.Catalog.ProductImage, preload_order: [asc: :position]
     has_many :product_variants, Pavoi.Catalog.ProductVariant, preload_order: [asc: :position]
@@ -72,11 +76,14 @@ defmodule Pavoi.Catalog.Product do
       :tiktok_product_id,
       :tiktok_product_ids,
       :size_range,
-      :has_size_variants
+      :has_size_variants,
+      :archived_at,
+      :archive_reason
     ])
     |> validate_required([:brand_id, :name, :original_price_cents])
     |> validate_number(:original_price_cents, greater_than: 0)
     |> validate_sale_price()
+    |> validate_archive_reason()
     |> unique_constraint(:pid)
     |> foreign_key_constraint(:brand_id)
   end
@@ -86,6 +93,25 @@ defmodule Pavoi.Catalog.Product do
       nil -> changeset
       price when price > 0 -> changeset
       _ -> add_error(changeset, :sale_price_cents, "must be nil or greater than 0")
+    end
+  end
+
+  @valid_archive_reasons ~w(shopify_filter_excluded manual)
+
+  defp validate_archive_reason(changeset) do
+    case get_field(changeset, :archive_reason) do
+      nil ->
+        changeset
+
+      reason when reason in @valid_archive_reasons ->
+        changeset
+
+      _ ->
+        add_error(
+          changeset,
+          :archive_reason,
+          "must be one of: #{Enum.join(@valid_archive_reasons, ", ")}"
+        )
     end
   end
 
@@ -124,4 +150,18 @@ defmodule Pavoi.Catalog.Product do
   rescue
     ArgumentError -> false
   end
+
+  @doc """
+  Returns true if the product is archived.
+
+  ## Examples
+
+      iex> Product.archived?(%Product{archived_at: nil})
+      false
+
+      iex> Product.archived?(%Product{archived_at: ~U[2026-01-01 00:00:00Z]})
+      true
+  """
+  def archived?(%__MODULE__{archived_at: nil}), do: false
+  def archived?(%__MODULE__{archived_at: _}), do: true
 end

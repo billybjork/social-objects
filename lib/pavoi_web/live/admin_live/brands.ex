@@ -27,6 +27,7 @@ defmodule PavoiWeb.AdminLive.Brands do
      |> assign(:form, nil)
      |> assign(:secrets_configured, MapSet.new())
      |> assign(:visible_secrets, MapSet.new())
+     |> assign(:shared_shopify_brands, [])
      |> assign(:tiktok_oauth_url, nil)}
   end
 
@@ -34,6 +35,7 @@ defmodule PavoiWeb.AdminLive.Brands do
   def handle_event("edit_brand", %{"brand_id" => brand_id}, socket) do
     brand = Catalog.get_brand!(brand_id)
     settings = load_settings(brand)
+    shared_shopify_brands = find_shared_shopify_brands(brand, socket.assigns.brands, settings)
 
     {:noreply,
      socket
@@ -41,6 +43,7 @@ defmodule PavoiWeb.AdminLive.Brands do
      |> assign(:form, to_form(settings, as: "settings"))
      |> assign(:secrets_configured, secrets_configured(settings))
      |> assign(:visible_secrets, MapSet.new())
+     |> assign(:shared_shopify_brands, shared_shopify_brands)
      |> assign(:tiktok_oauth_url, TiktokShop.generate_authorization_url(brand.id))}
   end
 
@@ -52,6 +55,7 @@ defmodule PavoiWeb.AdminLive.Brands do
      |> assign(:form, nil)
      |> assign(:secrets_configured, MapSet.new())
      |> assign(:visible_secrets, MapSet.new())
+     |> assign(:shared_shopify_brands, [])
      |> assign(:tiktok_oauth_url, nil)}
   end
 
@@ -127,7 +131,9 @@ defmodule PavoiWeb.AdminLive.Brands do
     base_settings = %{
       "primary_domain" => brand.primary_domain || "",
       "tiktok_live_accounts" =>
-        format_tiktok_accounts(Settings.get_tiktok_live_accounts(brand_id))
+        format_tiktok_accounts(Settings.get_tiktok_live_accounts(brand_id)),
+      "shopify_include_tags" => format_csv_list(Settings.get_shopify_include_tags(brand_id)),
+      "shopify_exclude_tags" => format_csv_list(Settings.get_shopify_exclude_tags(brand_id))
     }
 
     Enum.reduce(settings_getters, base_settings, fn {key, getter}, acc ->
@@ -137,6 +143,9 @@ defmodule PavoiWeb.AdminLive.Brands do
 
   defp format_tiktok_accounts(accounts) when is_list(accounts), do: Enum.join(accounts, ", ")
   defp format_tiktok_accounts(_), do: ""
+
+  defp format_csv_list(items) when is_list(items), do: Enum.join(items, ", ")
+  defp format_csv_list(_), do: ""
 
   defp secrets_configured(settings) do
     @secret_keys
@@ -163,6 +172,8 @@ defmodule PavoiWeb.AdminLive.Brands do
     Settings.put_setting(brand_id, "shopify_store_name", params["shopify_store_name"])
     Settings.put_setting(brand_id, "shopify_client_id", params["shopify_client_id"])
     Settings.put_setting(brand_id, "shopify_client_secret", params["shopify_client_secret"])
+    Settings.put_setting(brand_id, "shopify_include_tags", params["shopify_include_tags"])
+    Settings.put_setting(brand_id, "shopify_exclude_tags", params["shopify_exclude_tags"])
     Settings.put_setting(brand_id, "tiktok_live_accounts", params["tiktok_live_accounts"])
   end
 
@@ -171,6 +182,21 @@ defmodule PavoiWeb.AdminLive.Brands do
   defp normalize_domain(domain) do
     domain = domain |> String.trim() |> String.downcase()
     if domain == "", do: nil, else: domain
+  end
+
+  # Finds other brands that share the same Shopify store name
+  defp find_shared_shopify_brands(current_brand, all_brands, current_settings) do
+    store_name = current_settings["shopify_store_name"]
+
+    if store_name == "" or is_nil(store_name) do
+      []
+    else
+      all_brands
+      |> Enum.reject(&(&1.id == current_brand.id))
+      |> Enum.filter(fn brand ->
+        Settings.get_shopify_store_name(brand.id) == store_name
+      end)
+    end
   end
 
   @impl true
@@ -213,6 +239,7 @@ defmodule PavoiWeb.AdminLive.Brands do
         form={@form}
         secrets_configured={@secrets_configured}
         visible_secrets={@visible_secrets}
+        shared_shopify_brands={@shared_shopify_brands}
         tiktok_oauth_url={@tiktok_oauth_url}
         on_cancel={JS.push("close_modal")}
       />

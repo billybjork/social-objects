@@ -246,6 +246,11 @@ defmodule PavoiWeb.HostViewComponents do
         <%!-- Product Name --%>
         <h1 class="host-product-name">
           {get_effective_name(@session_product)}
+          <%= if Pavoi.Catalog.Product.archived?(@product) do %>
+            <span class="product-archived-badge" title="This product has been archived">
+              Archived
+            </span>
+          <% end %>
         </h1>
 
         <%!-- Sizes (if available) --%>
@@ -395,10 +400,14 @@ defmodule PavoiWeb.HostViewComponents do
               class={[
                 "host-product-card",
                 @current_session_product && @current_session_product.id == sp.id &&
-                  "host-product-card--active"
+                  "host-product-card--active",
+                Pavoi.Catalog.Product.archived?(sp.product) && "host-product-card--archived"
               ]}
               phx-click="select_product_from_panel"
               phx-value-position={sp.position}
+              title={
+                if Pavoi.Catalog.Product.archived?(sp.product), do: "Archived product", else: nil
+              }
             >
               <div class="host-product-card__image-container">
                 <span class="host-product-card__position">{sp.position}</span>

@@ -88,10 +88,16 @@ defmodule Pavoi.Catalog do
 
   @doc """
   Returns the list of products with optional filters.
+
+  ## Options
+    - `:include_archived` - Include archived products (default: false)
   """
   def list_products(brand_id, filters \\ []) do
+    include_archived = Keyword.get(filters, :include_archived, false)
+
     Product
     |> where([p], p.brand_id == ^brand_id)
+    |> maybe_exclude_archived(include_archived)
     |> apply_product_filters(filters)
     |> Repo.all()
   end
@@ -99,10 +105,16 @@ defmodule Pavoi.Catalog do
   @doc """
   Lists all products with their images preloaded.
   Adds a primary_image virtual field for convenience.
+
+  ## Options
+    - `:include_archived` - Include archived products (default: false)
   """
-  def list_products_with_images(brand_id) do
+  def list_products_with_images(brand_id, opts \\ []) do
+    include_archived = Keyword.get(opts, :include_archived, false)
+
     Product
     |> where([p], p.brand_id == ^brand_id)
+    |> maybe_exclude_archived(include_archived)
     |> preload(:product_images)
     |> Repo.all()
     |> Enum.map(fn product ->
@@ -143,6 +155,7 @@ defmodule Pavoi.Catalog do
     - per_page: Items per page (default: 20)
     - sort_by: Sort order - "" or "name" (default), "price_asc", "price_desc"
     - platform_filter: Filter by platform - "" (all), "shopify", "tiktok" (default: "")
+    - include_archived: Include archived products (default: false)
 
   ## Returns
     A map with:
@@ -156,11 +169,13 @@ defmodule Pavoi.Catalog do
     page = Keyword.get(opts, :page, 1)
     per_page = Keyword.get(opts, :per_page, 20)
     sort_by = Keyword.get(opts, :sort_by, "")
+    include_archived = Keyword.get(opts, :include_archived, false)
 
     # Build and filter query
     query =
       from(p in Product, preload: :product_images)
       |> where([p], p.brand_id == ^brand_id)
+      |> maybe_exclude_archived(include_archived)
       |> apply_platform_filter(Keyword.get(opts, :platform_filter, ""))
       |> apply_search_filter(Keyword.get(opts, :search_query, ""))
       |> apply_exclude_ids_filter(Keyword.get(opts, :exclude_ids, []))
@@ -240,6 +255,10 @@ defmodule Pavoi.Catalog do
   defp apply_product_filters(query, [_ | rest]) do
     apply_product_filters(query, rest)
   end
+
+  # Archive filtering - excludes archived products by default
+  defp maybe_exclude_archived(query, true), do: query
+  defp maybe_exclude_archived(query, false), do: where(query, [p], is_nil(p.archived_at))
 
   @doc """
   Gets a single product.
@@ -450,6 +469,35 @@ defmodule Pavoi.Catalog do
   """
   def delete_product(%Product{} = product) do
     Repo.delete(product)
+  end
+
+  @doc """
+  Archives a product with a reason.
+
+  Valid reasons: "shopify_filter_excluded", "manual"
+  """
+  def archive_product(%Product{} = product, reason) do
+    product
+    |> Product.changeset(%{archived_at: DateTime.utc_now(), archive_reason: reason})
+    |> Repo.update()
+  end
+
+  @doc """
+  Unarchives a product, clearing the archive status.
+  """
+  def unarchive_product(%Product{} = product) do
+    product
+    |> Product.changeset(%{archived_at: nil, archive_reason: nil})
+    |> Repo.update()
+  end
+
+  @doc """
+  Returns all archived products for a brand.
+  """
+  def list_archived_products(brand_id) do
+    Product
+    |> where([p], p.brand_id == ^brand_id and not is_nil(p.archived_at))
+    |> Repo.all()
   end
 
   ## Product Images

@@ -57,6 +57,8 @@ defmodule Pavoi.Workers.ShopifySyncWorker do
             ✅ Shopify sync completed successfully
                - Products synced: #{counts.products}
                - Images synced: #{counts.images}
+               - Archived: #{counts.archived}
+               - Unarchived: #{counts.unarchived}
             """)
 
             # Update last sync timestamp
@@ -103,6 +105,10 @@ defmodule Pavoi.Workers.ShopifySyncWorker do
   @doc """
   Syncs all products from Shopify to the local database.
 
+  Applies tag-based filtering based on brand settings:
+  - `shopify_include_tags`: Only sync products with at least one of these tags
+  - `shopify_exclude_tags`: Skip products with any of these tags
+
   Returns:
     - `{:ok, %{products: count, images: count}}` on success
     - `{:error, reason}` on failure
@@ -124,14 +130,34 @@ defmodule Pavoi.Workers.ShopifySyncWorker do
           "Filtered to #{length(valid_products)} products with valid pricing (skipped #{length(shopify_products) - length(valid_products)} products)"
         )
 
-        counts = %{products: 0, images: 0}
+        # Apply tag-based filtering for multi-brand support
+        filtered_products = apply_tag_filters(valid_products, brand_id)
+
+        if length(filtered_products) != length(valid_products) do
+          Logger.info(
+            "Applied tag filters: #{length(filtered_products)} products match brand criteria (skipped #{length(valid_products) - length(filtered_products)} products)"
+          )
+        end
+
+        # Track synced PIDs for archive management
+        synced_pids = MapSet.new(filtered_products, & &1["id"])
+
+        counts = %{products: 0, images: 0, archived: 0, unarchived: 0}
 
         result =
-          Enum.reduce_while(valid_products, {:ok, counts}, fn shopify_product, {:ok, acc} ->
+          Enum.reduce_while(filtered_products, {:ok, counts}, fn shopify_product, {:ok, acc} ->
             sync_and_accumulate(brand_id, shopify_product, acc)
           end)
 
-        finalize_sync_result(result)
+        # Handle archive management after syncing
+        case result do
+          {:ok, final_counts} ->
+            archive_counts = manage_product_archives(brand_id, synced_pids)
+            {:ok, Map.merge(final_counts, archive_counts)}
+
+          error ->
+            error
+        end
 
       {:error, reason} ->
         {:error, reason}
@@ -149,9 +175,83 @@ defmodule Pavoi.Workers.ShopifySyncWorker do
     end
   end
 
-  defp finalize_sync_result({:ok, final_counts}), do: {:ok, final_counts}
+  # Tag-based filtering for multi-brand Shopify stores
+  # Allows brands sharing a Shopify store to sync different product subsets
 
-  defp finalize_sync_result(error), do: error
+  defp apply_tag_filters(products, brand_id) do
+    include_tags = Settings.get_shopify_include_tags(brand_id)
+    exclude_tags = Settings.get_shopify_exclude_tags(brand_id)
+
+    products
+    |> filter_by_include_tags(include_tags)
+    |> filter_by_exclude_tags(exclude_tags)
+  end
+
+  defp filter_by_include_tags(products, []), do: products
+
+  defp filter_by_include_tags(products, include_tags) do
+    Enum.filter(products, fn product ->
+      product_tags = get_product_tags_lowercase(product)
+      Enum.any?(include_tags, &(&1 in product_tags))
+    end)
+  end
+
+  defp filter_by_exclude_tags(products, []), do: products
+
+  defp filter_by_exclude_tags(products, exclude_tags) do
+    Enum.reject(products, fn product ->
+      product_tags = get_product_tags_lowercase(product)
+      Enum.any?(exclude_tags, &(&1 in product_tags))
+    end)
+  end
+
+  defp get_product_tags_lowercase(product) do
+    (product["tags"] || [])
+    |> Enum.map(&String.downcase/1)
+  end
+
+  # Archive management - archives products that no longer match filters,
+  # and unarchives products that now match after filter changes
+  defp manage_product_archives(brand_id, synced_pids) do
+    # Get all products for brand (including archived)
+    all_products = Catalog.list_products(brand_id, include_archived: true)
+
+    archived_count =
+      all_products
+      |> Enum.reject(fn p ->
+        is_nil(p.pid) or MapSet.member?(synced_pids, p.pid) or not is_nil(p.archived_at)
+      end)
+      |> Enum.reduce(0, fn product, count ->
+        case Catalog.archive_product(product, "shopify_filter_excluded") do
+          {:ok, _} ->
+            Logger.info("Archived product #{product.name} (no longer matches Shopify filters)")
+            count + 1
+
+          {:error, reason} ->
+            Logger.warning("Failed to archive product #{product.id}: #{inspect(reason)}")
+            count
+        end
+      end)
+
+    unarchived_count =
+      all_products
+      |> Enum.filter(fn p ->
+        MapSet.member?(synced_pids, p.pid) and p.archive_reason == "shopify_filter_excluded"
+      end)
+      |> Enum.reduce(0, fn product, count ->
+        case Catalog.unarchive_product(product) do
+          {:ok, _} ->
+            Logger.info("Unarchived product #{product.name} (now matches Shopify filters)")
+            count + 1
+
+          {:error, reason} ->
+            Logger.warning("Failed to unarchive product #{product.id}: #{inspect(reason)}")
+            count
+        end
+      end)
+
+    %{archived: archived_count, unarchived: unarchived_count}
+  end
 
   defp sync_product(brand_id, shopify_product) do
     Repo.transaction(fn ->
