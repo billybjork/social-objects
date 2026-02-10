@@ -157,7 +157,8 @@ defmodule SocialObjects.Workers.VideoSyncWorker do
           }
 
         {:error, reason} ->
-          Logger.warning("Failed to process video #{video["video_id"]}: #{inspect(reason)}")
+          video_info = "id=#{video["id"] || "nil"}, username=#{video["username"] || "nil"}"
+          Logger.warning("Failed to process video (#{video_info}): #{inspect(reason)}")
           acc
       end
     end)
@@ -167,8 +168,13 @@ defmodule SocialObjects.Workers.VideoSyncWorker do
     username = video["username"]
     video_id = video["id"]
 
-    if is_nil(username) || username == "" || is_nil(video_id) || video_id == "" do
-      {:error, :missing_required_fields}
+    missing_fields =
+      []
+      |> then(fn acc -> if is_nil(username) || username == "", do: [:username | acc], else: acc end)
+      |> then(fn acc -> if is_nil(video_id) || video_id == "", do: [:video_id | acc], else: acc end)
+
+    if missing_fields != [] do
+      {:error, {:missing_required_fields, missing_fields}}
     else
       process_video_with_creator(brand_id, video, video_id, username)
     end
