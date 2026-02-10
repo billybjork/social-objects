@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["erlang", "elixir", "nodejs"]
+nixPkgs = ["erlang", "elixir", "nodejs", "gcc", "gnumake"]
 
 [phases.install]
 cmds = [
@@ -14,8 +14,8 @@ cmds = [
   "mix assets.deploy",
   "mix compile --force",
   "mix release --overwrite",
-  "for d in _build/prod/rel/pavoi/lib/pavoi-*/priv; do mkdir -p \"$d/static\" && cp -rf priv/static/. \"$d/static/\"; done"
+  "for d in _build/prod/rel/social_objects/lib/social_objects-*/priv; do mkdir -p \"$d/static\" && cp -rf priv/static/. \"$d/static/\"; done"
 ]
 
 [start]
-cmd = "_build/prod/rel/pavoi/bin/pavoi eval \"Pavoi.Release.migrate\" && _build/prod/rel/pavoi/bin/pavoi start"
+cmd = "_build/prod/rel/social_objects/bin/social_objects eval \"SocialObjects.Release.migrate\" && _build/prod/rel/social_objects/bin/social_objects start"
