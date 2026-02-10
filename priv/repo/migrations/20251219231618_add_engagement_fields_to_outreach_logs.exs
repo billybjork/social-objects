@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddEngagementFieldsToOutreachLogs do
+defmodule SocialObjects.Repo.Migrations.AddEngagementFieldsToOutreachLogs do
   use Ecto.Migration
 
   def change do

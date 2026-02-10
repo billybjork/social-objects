@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddProductPerformanceToStreams do
+defmodule SocialObjects.Repo.Migrations.AddProductPerformanceToStreams do
   use Ecto.Migration
 
   def change do

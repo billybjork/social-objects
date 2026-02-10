@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddNotesImageUrlToSessions do
+defmodule SocialObjects.Repo.Migrations.AddNotesImageUrlToSessions do
   use Ecto.Migration
 
   def change do

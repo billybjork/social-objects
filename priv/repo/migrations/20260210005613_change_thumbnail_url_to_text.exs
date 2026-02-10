@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.ChangeThumbnailUrlToText do
+defmodule SocialObjects.Repo.Migrations.ChangeThumbnailUrlToText do
   use Ecto.Migration
 
   def change do

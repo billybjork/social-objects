@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddTiktokPerformanceToProducts do
+defmodule SocialObjects.Repo.Migrations.AddTiktokPerformanceToProducts do
   use Ecto.Migration
 
   def change do

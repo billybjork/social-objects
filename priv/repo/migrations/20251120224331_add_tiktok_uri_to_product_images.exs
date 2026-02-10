@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddTiktokUriToProductImages do
+defmodule SocialObjects.Repo.Migrations.AddTiktokUriToProductImages do
   use Ecto.Migration
 
   def change do

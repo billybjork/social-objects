@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.CreateCreatorTagAssignments do
+defmodule SocialObjects.Repo.Migrations.CreateCreatorTagAssignments do
   use Ecto.Migration
 
   def change do

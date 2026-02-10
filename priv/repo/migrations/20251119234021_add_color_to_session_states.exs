@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddColorToSessionStates do
+defmodule SocialObjects.Repo.Migrations.AddColorToSessionStates do
   use Ecto.Migration
 
   def change do

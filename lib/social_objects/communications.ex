@@ -1,0 +1,167 @@
+defmodule SocialObjects.Communications do
+  @moduledoc """
+  The Communications context manages email templates and related functionality.
+  """
+
+  import Ecto.Query, warn: false
+
+  alias SocialObjects.Communications.EmailTemplate
+  alias SocialObjects.Repo
+
+  ## Email Templates
+
+  @doc """
+  Lists all active email templates, ordered by name.
+  """
+  def list_email_templates(brand_id) do
+    list_templates_by_type(brand_id, "email")
+  end
+
+  @doc """
+  Lists all email templates including inactive ones.
+  """
+  def list_all_email_templates(brand_id) do
+    list_all_templates_by_type(brand_id, "email")
+  end
+
+  @doc """
+  Lists active templates of a specific type, ordered by name.
+  """
+  def list_templates_by_type(brand_id, type) when type in ["email", "page"] do
+    from(t in EmailTemplate,
+      where: t.brand_id == ^brand_id and t.type == ^type and t.is_active == true,
+      order_by: [asc: t.name]
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Lists all templates of a specific type including inactive ones, ordered by name.
+  """
+  def list_all_templates_by_type(brand_id, type) when type in ["email", "page"] do
+    from(t in EmailTemplate,
+      where: t.brand_id == ^brand_id and t.type == ^type,
+      order_by: [asc: t.name]
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Gets a single email template by ID.
+
+  Raises `Ecto.NoResultsError` if the template does not exist.
+  """
+  def get_email_template!(brand_id, id),
+    do: Repo.get_by!(EmailTemplate, id: id, brand_id: brand_id)
+
+  @doc """
+  Gets a single email template by name.
+
+  Returns nil if not found or inactive.
+  """
+  def get_email_template_by_name(brand_id, name) do
+    Repo.get_by(EmailTemplate, brand_id: brand_id, name: name, is_active: true)
+  end
+
+  @doc """
+  Gets the default email template.
+
+  Returns nil if no default is set.
+  """
+  def get_default_email_template(brand_id) do
+    Repo.get_by(EmailTemplate,
+      brand_id: brand_id,
+      type: "email",
+      is_default: true,
+      is_active: true
+    )
+  end
+
+  @doc """
+  Gets the default page template for a specific lark preset.
+
+  Returns nil if no default is set for that preset.
+  """
+  def get_default_page_template(brand_id, lark_preset) do
+    Repo.get_by(EmailTemplate,
+      brand_id: brand_id,
+      type: "page",
+      lark_preset: lark_preset,
+      is_default: true,
+      is_active: true
+    )
+  end
+
+  @doc """
+  Creates an email template.
+  """
+  def create_email_template(brand_id, attrs \\ %{}) do
+    %EmailTemplate{brand_id: brand_id}
+    |> EmailTemplate.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc """
+  Updates an email template.
+  """
+  def update_email_template(%EmailTemplate{} = template, attrs) do
+    template
+    |> EmailTemplate.changeset(attrs)
+    |> Repo.update()
+  end
+
+  @doc """
+  Sets a template as the default, clearing any existing default.
+
+  For page templates, only clears default within the same type+lark_preset combo.
+  For email templates, clears all email defaults (backwards compatible).
+  """
+  def set_default_template(%EmailTemplate{} = template) do
+    Repo.transaction(fn ->
+      # Clear existing default for same type (and lark_preset for page templates)
+      template
+      |> build_clear_default_query()
+      |> Repo.update_all(set: [is_default: false])
+
+      # Set new default
+      template
+      |> EmailTemplate.changeset(%{is_default: true})
+      |> Repo.update!()
+    end)
+  end
+
+  defp build_clear_default_query(%EmailTemplate{type: "page"} = template) do
+    from(t in EmailTemplate,
+      where:
+        t.brand_id == ^template.brand_id and
+          t.type == ^template.type and
+          t.lark_preset == ^template.lark_preset and
+          t.is_default == true
+    )
+  end
+
+  defp build_clear_default_query(%EmailTemplate{} = template) do
+    from(t in EmailTemplate,
+      where:
+        t.brand_id == ^template.brand_id and
+          t.type == ^template.type and
+          t.is_default == true
+    )
+  end
+
+  @doc """
+  Soft-deletes an email template by marking it inactive.
+  """
+  def delete_email_template(%EmailTemplate{} = template) do
+    template
+    |> EmailTemplate.changeset(%{is_active: false, is_default: false})
+    |> Repo.update()
+  end
+
+  @doc """
+  Returns an `%Ecto.Changeset{}` for tracking template changes.
+  """
+  def change_email_template(%EmailTemplate{} = template, attrs \\ %{}) do
+    EmailTemplate.changeset(template, attrs)
+  end
+end

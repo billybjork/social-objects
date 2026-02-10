@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.CreateEmailEvents do
+defmodule SocialObjects.Repo.Migrations.CreateEmailEvents do
   use Ecto.Migration
 
   def change do

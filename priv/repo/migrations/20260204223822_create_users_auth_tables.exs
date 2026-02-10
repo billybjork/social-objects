@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.CreateUsersAuthTables do
+defmodule SocialObjects.Repo.Migrations.CreateUsersAuthTables do
   use Ecto.Migration
 
   def change do

@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddArchivedToProducts do
+defmodule SocialObjects.Repo.Migrations.AddArchivedToProducts do
   use Ecto.Migration
 
   @moduledoc """

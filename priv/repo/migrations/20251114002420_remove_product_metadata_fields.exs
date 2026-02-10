@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.RemoveProductMetadataFields do
+defmodule SocialObjects.Repo.Migrations.RemoveProductMetadataFields do
   use Ecto.Migration
 
   def change do

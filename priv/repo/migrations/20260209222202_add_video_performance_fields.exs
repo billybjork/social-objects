@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddVideoPerformanceFields do
+defmodule SocialObjects.Repo.Migrations.AddVideoPerformanceFields do
   use Ecto.Migration
 
   def change do

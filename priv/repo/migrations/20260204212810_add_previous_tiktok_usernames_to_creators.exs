@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddPreviousTiktokUsernamesToCreators do
+defmodule SocialObjects.Repo.Migrations.AddPreviousTiktokUsernamesToCreators do
   use Ecto.Migration
 
   def change do

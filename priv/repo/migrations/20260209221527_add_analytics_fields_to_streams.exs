@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddAnalyticsFieldsToStreams do
+defmodule SocialObjects.Repo.Migrations.AddAnalyticsFieldsToStreams do
   use Ecto.Migration
 
   def change do

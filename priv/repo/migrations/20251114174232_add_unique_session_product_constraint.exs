@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddUniqueSessionProductConstraint do
+defmodule SocialObjects.Repo.Migrations.AddUniqueSessionProductConstraint do
   use Ecto.Migration
 
   def change do

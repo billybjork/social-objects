@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddIndexToCreatorsTiktokUserId do
+defmodule SocialObjects.Repo.Migrations.AddIndexToCreatorsTiktokUserId do
   use Ecto.Migration
 
   def change do

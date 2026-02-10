@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.ClearPlaceholderUsernames do
+defmodule SocialObjects.Repo.Migrations.ClearPlaceholderUsernames do
   use Ecto.Migration
 
   def up do

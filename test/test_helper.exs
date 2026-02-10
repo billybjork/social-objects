@@ -1,2 +1,2 @@
 ExUnit.start()
-Ecto.Adapters.SQL.Sandbox.mode(Pavoi.Repo, :manual)
+Ecto.Adapters.SQL.Sandbox.mode(SocialObjects.Repo, :manual)

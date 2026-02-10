@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddOutreachFieldsToCreators do
+defmodule SocialObjects.Repo.Migrations.AddOutreachFieldsToCreators do
   use Ecto.Migration
 
   def change do

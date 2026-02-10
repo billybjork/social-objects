@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.RenameSessionsToProductSets do
+defmodule SocialObjects.Repo.Migrations.RenameSessionsToProductSets do
   use Ecto.Migration
 
   def up do

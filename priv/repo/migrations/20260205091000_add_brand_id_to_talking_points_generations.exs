@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddBrandIdToTalkingPointsGenerations do
+defmodule SocialObjects.Repo.Migrations.AddBrandIdToTalkingPointsGenerations do
   use Ecto.Migration
 
   def change do

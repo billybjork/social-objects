@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddSampleFulfillmentTracking do
+defmodule SocialObjects.Repo.Migrations.AddSampleFulfillmentTracking do
   use Ecto.Migration
 
   def change do

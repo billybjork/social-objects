@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.CreateCreatorPurchases do
+defmodule SocialObjects.Repo.Migrations.CreateCreatorPurchases do
   use Ecto.Migration
 
   @moduledoc """

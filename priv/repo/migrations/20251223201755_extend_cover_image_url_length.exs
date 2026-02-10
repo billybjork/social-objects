@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.ExtendCoverImageUrlLength do
+defmodule SocialObjects.Repo.Migrations.ExtendCoverImageUrlLength do
   use Ecto.Migration
 
   def change do

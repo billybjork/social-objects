@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddSessionIdToTiktokStreams do
+defmodule SocialObjects.Repo.Migrations.AddSessionIdToTiktokStreams do
   use Ecto.Migration
 
   def change do

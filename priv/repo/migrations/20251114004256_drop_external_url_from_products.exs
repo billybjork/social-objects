@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.DropExternalUrlFromProducts do
+defmodule SocialObjects.Repo.Migrations.DropExternalUrlFromProducts do
   use Ecto.Migration
 
   def change do

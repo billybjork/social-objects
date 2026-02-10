@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* Source files for Tailwind to scan for utility class usage */
-@source "../../lib/pavoi_web";
+@source "../../lib/social_objects_web";
 @source "../js";
 
 /* ============================================================================

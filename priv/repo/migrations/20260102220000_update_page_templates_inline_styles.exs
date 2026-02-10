@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.UpdatePageTemplatesInlineStyles do
+defmodule SocialObjects.Repo.Migrations.UpdatePageTemplatesInlineStyles do
   use Ecto.Migration
 
   @styled_html """

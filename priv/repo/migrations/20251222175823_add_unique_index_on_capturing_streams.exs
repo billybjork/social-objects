@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddUniqueIndexOnCapturingStreams do
+defmodule SocialObjects.Repo.Migrations.AddUniqueIndexOnCapturingStreams do
   use Ecto.Migration
 
   @doc """

@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.CreateMessagePresets do
+defmodule SocialObjects.Repo.Migrations.CreateMessagePresets do
   use Ecto.Migration
 
   def change do

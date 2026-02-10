@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddGmvToStreams do
+defmodule SocialObjects.Repo.Migrations.AddGmvToStreams do
   use Ecto.Migration
 
   def change do

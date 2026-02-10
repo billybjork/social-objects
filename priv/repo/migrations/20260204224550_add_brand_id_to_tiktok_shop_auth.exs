@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddBrandIdToTiktokShopAuth do
+defmodule SocialObjects.Repo.Migrations.AddBrandIdToTiktokShopAuth do
   use Ecto.Migration
 
   def up do

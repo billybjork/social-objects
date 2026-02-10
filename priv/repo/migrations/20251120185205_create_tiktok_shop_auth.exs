@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.CreateTiktokShopAuth do
+defmodule SocialObjects.Repo.Migrations.CreateTiktokShopAuth do
   use Ecto.Migration
 
   def change do

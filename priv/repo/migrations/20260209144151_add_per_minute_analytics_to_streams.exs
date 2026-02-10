@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddPerMinuteAnalyticsToStreams do
+defmodule SocialObjects.Repo.Migrations.AddPerMinuteAnalyticsToStreams do
   use Ecto.Migration
 
   def change do

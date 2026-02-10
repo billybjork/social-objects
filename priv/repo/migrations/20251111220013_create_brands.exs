@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.CreateBrands do
+defmodule SocialObjects.Repo.Migrations.CreateBrands do
   use Ecto.Migration
 
   def change do

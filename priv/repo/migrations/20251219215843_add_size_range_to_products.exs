@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddSizeRangeToProducts do
+defmodule SocialObjects.Repo.Migrations.AddSizeRangeToProducts do
   use Ecto.Migration
 
   def change do

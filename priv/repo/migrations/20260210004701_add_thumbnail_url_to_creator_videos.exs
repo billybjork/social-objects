@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddThumbnailUrlToCreatorVideos do
+defmodule SocialObjects.Repo.Migrations.AddThumbnailUrlToCreatorVideos do
   use Ecto.Migration
 
   def change do

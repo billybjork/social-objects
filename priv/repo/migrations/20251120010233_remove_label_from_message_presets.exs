@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.RemoveLabelFromMessagePresets do
+defmodule SocialObjects.Repo.Migrations.RemoveLabelFromMessagePresets do
   use Ecto.Migration
 
   def change do

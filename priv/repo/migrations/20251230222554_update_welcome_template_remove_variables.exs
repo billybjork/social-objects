@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.UpdateWelcomeTemplateRemoveVariables do
+defmodule SocialObjects.Repo.Migrations.UpdateWelcomeTemplateRemoveVariables do
   use Ecto.Migration
 
   def up do

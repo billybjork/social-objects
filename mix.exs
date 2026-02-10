@@ -1,9 +1,9 @@
-defmodule Pavoi.MixProject do
+defmodule SocialObjects.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :pavoi,
+      app: :social_objects,
       version: "0.1.0",
       elixir: "~> 1.15",
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -24,7 +24,7 @@ defmodule Pavoi.MixProject do
   # Type `mix help compile.app` for more information.
   def application do
     [
-      mod: {Pavoi.Application, []},
+      mod: {SocialObjects.Application, []},
       extra_applications: [:logger, :runtime_tools, :ex_aws]
     ]
   end
@@ -67,7 +67,7 @@ defmodule Pavoi.MixProject do
       {:bandit, "~> 1.5"},
       {:nimble_csv, "~> 1.2"},
 
-      # Pavoi-specific dependencies
+      # Application-specific dependencies
       # Markdown rendering for talking points
       {:earmark, "~> 1.4"},
       # OpenAI API integration for AI-generated content
@@ -106,10 +106,15 @@ defmodule Pavoi.MixProject do
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
-      "assets.build": ["compile", "tailwind pavoi", "esbuild pavoi", "assets.copy_vendor"],
+      "assets.build": [
+        "compile",
+        "tailwind social_objects",
+        "esbuild social_objects",
+        "assets.copy_vendor"
+      ],
       "assets.deploy": [
-        "tailwind pavoi --minify",
-        "esbuild pavoi --minify",
+        "tailwind social_objects --minify",
+        "esbuild social_objects --minify",
         "assets.copy_vendor",
         "phx.digest"
       ],

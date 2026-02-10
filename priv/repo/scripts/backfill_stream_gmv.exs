@@ -6,9 +6,9 @@
 # Or in production:
 #   DATABASE_URL=... MIX_ENV=prod mix run priv/repo/scripts/backfill_stream_gmv.exs
 
-alias Pavoi.Repo
-alias Pavoi.TiktokLive.Stream
-alias Pavoi.TiktokShop
+alias SocialObjects.Repo
+alias SocialObjects.TiktokLive.Stream
+alias SocialObjects.TiktokShop
 import Ecto.Query
 
 IO.puts("Fetching ended streams without hourly GMV data...")

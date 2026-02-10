@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.ConsolidateEmailTemplateNames do
+defmodule SocialObjects.Repo.Migrations.ConsolidateEmailTemplateNames do
   use Ecto.Migration
 
   def up do

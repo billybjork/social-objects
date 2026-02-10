@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.RemoveLegacyCreatorTagsField do
+defmodule SocialObjects.Repo.Migrations.RemoveLegacyCreatorTagsField do
   use Ecto.Migration
 
   def change do

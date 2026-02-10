@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddAvatarStorageKeyToCreators do
+defmodule SocialObjects.Repo.Migrations.AddAvatarStorageKeyToCreators do
   use Ecto.Migration
 
   def change do

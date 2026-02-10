@@ -7,44 +7,44 @@
 # General application configuration
 import Config
 
-config :pavoi, :scopes,
+config :social_objects, :scopes,
   user: [
     default: true,
-    module: Pavoi.Accounts.Scope,
+    module: SocialObjects.Accounts.Scope,
     assign_key: :current_scope,
     access_path: [:user, :id],
     schema_key: :user_id,
     schema_type: :id,
     schema_table: :users,
-    test_data_fixture: Pavoi.AccountsFixtures,
+    test_data_fixture: SocialObjects.AccountsFixtures,
     test_setup_helper: :register_and_log_in_user
   ]
 
-config :pavoi,
-  ecto_repos: [Pavoi.Repo],
+config :social_objects,
+  ecto_repos: [SocialObjects.Repo],
   generators: [timestamp_type: :utc_datetime]
 
 # Feature flags (defaults - can be overridden via env vars in runtime.exs)
-config :pavoi, :features,
+config :social_objects, :features,
   voice_control_enabled: true,
   outreach_email_enabled: true,
   outreach_email_override: nil
 
 # Default application name used in unauthenticated contexts
-config :pavoi, :app_name, "Pavoi"
+config :social_objects, :app_name, "Social Objects"
 
 # Default brand slug for local/dev host-based resolution
-config :pavoi, :default_brand_slug, "pavoi"
+config :social_objects, :default_brand_slug, "pavoi"
 
 # Configures the endpoint
-config :pavoi, PavoiWeb.Endpoint,
+config :social_objects, SocialObjectsWeb.Endpoint,
   url: [host: "localhost"],
   adapter: Bandit.PhoenixAdapter,
   render_errors: [
-    formats: [html: PavoiWeb.ErrorHTML, json: PavoiWeb.ErrorJSON],
+    formats: [html: SocialObjectsWeb.ErrorHTML, json: SocialObjectsWeb.ErrorJSON],
     layout: false
   ],
-  pubsub_server: Pavoi.PubSub,
+  pubsub_server: SocialObjects.PubSub,
   live_view: [signing_salt: "qaFml4h+"]
 
 # Configures the mailer
@@ -54,15 +54,15 @@ config :pavoi, PavoiWeb.Endpoint,
 #
 # For production it's recommended to configure a different adapter
 # at the `config/runtime.exs`.
-config :pavoi, Pavoi.Mailer, adapter: Swoosh.Adapters.Local
+config :social_objects, SocialObjects.Mailer, adapter: Swoosh.Adapters.Local
 
 # Store creator avatars in the bucket by default
-config :pavoi, :creator_avatars, store_in_storage: true, store_locally: false
+config :social_objects, :creator_avatars, store_in_storage: true, store_locally: false
 
 # Configure Oban background job processing
 # Base configuration (applies to all environments)
-config :pavoi, Oban,
-  repo: Pavoi.Repo,
+config :social_objects, Oban,
+  repo: SocialObjects.Repo,
   plugins: [
     {Oban.Plugins.Pruner, max_age: 60 * 60 * 24 * 7},
     # Rescue jobs stuck in "executing" state after deploy/crash (check every 30s, rescue after 60s)
@@ -80,12 +80,12 @@ config :pavoi, Oban,
   ]
 
 # TikTok Live stream capture configuration
-config :pavoi, :tiktok_live_monitor, accounts: []
+config :social_objects, :tiktok_live_monitor, accounts: []
 
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.25.4",
-  pavoi: [
+  social_objects: [
     args:
       ~w(js/app.js js/workers/whisper_worker.js --bundle --target=es2022 --outdir=../priv/static/assets/js --format=esm --splitting --external:/fonts/* --external:/images/* --alias:@=.),
     cd: Path.expand("../assets", __DIR__),
@@ -95,7 +95,7 @@ config :esbuild,
 # Configure Tailwind CSS (standalone CLI - no Node.js required)
 config :tailwind,
   version: "4.0.14",
-  pavoi: [
+  social_objects: [
     args: ~w(
       --input=css/tailwind.css
       --output=../priv/static/assets/css/app.css

@@ -1,5 +1,5 @@
-alias Pavoi.{Repo, Catalog, Accounts}
-alias Pavoi.Catalog.Brand
+alias SocialObjects.{Repo, Catalog, Accounts}
+alias SocialObjects.Catalog.Brand
 
 # Create Pavoi Active brand
 IO.puts("Creating Pavoi Active brand...")

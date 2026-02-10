@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddBrandIdToTiktokLiveTables do
+defmodule SocialObjects.Repo.Migrations.AddBrandIdToTiktokLiveTables do
   use Ecto.Migration
 
   def up do

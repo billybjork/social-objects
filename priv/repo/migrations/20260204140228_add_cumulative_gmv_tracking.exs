@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddCumulativeGmvTracking do
+defmodule SocialObjects.Repo.Migrations.AddCumulativeGmvTracking do
   use Ecto.Migration
 
   def change do

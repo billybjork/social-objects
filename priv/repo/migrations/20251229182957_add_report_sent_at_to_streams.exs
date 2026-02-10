@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddReportSentAtToStreams do
+defmodule SocialObjects.Repo.Migrations.AddReportSentAtToStreams do
   use Ecto.Migration
 
   def change do

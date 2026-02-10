@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddVideoSearchIndexes do
+defmodule SocialObjects.Repo.Migrations.AddVideoSearchIndexes do
   use Ecto.Migration
 
   # Required for CREATE INDEX CONCURRENTLY

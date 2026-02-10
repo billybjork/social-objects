@@ -1,10 +1,10 @@
-# Seeds for Pavoi
+# Seeds for Social Objects
 # Run: mix run priv/repo/seeds.exs
 
-alias Pavoi.Repo
-alias Pavoi.Catalog.{Brand, Product, ProductImage, ProductVariant}
-alias Pavoi.Sessions.{Session, SessionProduct, SessionState}
-alias Pavoi.AI.TalkingPointsGeneration
+alias SocialObjects.Repo
+alias SocialObjects.Catalog.{Brand, Product, ProductImage, ProductVariant}
+alias SocialObjects.Sessions.{Session, SessionProduct, SessionState}
+alias SocialObjects.AI.TalkingPointsGeneration
 
 require Logger
 

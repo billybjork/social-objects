@@ -80,7 +80,7 @@ defmodule Mix.Tasks.ImportSessions do
   end
 
   defp find_or_create_brand(brand_name, dry_run) do
-    case Pavoi.Catalog.get_brand_by_name(brand_name) do
+    case SocialObjects.Catalog.get_brand_by_name(brand_name) do
       nil -> create_brand(brand_name, dry_run)
       brand -> brand
     end
@@ -92,7 +92,7 @@ defmodule Mix.Tasks.ImportSessions do
   end
 
   defp create_brand(brand_name, false = _dry_run) do
-    case Pavoi.Catalog.create_brand(%{name: brand_name, slug: slugify_brand(brand_name)}) do
+    case SocialObjects.Catalog.create_brand(%{name: brand_name, slug: slugify_brand(brand_name)}) do
       {:ok, brand} ->
         Mix.shell().info("Created brand: #{brand_name}")
         brand
@@ -235,7 +235,7 @@ defmodule Mix.Tasks.ImportSessions do
     # Find products by SKU with partial matching (first match wins)
     results =
       Enum.map(skus, fn sku ->
-        case Pavoi.Catalog.find_product_by_sku(brand_id, sku) do
+        case SocialObjects.Catalog.find_product_by_sku(brand_id, sku) do
           nil -> {:missing, sku}
           product -> {:found, product}
         end
@@ -257,7 +257,7 @@ defmodule Mix.Tasks.ImportSessions do
 
   defp create_session_with_products(name, description, brand_id, products) do
     # Generate slug from name
-    slug = Pavoi.ProductSets.slugify(name)
+    slug = SocialObjects.ProductSets.slugify(name)
 
     session_attrs = %{
       name: name,
@@ -269,7 +269,7 @@ defmodule Mix.Tasks.ImportSessions do
 
     product_ids = Enum.map(products, & &1.id)
 
-    Pavoi.ProductSets.create_product_set_with_products(session_attrs, product_ids)
+    SocialObjects.ProductSets.create_product_set_with_products(session_attrs, product_ids)
   end
 
   defp print_summary(stats) do

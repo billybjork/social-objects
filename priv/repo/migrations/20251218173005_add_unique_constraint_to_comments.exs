@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddUniqueConstraintToComments do
+defmodule SocialObjects.Repo.Migrations.AddUniqueConstraintToComments do
   use Ecto.Migration
 
   def up do

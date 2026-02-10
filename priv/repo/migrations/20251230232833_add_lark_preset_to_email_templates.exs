@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddLarkPresetToEmailTemplates do
+defmodule SocialObjects.Repo.Migrations.AddLarkPresetToEmailTemplates do
   use Ecto.Migration
 
   def change do

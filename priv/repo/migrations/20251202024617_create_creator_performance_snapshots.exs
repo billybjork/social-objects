@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.CreateCreatorPerformanceSnapshots do
+defmodule SocialObjects.Repo.Migrations.CreateCreatorPerformanceSnapshots do
   use Ecto.Migration
 
   def change do

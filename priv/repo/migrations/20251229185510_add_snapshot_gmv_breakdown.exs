@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddSnapshotGmvBreakdown do
+defmodule SocialObjects.Repo.Migrations.AddSnapshotGmvBreakdown do
   use Ecto.Migration
 
   def change do

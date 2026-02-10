@@ -31,10 +31,10 @@ defmodule Mix.Tasks.BackfillVideoThumbnails do
   require Logger
   import Ecto.Query
 
-  alias Pavoi.Creators
-  alias Pavoi.Creators.CreatorVideo
-  alias Pavoi.Repo
-  alias Pavoi.TiktokShop.OEmbed
+  alias SocialObjects.Creators
+  alias SocialObjects.Creators.CreatorVideo
+  alias SocialObjects.Repo
+  alias SocialObjects.TiktokShop.OEmbed
 
   @shortdoc "Backfill thumbnail URLs for creator videos"
 

@@ -24,7 +24,7 @@ defmodule Mix.Tasks.AuditAffiliateApi do
   use Mix.Task
   require Logger
 
-  alias Pavoi.TiktokShop
+  alias SocialObjects.TiktokShop
 
   @shortdoc "Audit TikTok Shop Affiliate API endpoints"
 

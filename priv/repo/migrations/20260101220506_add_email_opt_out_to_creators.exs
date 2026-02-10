@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddEmailOptOutToCreators do
+defmodule SocialObjects.Repo.Migrations.AddEmailOptOutToCreators do
   use Ecto.Migration
 
   def change do

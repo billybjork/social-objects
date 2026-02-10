@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1A1A1A" media="(prefers-color-scheme: dark)" />
+    <meta name="csrf-token" content={get_csrf_token()} />
+    <.live_title
+      default={
+        (assigns[:current_brand] && assigns[:current_brand].name) ||
+          SocialObjects.Settings.app_name()
+      }
+      suffix=" · App"
+    >
+      {assigns[:page_title]}
+    </.live_title>
+    <link rel="icon" type="image/x-icon" href={~p"/favicon.ico"} />
+    <link rel="icon" type="image/png" sizes="16x16" href={~p"/images/favicon-16x16.png"} />
+    <link rel="icon" type="image/png" sizes="32x32" href={~p"/images/favicon-32x32.png"} />
+    <%!-- TikTok embed preconnect hints for faster video player loading --%>
+    <link rel="preconnect" href="https://www.tiktok.com" crossorigin />
+    <link rel="preconnect" href="https://lf16-tiktok-web.ttwstatic.com" crossorigin />
+    <link rel="dns-prefetch" href="https://www.tiktok.com" />
+    <%!-- FOUC Prevention: Apply theme class before styles load --%>
+    <script>
+      (function() {
+        const getTheme = () => {
+          const saved = localStorage.getItem('theme');
+          if (saved === 'light' || saved === 'dark') return saved;
+          return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        };
+        const theme = getTheme();
+        document.documentElement.classList.add(theme);
+        document.documentElement.setAttribute('data-theme', theme);
+        // Set theme-color for browser chrome (iOS Safari status bar, etc.)
+        const themeColor = theme === 'dark' ? '#1A1A1A' : '#FFFFFF';
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', themeColor);
+      })();
+    </script>
+    <%!-- Column Width Restoration: Apply saved widths before table renders to prevent FOUC --%>
+    <script>
+      (function() {
+        const PREFIX = 'table-columns-';
+        const tables = ['creators-unified', 'creators-crm', 'creators-outreach', 'streams'];
+        let css = '';
+        tables.forEach(tableId => {
+          try {
+            const saved = localStorage.getItem(PREFIX + tableId);
+            if (!saved) return;
+            const widths = JSON.parse(saved);
+            Object.entries(widths).forEach(([colId, width]) => {
+              css += `[data-table-id="${tableId}"] th[data-column-id="${colId}"]{width:${width}px!important}`;
+            });
+          } catch (e) {}
+        });
+        if (css) {
+          const style = document.createElement('style');
+          style.id = 'saved-column-widths';
+          style.textContent = css;
+          document.head.appendChild(style);
+        }
+      })();
+    </script>
+    <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
+    <script defer phx-track-static type="module" src={~p"/assets/js/app.js"}>
+    </script>
+  </head>
+  <body>
+    {@inner_content}
+  </body>
+</html>

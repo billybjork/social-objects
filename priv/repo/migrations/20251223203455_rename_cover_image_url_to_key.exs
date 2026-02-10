@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.RenameCoverImageUrlToKey do
+defmodule SocialObjects.Repo.Migrations.RenameCoverImageUrlToKey do
   use Ecto.Migration
 
   def up do

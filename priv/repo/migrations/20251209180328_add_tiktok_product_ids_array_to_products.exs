@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddTiktokProductIdsArrayToProducts do
+defmodule SocialObjects.Repo.Migrations.AddTiktokProductIdsArrayToProducts do
   use Ecto.Migration
 
   def change do

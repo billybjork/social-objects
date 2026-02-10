@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddSmsConsentTracking do
+defmodule SocialObjects.Repo.Migrations.AddSmsConsentTracking do
   use Ecto.Migration
 
   def change do

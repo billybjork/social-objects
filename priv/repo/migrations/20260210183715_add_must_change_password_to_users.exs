@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddMustChangePasswordToUsers do
+defmodule SocialObjects.Repo.Migrations.AddMustChangePasswordToUsers do
   use Ecto.Migration
 
   def up do

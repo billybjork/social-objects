@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.CreateCreatorTags do
+defmodule SocialObjects.Repo.Migrations.CreateCreatorTags do
   use Ecto.Migration
 
   def change do

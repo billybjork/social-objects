@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AllowNullTiktokUsername do
+defmodule SocialObjects.Repo.Migrations.AllowNullTiktokUsername do
   use Ecto.Migration
 
   def change do

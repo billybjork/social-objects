@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.CreateEmailTemplates do
+defmodule SocialObjects.Repo.Migrations.CreateEmailTemplates do
   use Ecto.Migration
 
   def change do

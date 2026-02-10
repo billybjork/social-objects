@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddSentimentAnalysisToStreams do
+defmodule SocialObjects.Repo.Migrations.AddSentimentAnalysisToStreams do
   use Ecto.Migration
 
   def change do

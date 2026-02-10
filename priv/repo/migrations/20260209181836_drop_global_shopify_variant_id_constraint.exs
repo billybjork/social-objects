@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.DropGlobalShopifyVariantIdConstraint do
+defmodule SocialObjects.Repo.Migrations.DropGlobalShopifyVariantIdConstraint do
   use Ecto.Migration
 
   @moduledoc """

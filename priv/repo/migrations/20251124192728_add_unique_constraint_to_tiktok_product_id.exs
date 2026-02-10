@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddUniqueConstraintToTiktokProductId do
+defmodule SocialObjects.Repo.Migrations.AddUniqueConstraintToTiktokProductId do
   use Ecto.Migration
 
   def change do

@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.RemoveOutreachStatusFromCreators do
+defmodule SocialObjects.Repo.Migrations.RemoveOutreachStatusFromCreators do
   use Ecto.Migration
 
   def change do

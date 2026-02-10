@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.CreateSessionStates do
+defmodule SocialObjects.Repo.Migrations.CreateSessionStates do
   use Ecto.Migration
 
   def change do

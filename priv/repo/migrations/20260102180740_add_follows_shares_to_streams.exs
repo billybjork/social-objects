@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddFollowsSharesToStreams do
+defmodule SocialObjects.Repo.Migrations.AddFollowsSharesToStreams do
   use Ecto.Migration
 
   def change do

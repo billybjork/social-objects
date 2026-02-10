@@ -31,8 +31,8 @@ defmodule Mix.Tasks.BackfillSizes do
   require Logger
   import Ecto.Query
 
-  alias Pavoi.Catalog.{Product, ProductVariant, SizeExtractor}
-  alias Pavoi.Repo
+  alias SocialObjects.Catalog.{Product, ProductVariant, SizeExtractor}
+  alias SocialObjects.Repo
 
   @shortdoc "Backfill size data for existing product variants"
 

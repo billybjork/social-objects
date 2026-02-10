@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.SeedDefaultPageTemplates do
+defmodule SocialObjects.Repo.Migrations.SeedDefaultPageTemplates do
   use Ecto.Migration
 
   @default_html """

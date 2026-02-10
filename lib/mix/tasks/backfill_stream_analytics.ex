@@ -40,10 +40,10 @@ defmodule Mix.Tasks.BackfillStreamAnalytics do
 
   import Ecto.Query
 
-  alias Pavoi.Repo
-  alias Pavoi.TiktokLive.Stream
-  alias Pavoi.TiktokShop.Analytics
-  alias Pavoi.TiktokShop.Parsers
+  alias SocialObjects.Repo
+  alias SocialObjects.TiktokLive.Stream
+  alias SocialObjects.TiktokShop.Analytics
+  alias SocialObjects.TiktokShop.Parsers
 
   @shortdoc "Backfill TikTok Shop Analytics data for historical streams"
 

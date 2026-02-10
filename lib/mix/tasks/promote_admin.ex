@@ -34,7 +34,7 @@ defmodule Mix.Tasks.PromoteAdmin do
   end
 
   defp promote_or_demote(email, demote) do
-    case Pavoi.Accounts.get_user_by_email(email) do
+    case SocialObjects.Accounts.get_user_by_email(email) do
       nil ->
         Mix.shell().error("User not found: #{email}")
 
@@ -44,7 +44,7 @@ defmodule Mix.Tasks.PromoteAdmin do
   end
 
   defp update_admin_status(user, email, new_status) do
-    case Pavoi.Accounts.set_admin_status(user, new_status) do
+    case SocialObjects.Accounts.set_admin_status(user, new_status) do
       {:ok, _user} ->
         message = admin_status_message(email, new_status)
         Mix.shell().info(message)

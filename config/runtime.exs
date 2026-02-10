@@ -14,16 +14,16 @@ end
 
 # Feature flags (read from environment variables, applies to all environments)
 # Must be after Dotenvy loads .env in dev
-config :pavoi, :features,
+config :social_objects, :features,
   voice_control_enabled: System.get_env("VOICE_CONTROL_ENABLED", "true") == "true",
   outreach_email_enabled: System.get_env("OUTREACH_EMAIL_ENABLED", "true") == "true",
   outreach_email_override: System.get_env("OUTREACH_EMAIL_OVERRIDE")
 
 # Shopify configuration for development (after .env is loaded)
 # Note: SHOPIFY_ACCESS_TOKEN is NOT needed here - tokens are generated dynamically
-# using client credentials grant. See lib/pavoi/shopify/auth.ex for details.
+# using client credentials grant. See lib/social_objects/shopify/auth.ex for details.
 if config_env() == :dev do
-  config :pavoi,
+  config :social_objects,
     shopify_client_id: System.get_env("SHOPIFY_CLIENT_ID"),
     shopify_client_secret: System.get_env("SHOPIFY_CLIENT_SECRET"),
     shopify_store_name: System.get_env("SHOPIFY_STORE_NAME"),
@@ -37,7 +37,7 @@ if config_env() == :dev do
     sendgrid_api_key: System.get_env("SENDGRID_API_KEY"),
     sendgrid_from_email: System.get_env("SENDGRID_FROM_EMAIL"),
     sendgrid_from_name:
-      System.get_env("SENDGRID_FROM_NAME", Application.get_env(:pavoi, :app_name, "App")),
+      System.get_env("SENDGRID_FROM_NAME", Application.get_env(:social_objects, :app_name, "App")),
     auth_from_name: System.get_env("AUTH_FROM_NAME"),
     auth_from_email: System.get_env("AUTH_FROM_EMAIL"),
     # SendGrid webhook signature verification (optional - if set, webhook requests are verified)
@@ -58,7 +58,7 @@ if config_env() == :dev do
     slack_dev_user_id: System.get_env("SLACK_DEV_USER_ID")
 
   # OpenAI client configuration
-  config :pavoi, Pavoi.AI.OpenAIClient,
+  config :social_objects, SocialObjects.AI.OpenAIClient,
     model: System.get_env("OPENAI_MODEL", "gpt-4o-mini"),
     temperature: String.to_float(System.get_env("OPENAI_TEMPERATURE", "0.7")),
     max_tokens: String.to_integer(System.get_env("OPENAI_MAX_TOKENS", "500")),
@@ -71,12 +71,12 @@ end
 # If you use `mix release`, you need to explicitly enable the server
 # by passing the PHX_SERVER=true when you start it:
 #
-#     PHX_SERVER=true bin/pavoi start
+#     PHX_SERVER=true bin/social_objects start
 #
 # Alternatively, you can use `mix phx.gen.release` to generate a `bin/server`
 # script that automatically sets the env var above.
 if System.get_env("PHX_SERVER") do
-  config :pavoi, PavoiWeb.Endpoint, server: true
+  config :social_objects, SocialObjectsWeb.Endpoint, server: true
 end
 
 if config_env() == :prod do
@@ -89,7 +89,7 @@ if config_env() == :prod do
 
   maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
 
-  config :pavoi, Pavoi.Repo,
+  config :social_objects, SocialObjects.Repo,
     url: database_url,
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
     socket_options: maybe_ipv6
@@ -109,12 +109,12 @@ if config_env() == :prod do
   host = System.get_env("PHX_HOST") || "example.com"
   port = String.to_integer(System.get_env("PORT") || "4000")
 
-  config :pavoi, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
+  config :social_objects, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
   # Shopify configuration
   # Note: SHOPIFY_ACCESS_TOKEN is NOT needed - tokens are generated dynamically
-  # using client credentials grant. See lib/pavoi/shopify/auth.ex for details.
-  config :pavoi,
+  # using client credentials grant. See lib/social_objects/shopify/auth.ex for details.
+  config :social_objects,
     shopify_client_id: System.get_env("SHOPIFY_CLIENT_ID"),
     shopify_client_secret: System.get_env("SHOPIFY_CLIENT_SECRET"),
     shopify_store_name: System.get_env("SHOPIFY_STORE_NAME"),
@@ -128,7 +128,7 @@ if config_env() == :prod do
     sendgrid_api_key: System.get_env("SENDGRID_API_KEY"),
     sendgrid_from_email: System.get_env("SENDGRID_FROM_EMAIL"),
     sendgrid_from_name:
-      System.get_env("SENDGRID_FROM_NAME", Application.get_env(:pavoi, :app_name, "App")),
+      System.get_env("SENDGRID_FROM_NAME", Application.get_env(:social_objects, :app_name, "App")),
     auth_from_name: System.get_env("AUTH_FROM_NAME"),
     auth_from_email: System.get_env("AUTH_FROM_EMAIL"),
     # SendGrid webhook signature verification (optional - if set, webhook requests are verified)
@@ -147,14 +147,14 @@ if config_env() == :prod do
     slack_channel: System.get_env("SLACK_CHANNEL", "#tiktok-live-reports")
 
   # OpenAI client configuration
-  config :pavoi, Pavoi.AI.OpenAIClient,
+  config :social_objects, SocialObjects.AI.OpenAIClient,
     model: System.get_env("OPENAI_MODEL", "gpt-4o-mini"),
     temperature: String.to_float(System.get_env("OPENAI_TEMPERATURE", "0.7")),
     max_tokens: String.to_integer(System.get_env("OPENAI_MAX_TOKENS", "500")),
     max_retries: String.to_integer(System.get_env("OPENAI_MAX_RETRIES", "3")),
     initial_backoff_ms: String.to_integer(System.get_env("OPENAI_INITIAL_BACKOFF_MS", "1000"))
 
-  config :pavoi, PavoiWeb.Endpoint,
+  config :social_objects, SocialObjectsWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],
     check_origin: :conn,
     http: [
@@ -172,7 +172,7 @@ if config_env() == :prod do
   # To get SSL working, you will need to add the `https` key
   # to your endpoint configuration:
   #
-  #     config :pavoi, PavoiWeb.Endpoint,
+  #     config :social_objects, SocialObjectsWeb.Endpoint,
   #       https: [
   #         ...,
   #         port: 443,
@@ -194,13 +194,13 @@ if config_env() == :prod do
   # We also recommend setting `force_ssl` in your config/prod.exs,
   # ensuring no data is ever sent via http, always redirecting to https:
   #
-  #     config :pavoi, PavoiWeb.Endpoint,
+  #     config :social_objects, SocialObjectsWeb.Endpoint,
   #       force_ssl: [hsts: true]
   #
   # Check `Plug.SSL` for all available options in `force_ssl`.
 
   # Configure Swoosh Mailer with SendGrid adapter for production
-  config :pavoi, Pavoi.Mailer,
+  config :social_objects, SocialObjects.Mailer,
     adapter: Swoosh.Adapters.Sendgrid,
     api_key: System.get_env("SENDGRID_API_KEY")
 end

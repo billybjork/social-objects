@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddCurrentViewerCountToStreams do
+defmodule SocialObjects.Repo.Migrations.AddCurrentViewerCountToStreams do
   use Ecto.Migration
 
   def change do

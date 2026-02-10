@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddBrandIdToCreatorActivity do
+defmodule SocialObjects.Repo.Migrations.AddBrandIdToCreatorActivity do
   use Ecto.Migration
 
   def up do

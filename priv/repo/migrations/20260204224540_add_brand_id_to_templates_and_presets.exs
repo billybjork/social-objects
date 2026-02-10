@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddBrandIdToTemplatesAndPresets do
+defmodule SocialObjects.Repo.Migrations.AddBrandIdToTemplatesAndPresets do
   use Ecto.Migration
 
   def up do

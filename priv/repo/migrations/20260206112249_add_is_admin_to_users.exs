@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddIsAdminToUsers do
+defmodule SocialObjects.Repo.Migrations.AddIsAdminToUsers do
   use Ecto.Migration
 
   def change do

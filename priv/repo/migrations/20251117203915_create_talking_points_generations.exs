@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.CreateTalkingPointsGenerations do
+defmodule SocialObjects.Repo.Migrations.CreateTalkingPointsGenerations do
   use Ecto.Migration
 
   def change do

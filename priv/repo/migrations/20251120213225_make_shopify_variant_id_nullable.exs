@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.MakeShopifyVariantIdNullable do
+defmodule SocialObjects.Repo.Migrations.MakeShopifyVariantIdNullable do
   use Ecto.Migration
 
   def change do

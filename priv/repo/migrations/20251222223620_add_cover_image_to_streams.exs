@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddCoverImageToStreams do
+defmodule SocialObjects.Repo.Migrations.AddCoverImageToStreams do
   use Ecto.Migration
 
   def change do

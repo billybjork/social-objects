@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddCreatorEnrichmentFields do
+defmodule SocialObjects.Repo.Migrations.AddCreatorEnrichmentFields do
   use Ecto.Migration
 
   def change do

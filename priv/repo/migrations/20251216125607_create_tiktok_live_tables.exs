@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.CreateTiktokLiveTables do
+defmodule SocialObjects.Repo.Migrations.CreateTiktokLiveTables do
   use Ecto.Migration
 
   def change do

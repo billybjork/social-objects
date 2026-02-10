@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.CreateCreatorSamples do
+defmodule SocialObjects.Repo.Migrations.CreateCreatorSamples do
   use Ecto.Migration
 
   def change do

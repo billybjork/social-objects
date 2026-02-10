@@ -1,9 +1,9 @@
 # Seed the welcome email template (converted from hardcoded template)
 # Run with: mix run priv/repo/seeds/email_templates.exs
 
-alias Pavoi.Communications
-alias Pavoi.Communications.EmailTemplate
-alias Pavoi.Repo
+alias SocialObjects.Communications
+alias SocialObjects.Communications.EmailTemplate
+alias SocialObjects.Repo
 
 welcome_html = """
 <!DOCTYPE html>

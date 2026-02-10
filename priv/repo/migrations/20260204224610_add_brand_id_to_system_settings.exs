@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddBrandIdToSystemSettings do
+defmodule SocialObjects.Repo.Migrations.AddBrandIdToSystemSettings do
   use Ecto.Migration
 
   def change do

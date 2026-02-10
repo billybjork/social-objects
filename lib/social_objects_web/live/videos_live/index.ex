@@ -1,0 +1,390 @@
+defmodule SocialObjectsWeb.VideosLive.Index do
+  @moduledoc """
+  LiveView for browsing affiliate video performance.
+
+  Displays a paginated, searchable, filterable grid of creator videos.
+  """
+  use SocialObjectsWeb, :live_view
+
+  import Ecto.Query
+
+  on_mount {SocialObjectsWeb.NavHooks, :set_current_page}
+
+  alias SocialObjects.Creators
+  alias SocialObjects.Settings
+  alias SocialObjects.Workers.VideoSyncWorker
+  alias SocialObjectsWeb.BrandRoutes
+
+  import SocialObjectsWeb.VideoComponents
+
+  @impl true
+  def mount(_params, _session, socket) do
+    brand_id = socket.assigns.current_brand.id
+
+    # Subscribe to video sync events
+    if connected?(socket) do
+      Phoenix.PubSub.subscribe(SocialObjects.PubSub, "video:sync:#{brand_id}")
+    end
+
+    # Load creators once on mount (doesn't change based on search/filters)
+    available_creators =
+      if connected?(socket) do
+        Creators.list_creators_with_videos(brand_id)
+      else
+        []
+      end
+
+    video_syncing = sync_job_blocked?(VideoSyncWorker, brand_id)
+
+    socket =
+      socket
+      |> assign(:videos, [])
+      |> assign(:search_query, "")
+      |> assign(:sort_by, "gmv")
+      |> assign(:sort_dir, "desc")
+      |> assign(:page, 1)
+      |> assign(:per_page, 24)
+      |> assign(:total, 0)
+      |> assign(:has_more, false)
+      |> assign(:loading_videos, false)
+      |> assign(:selected_creator_id, nil)
+      |> assign(:available_creators, available_creators)
+      |> assign(:brand_id, brand_id)
+      |> assign(:selected_video, nil)
+      # Version counter for search - used to ignore stale async results
+      |> assign(:search_version, 0)
+      # Sync state
+      |> assign(:video_syncing, video_syncing)
+      |> assign(:videos_last_import_at, Settings.get_videos_last_import_at(brand_id))
+
+    {:ok, socket}
+  end
+
+  @impl true
+  def handle_params(params, _uri, socket) do
+    socket =
+      socket
+      |> apply_params(params)
+      |> start_async_video_load()
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("search", %{"value" => query}, socket) do
+    # Skip if query hasn't actually changed (can happen with rapid events)
+    if query == socket.assigns.search_query do
+      {:noreply, socket}
+    else
+      # Handle search locally without push_patch to avoid URL/render churn
+      socket =
+        socket
+        |> assign(:search_query, query)
+        |> assign(:page, 1)
+        |> start_async_video_load()
+
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("sort_videos", %{"sort" => sort_value}, socket) do
+    {sort_by, sort_dir} = parse_sort(sort_value)
+    params = build_query_params(socket, sort_by: sort_by, sort_dir: sort_dir, page: 1)
+    {:noreply, push_patch(socket, to: videos_path(socket, params))}
+  end
+
+  @impl true
+  def handle_event("filter_creator", %{"creator_id" => creator_id}, socket) do
+    creator_id = if creator_id == "", do: nil, else: String.to_integer(creator_id)
+    params = build_query_params(socket, selected_creator_id: creator_id, page: 1)
+    {:noreply, push_patch(socket, to: videos_path(socket, params))}
+  end
+
+  @impl true
+  def handle_event("hover_video", %{"id" => id}, socket) do
+    video = Enum.find(socket.assigns.videos, &(&1.id == String.to_integer(id)))
+    {:noreply, assign(socket, :selected_video, video)}
+  end
+
+  @impl true
+  def handle_event("leave_video", _params, socket) do
+    {:noreply, assign(socket, :selected_video, nil)}
+  end
+
+  @impl true
+  def handle_event("load_more", _params, socket) do
+    send(self(), :load_more_videos)
+    {:noreply, assign(socket, :loading_videos, true)}
+  end
+
+  @impl true
+  def handle_event("trigger_video_sync", _params, socket) do
+    {:noreply,
+     enqueue_sync_job(
+       socket,
+       VideoSyncWorker,
+       %{"brand_id" => socket.assigns.brand_id},
+       :video_syncing,
+       "Video performance sync started..."
+     )}
+  end
+
+  @impl true
+  def handle_info(:load_more_videos, socket) do
+    socket =
+      socket
+      |> assign(:page, socket.assigns.page + 1)
+      |> load_more_videos()
+
+    {:noreply, socket}
+  end
+
+  # Video sync PubSub handlers
+  @impl true
+  def handle_info({:video_sync_started}, socket) do
+    {:noreply, assign(socket, :video_syncing, true)}
+  end
+
+  @impl true
+  def handle_info({:video_sync_completed, stats}, socket) do
+    socket =
+      socket
+      |> assign(:video_syncing, false)
+      |> assign(
+        :videos_last_import_at,
+        Settings.get_videos_last_import_at(socket.assigns.brand_id)
+      )
+      |> assign(:page, 1)
+      |> start_async_video_load()
+      |> put_flash(
+        :info,
+        "Synced #{stats.videos_synced} videos (#{stats.creators_created} new creators)"
+      )
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:video_sync_failed, _reason}, socket) do
+    socket =
+      socket
+      |> assign(:video_syncing, false)
+      |> put_flash(:error, "Video sync failed. Please try again.")
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_async({:load_videos, version}, {:ok, result}, socket) do
+    # Only apply results if this is the latest search version
+    # Ignore stale results from previous searches
+    if version == socket.assigns.search_version do
+      socket =
+        socket
+        |> assign(:loading_videos, false)
+        |> assign(:videos, result.videos)
+        |> assign(:total, result.total)
+        |> assign(:has_more, result.has_more)
+        |> assign(:page, 1)
+
+      {:noreply, socket}
+    else
+      # Stale result, ignore it
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_async({:load_videos, _version}, {:exit, _reason}, socket) do
+    {:noreply, assign(socket, :loading_videos, false)}
+  end
+
+  # Private functions
+
+  defp videos_path(socket, params) when is_map(params) do
+    query = URI.encode_query(params)
+    path = if query == "", do: "/videos", else: "/videos?#{query}"
+    BrandRoutes.brand_path(socket.assigns.current_brand, path, socket.assigns.current_host)
+  end
+
+  defp apply_params(socket, params) do
+    {sort_by, sort_dir} = parse_sort(params["sort"])
+
+    socket
+    |> assign(:search_query, params["q"] || "")
+    |> assign(:sort_by, sort_by)
+    |> assign(:sort_dir, sort_dir)
+    |> assign(:page, parse_page(params["page"]))
+    |> assign(:selected_creator_id, parse_creator_id(params["creator"]))
+  end
+
+  defp parse_sort(nil), do: {"gmv", "desc"}
+  defp parse_sort(""), do: {"gmv", "desc"}
+
+  defp parse_sort(sort) do
+    case String.split(sort, "_", parts: 2) do
+      [field, dir] when dir in ["asc", "desc"] -> {field, dir}
+      [field] -> {field, "desc"}
+      _ -> {"gmv", "desc"}
+    end
+  end
+
+  defp parse_page(nil), do: 1
+  defp parse_page(""), do: 1
+  defp parse_page(page) when is_binary(page), do: String.to_integer(page)
+  defp parse_page(page) when is_integer(page), do: page
+
+  defp parse_creator_id(nil), do: nil
+  defp parse_creator_id(""), do: nil
+  defp parse_creator_id(id) when is_binary(id), do: String.to_integer(id)
+
+  defp start_async_video_load(socket) do
+    %{
+      search_query: search_query,
+      sort_by: sort_by,
+      sort_dir: sort_dir,
+      per_page: per_page,
+      selected_creator_id: creator_id,
+      brand_id: brand_id,
+      search_version: current_version
+    } = socket.assigns
+
+    # Increment version to track this search request
+    new_version = current_version + 1
+
+    opts =
+      [
+        page: 1,
+        per_page: per_page,
+        sort_by: sort_by,
+        sort_dir: sort_dir,
+        brand_id: brand_id
+      ]
+      |> maybe_add_opt(:search_query, search_query)
+      |> maybe_add_opt(:creator_id, creator_id)
+
+    socket
+    |> assign(:loading_videos, true)
+    |> assign(:search_version, new_version)
+    |> start_async({:load_videos, new_version}, fn ->
+      # Include version in result so we can check if it's stale
+      result = Creators.search_videos_paginated(opts)
+      Map.put(result, :version, new_version)
+    end)
+  end
+
+  defp load_more_videos(socket) do
+    %{
+      search_query: search_query,
+      sort_by: sort_by,
+      sort_dir: sort_dir,
+      page: page,
+      per_page: per_page,
+      selected_creator_id: creator_id,
+      brand_id: brand_id
+    } = socket.assigns
+
+    opts =
+      [
+        page: page,
+        per_page: per_page,
+        sort_by: sort_by,
+        sort_dir: sort_dir,
+        brand_id: brand_id
+      ]
+      |> maybe_add_opt(:search_query, search_query)
+      |> maybe_add_opt(:creator_id, creator_id)
+
+    result = Creators.search_videos_paginated(opts)
+
+    socket
+    |> assign(:loading_videos, false)
+    |> assign(:videos, socket.assigns.videos ++ result.videos)
+    |> assign(:has_more, result.has_more)
+  end
+
+  defp maybe_add_opt(opts, _key, nil), do: opts
+  defp maybe_add_opt(opts, _key, ""), do: opts
+  defp maybe_add_opt(opts, key, value), do: Keyword.put(opts, key, value)
+
+  defp build_query_params(socket, overrides) do
+    base = %{
+      q: socket.assigns.search_query,
+      sort: "#{socket.assigns.sort_by}_#{socket.assigns.sort_dir}",
+      page: socket.assigns.page,
+      creator: socket.assigns.selected_creator_id
+    }
+
+    overrides
+    |> Enum.reduce(base, fn {key, value}, acc ->
+      case key do
+        :sort_by ->
+          dir = Keyword.get(overrides, :sort_dir, socket.assigns.sort_dir)
+          Map.put(acc, :sort, "#{value}_#{dir}")
+
+        :sort_dir ->
+          by = Keyword.get(overrides, :sort_by, socket.assigns.sort_by)
+          Map.put(acc, :sort, "#{by}_#{value}")
+
+        :search_query ->
+          Map.put(acc, :q, value)
+
+        :selected_creator_id ->
+          Map.put(acc, :creator, value)
+
+        :page ->
+          Map.put(acc, :page, value)
+
+        _ ->
+          acc
+      end
+    end)
+    |> reject_default_values()
+  end
+
+  defp reject_default_values(params) do
+    params
+    |> Enum.reject(&default_value?/1)
+    |> Map.new()
+  end
+
+  defp default_value?({_k, ""}), do: true
+  defp default_value?({_k, nil}), do: true
+  defp default_value?({:page, 1}), do: true
+  defp default_value?({:sort, "gmv_desc"}), do: true
+  defp default_value?(_), do: false
+
+  # Check if there's a job that would block new inserts due to uniqueness constraint
+  # This includes: available, scheduled, or executing jobs
+  defp sync_job_blocked?(worker, brand_id) do
+    worker_name = inspect(worker)
+
+    from(j in Oban.Job,
+      where: j.worker == ^worker_name,
+      where: j.state in ["available", "scheduled", "executing"],
+      where: fragment("?->>'brand_id' = ?", j.args, ^to_string(brand_id))
+    )
+    |> SocialObjects.Repo.exists?()
+  end
+
+  defp enqueue_sync_job(socket, worker, args, assign_key, success_message) do
+    case worker.new(args) |> Oban.insert() do
+      {:ok, %Oban.Job{conflict?: true}} ->
+        # Uniqueness constraint returned an existing job
+        socket
+        |> assign(assign_key, true)
+        |> put_flash(:info, "Sync already in progress or scheduled.")
+
+      {:ok, _job} ->
+        socket
+        |> assign(assign_key, true)
+        |> put_flash(:info, success_message)
+
+      {:error, _changeset} ->
+        socket
+        |> assign(assign_key, false)
+        |> put_flash(:error, "Couldn't start sync. Please try again.")
+    end
+  end
+end

@@ -1,22 +1,22 @@
 import Config
 
 # Track environment at runtime (for conditional behavior in workers, etc.)
-config :pavoi, env: :dev
+config :social_objects, env: :dev
 
 # Configure your database
 # Supports DATABASE_URL environment variable or defaults to local PostgreSQL
 if database_url = System.get_env("DATABASE_URL") do
-  config :pavoi, Pavoi.Repo,
+  config :social_objects, SocialObjects.Repo,
     url: database_url,
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
     stacktrace: true,
     show_sensitive_data_on_connection_error: true
 else
-  config :pavoi, Pavoi.Repo,
+  config :social_objects, SocialObjects.Repo,
     username: "postgres",
     password: "postgres",
     hostname: "localhost",
-    database: "pavoi_dev",
+    database: "social_objects_dev",
     stacktrace: true,
     show_sensitive_data_on_connection_error: true,
     pool_size: 10
@@ -57,7 +57,7 @@ bridge_watcher =
     []
   end
 
-config :pavoi, PavoiWeb.Endpoint,
+config :social_objects, SocialObjectsWeb.Endpoint,
   # Binding to loopback ipv4 address prevents access from other machines.
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
   http: [ip: {127, 0, 0, 1}, port: String.to_integer(System.get_env("PORT") || "4001")],
@@ -67,8 +67,8 @@ config :pavoi, PavoiWeb.Endpoint,
   secret_key_base: "cbp7vzcpMcH98t9a7NIO3LrSWzXeN5nccqZdEFe2QWydund6F2h5TvtuAdvhv1dz",
   watchers:
     [
-      esbuild: {Esbuild, :install_and_run, [:pavoi, ~w(--sourcemap=inline --watch)]},
-      tailwind: {Tailwind, :install_and_run, [:pavoi, ~w(--watch)]}
+      esbuild: {Esbuild, :install_and_run, [:social_objects, ~w(--sourcemap=inline --watch)]},
+      tailwind: {Tailwind, :install_and_run, [:social_objects, ~w(--watch)]}
     ] ++ bridge_watcher
 
 # ## SSL Support
@@ -95,18 +95,18 @@ config :pavoi, PavoiWeb.Endpoint,
 # different ports.
 
 # Watch static and templates for browser reloading.
-config :pavoi, PavoiWeb.Endpoint,
+config :social_objects, SocialObjectsWeb.Endpoint,
   live_reload: [
     web_console_logger: true,
     patterns: [
       ~r"priv/static/(?!uploads/).*(js|css|png|jpeg|jpg|gif|svg)$",
       ~r"priv/gettext/.*(po)$",
-      ~r"lib/pavoi_web/(?:controllers|live|components|router)/?.*\.(ex|heex)$"
+      ~r"lib/social_objects_web/(?:controllers|live|components|router)/?.*\.(ex|heex)$"
     ]
   ]
 
 # Enable dev routes for dashboard and mailbox
-config :pavoi, dev_routes: true
+config :social_objects, dev_routes: true
 
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"
@@ -130,7 +130,7 @@ config :phoenix_live_view,
 config :swoosh, :api_client, Swoosh.ApiClient.Req
 
 # Avoid storing creator avatars in development unless explicitly enabled
-config :pavoi, :creator_avatars, store_in_storage: false, store_locally: true
+config :social_objects, :creator_avatars, store_in_storage: false, store_locally: true
 
 # Shopify configuration is set in config/runtime.exs after loading .env
 

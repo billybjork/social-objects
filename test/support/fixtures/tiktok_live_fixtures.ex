@@ -1,4 +1,4 @@
-defmodule Pavoi.TiktokLiveFixtures do
+defmodule SocialObjects.TiktokLiveFixtures do
   @moduledoc """
   Test helpers for creating TikTok Live stream data.
 
@@ -6,9 +6,9 @@ defmodule Pavoi.TiktokLiveFixtures do
   lifecycle transitions, and other TikTok Live functionality.
   """
 
-  alias Pavoi.Catalog
-  alias Pavoi.Repo
-  alias Pavoi.TiktokLive.{Comment, Stream}
+  alias SocialObjects.Catalog
+  alias SocialObjects.Repo
+  alias SocialObjects.TiktokLive.{Comment, Stream}
 
   @doc """
   Creates a brand for testing. Returns existing brand if slug already exists.

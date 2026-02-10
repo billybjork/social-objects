@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddCommentClassification do
+defmodule SocialObjects.Repo.Migrations.AddCommentClassification do
   use Ecto.Migration
 
   def change do

@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.UpdateBrandScopedUniqueIndexes do
+defmodule SocialObjects.Repo.Migrations.UpdateBrandScopedUniqueIndexes do
   use Ecto.Migration
 
   def up do

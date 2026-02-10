@@ -32,11 +32,11 @@ defmodule Mix.Tasks.ClassifyStreamComments do
   require Logger
   import Ecto.Query
 
-  alias Pavoi.AI.CommentClassifier
-  alias Pavoi.Repo
-  alias Pavoi.StreamReport
-  alias Pavoi.TiktokLive
-  alias Pavoi.TiktokLive.Stream
+  alias SocialObjects.AI.CommentClassifier
+  alias SocialObjects.Repo
+  alias SocialObjects.StreamReport
+  alias SocialObjects.TiktokLive
+  alias SocialObjects.TiktokLive.Stream
 
   @shortdoc "Classify TikTok Live stream comments with AI"
 

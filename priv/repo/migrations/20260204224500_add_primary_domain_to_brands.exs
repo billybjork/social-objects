@@ -1,4 +1,4 @@
-defmodule Pavoi.Repo.Migrations.AddPrimaryDomainToBrands do
+defmodule SocialObjects.Repo.Migrations.AddPrimaryDomainToBrands do
   use Ecto.Migration
 
   def up do
