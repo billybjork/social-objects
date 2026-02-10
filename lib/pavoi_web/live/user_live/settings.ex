@@ -67,7 +67,7 @@ defmodule PavoiWeb.UserLive.Settings do
           put_flash(socket, :info, "Email changed successfully.")
 
         {:error, _} ->
-          put_flash(socket, :error, "Email change link is invalid or it has expired.")
+          put_flash(socket, :error, "This link has expired. Please try again.")
       end
 
     {:ok, push_navigate(socket, to: ~p"/users/settings")}

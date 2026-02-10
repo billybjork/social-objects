@@ -23,9 +23,9 @@ defmodule PavoiWeb.TiktokShopController do
       )
       |> redirect(to: "/")
     else
-      {:error, error} ->
+      {:error, _error} ->
         conn
-        |> put_flash(:error, "Authorization failed: #{inspect(error)}")
+        |> put_flash(:error, "TikTok Shop connection failed. Please try again.")
         |> redirect(to: "/")
     end
   end

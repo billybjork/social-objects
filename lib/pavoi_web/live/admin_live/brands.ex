@@ -144,8 +144,7 @@ defmodule PavoiWeb.AdminLive.Brands do
   defp format_tiktok_accounts(accounts) when is_list(accounts), do: Enum.join(accounts, ", ")
   defp format_tiktok_accounts(_), do: ""
 
-  defp format_csv_list(items) when is_list(items), do: Enum.join(items, ", ")
-  defp format_csv_list(_), do: ""
+  defp format_csv_list(items), do: Enum.join(items, ", ")
 
   defp secrets_configured(settings) do
     @secret_keys

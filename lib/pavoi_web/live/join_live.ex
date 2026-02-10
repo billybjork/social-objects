@@ -66,7 +66,7 @@ defmodule PavoiWeb.JoinLive do
          |> assign(:current_scope, nil)
          |> assign(:current_page, nil)
          |> assign(:brand_name, Settings.app_name())
-         |> assign(:error, "This link has expired. Please contact us for a new invitation.")}
+         |> assign(:error, "This link has expired. Contact your admin for a new invite.")}
 
       {:error, _} ->
         {:ok,

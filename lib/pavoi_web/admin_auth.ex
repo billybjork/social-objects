@@ -34,7 +34,7 @@ defmodule PavoiWeb.AdminAuth do
     else
       socket =
         socket
-        |> put_flash(:error, "You must be an admin to access this page.")
+        |> put_flash(:error, "This page is for admins only.")
         |> redirect(to: "/")
 
       {:halt, socket}

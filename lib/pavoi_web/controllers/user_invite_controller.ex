@@ -29,8 +29,11 @@ defmodule PavoiWeb.UserInviteController do
       {:error, :invalid} ->
         redirect_with_error(conn, "This invite link is invalid.")
 
-      {:error, reason} ->
-        redirect_with_error(conn, "Unable to accept invite: #{inspect(reason)}")
+      {:error, _reason} ->
+        redirect_with_error(
+          conn,
+          "Something went wrong. Please try again or request a new invite."
+        )
     end
   end
 

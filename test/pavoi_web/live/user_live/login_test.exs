@@ -54,7 +54,7 @@ defmodule PavoiWeb.UserLive.LoginTest do
       {:ok, view, _html} = live(conn, ~p"/users/log-in")
 
       assert has_element?(view, "#login_form_magic")
-      assert has_element?(view, "p", "You need to reauthenticate")
+      assert has_element?(view, "p", "Please log in again to continue.")
       refute has_element?(view, "p", "Need access? Contact your admin for an invite.")
       assert has_element?(view, "button", "Send magic link")
 

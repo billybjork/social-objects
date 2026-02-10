@@ -15,7 +15,7 @@ defmodule PavoiWeb.HomeController do
 
           nil ->
             conn
-            |> put_flash(:error, "No brands are assigned to your account.")
+            |> put_flash(:error, "You don't have access to any brands yet.")
             |> redirect(to: ~p"/users/log-in")
         end
 

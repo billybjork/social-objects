@@ -27,7 +27,7 @@ defmodule PavoiWeb.UserSessionController do
     else
       _ ->
         conn
-        |> put_flash(:error, "The link is invalid or it has expired.")
+        |> put_flash(:error, "This link has expired. Please request a new one.")
         |> redirect(to: ~p"/users/log-in")
     end
   end
@@ -44,14 +44,14 @@ defmodule PavoiWeb.UserSessionController do
 
       _ ->
         conn
-        |> put_flash(:error, "The link is invalid or it has expired.")
+        |> put_flash(:error, "This link has expired. Please request a new one.")
         |> redirect(to: ~p"/users/log-in")
     end
   end
 
   defp create(conn, _params, _info) do
     conn
-    |> put_flash(:error, "The link is invalid or it has expired.")
+    |> put_flash(:error, "This link has expired. Please request a new one.")
     |> redirect(to: ~p"/users/log-in")
   end
 

@@ -20,7 +20,7 @@ defmodule PavoiWeb.UserLive.SettingsTest do
 
       assert {:redirect, %{to: path, flash: flash}} = redirect
       assert path == ~p"/users/log-in"
-      assert %{"error" => "You must log in to access this page."} = flash
+      assert %{"error" => "Log in to see this page."} = flash
     end
 
     test "redirects if user is not in sudo mode", %{conn: conn} do
@@ -32,7 +32,7 @@ defmodule PavoiWeb.UserLive.SettingsTest do
         |> live(~p"/users/settings")
         |> follow_redirect(conn, ~p"/users/log-in")
 
-      assert conn.resp_body =~ "You must re-authenticate to access this page."
+      assert conn.resp_body =~ "Log in to see this page."
     end
   end
 
@@ -116,7 +116,7 @@ defmodule PavoiWeb.UserLive.SettingsTest do
       assert {:live_redirect, %{to: path, flash: flash}} = redirect
       assert path == ~p"/users/settings"
       assert %{"error" => message} = flash
-      assert message == "Email change link is invalid or it has expired."
+      assert message == "This link has expired. Please try again."
     end
 
     test "does not update email with invalid token", %{conn: conn, user: user} do
@@ -124,7 +124,7 @@ defmodule PavoiWeb.UserLive.SettingsTest do
       assert {:live_redirect, %{to: path, flash: flash}} = redirect
       assert path == ~p"/users/settings"
       assert %{"error" => message} = flash
-      assert message == "Email change link is invalid or it has expired."
+      assert message == "This link has expired. Please try again."
       assert Accounts.get_user_by_email(user.email)
     end
 
@@ -134,7 +134,7 @@ defmodule PavoiWeb.UserLive.SettingsTest do
       assert {:redirect, %{to: path, flash: flash}} = redirect
       assert path == ~p"/users/log-in"
       assert %{"error" => message} = flash
-      assert message == "You must log in to access this page."
+      assert message == "Log in to see this page."
     end
   end
 end

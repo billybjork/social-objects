@@ -15,7 +15,7 @@ defmodule PavoiWeb.UserLive.Login do
           <h1 class="auth-title">Log in</h1>
           <p class="auth-subtitle">
             <%= if @current_scope do %>
-              You need to reauthenticate to perform sensitive actions on your account.
+              Please log in again to continue.
             <% else %>
               Enter your email address and we'll send you a magic link to sign in.
             <% end %>

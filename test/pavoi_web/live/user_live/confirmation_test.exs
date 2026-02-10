@@ -51,7 +51,7 @@ defmodule PavoiWeb.UserSessionController.MagicLinkTest do
       conn = build_conn() |> get(~p"/users/log-in/#{token}")
 
       assert Phoenix.Flash.get(conn.assigns.flash, :error) =~
-               "The link is invalid or it has expired"
+               "This link has expired. Please request a new one"
 
       assert redirected_to(conn) == ~p"/users/log-in"
     end
@@ -60,7 +60,7 @@ defmodule PavoiWeb.UserSessionController.MagicLinkTest do
       conn = get(conn, ~p"/users/log-in/invalid-token")
 
       assert Phoenix.Flash.get(conn.assigns.flash, :error) =~
-               "The link is invalid or it has expired"
+               "This link has expired. Please request a new one"
 
       assert redirected_to(conn) == ~p"/users/log-in"
     end
