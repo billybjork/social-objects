@@ -129,7 +129,8 @@ defmodule Pavoi.TiktokLive.BridgeHealthMonitor do
   end
 
   defp bridge_configured? do
+    enabled = Application.get_env(:pavoi, :tiktok_bridge_enabled, true)
     url = Application.get_env(:pavoi, :tiktok_bridge_url)
-    not is_nil(url) and url != ""
+    enabled and not is_nil(url) and url != ""
   end
 end

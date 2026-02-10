@@ -61,36 +61,43 @@ defmodule Pavoi.TiktokLive.BridgeClient do
   def start_link(opts \\ []) do
     bridge_url = Keyword.get(opts, :bridge_url, bridge_ws_url())
     name = Keyword.get(opts, :name, __MODULE__)
+    enabled = Application.get_env(:pavoi, :tiktok_bridge_enabled, true)
 
-    if is_nil(bridge_url) or bridge_url == "" do
-      Logger.warning("TikTok Bridge URL not configured, skipping BridgeClient")
-      :ignore
-    else
-      # In dev, give the Phoenix watcher time to start the Node.js bridge
-      if Application.get_env(:pavoi, :env) == :dev do
-        Process.sleep(1_500)
-      end
+    cond do
+      not enabled ->
+        Logger.info("TikTok Bridge disabled via config, skipping BridgeClient")
+        :ignore
 
-      Logger.info("Starting TikTok Bridge client, connecting to #{bridge_url}")
+      is_nil(bridge_url) or bridge_url == "" ->
+        Logger.warning("TikTok Bridge URL not configured, skipping BridgeClient")
+        :ignore
 
-      state = %State{
-        bridge_url: bridge_url,
-        reconnect_attempts: 0
-      }
+      true ->
+        # In dev, give the Phoenix watcher time to start the Node.js bridge
+        if Application.get_env(:pavoi, :env) == :dev do
+          Process.sleep(1_500)
+        end
 
-      # Start with async connection to avoid blocking supervisor
-      # handle_initial_conn_failure allows the process to start even if connection fails
-      ws_opts = [name: name, handle_initial_conn_failure: true, async: true]
+        Logger.info("Starting TikTok Bridge client, connecting to #{bridge_url}")
 
-      case WebSockex.start_link(bridge_url, __MODULE__, state, ws_opts) do
-        {:ok, pid} ->
-          {:ok, pid}
+        state = %State{
+          bridge_url: bridge_url,
+          reconnect_attempts: 0
+        }
 
-        {:error, reason} ->
-          Logger.warning("TikTok Bridge connection failed: #{inspect(reason)}, will retry")
-          # Return :ignore to not crash the supervisor - bridge is optional
-          :ignore
-      end
+        # Start with async connection to avoid blocking supervisor
+        # handle_initial_conn_failure allows the process to start even if connection fails
+        ws_opts = [name: name, handle_initial_conn_failure: true, async: true]
+
+        case WebSockex.start_link(bridge_url, __MODULE__, state, ws_opts) do
+          {:ok, pid} ->
+            {:ok, pid}
+
+          {:error, reason} ->
+            Logger.warning("TikTok Bridge connection failed: #{inspect(reason)}, will retry")
+            # Return :ignore to not crash the supervisor - bridge is optional
+            :ignore
+        end
     end
   end
 

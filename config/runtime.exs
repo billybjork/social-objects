@@ -47,6 +47,8 @@ if config_env() == :dev do
     twilio_auth_token: System.get_env("TWILIO_AUTH_TOKEN"),
     twilio_from_number: System.get_env("TWILIO_FROM_NUMBER"),
     # TikTok Bridge service URL for TikTok Live capture
+    # Set TIKTOK_BRIDGE_ENABLED=false to disable the bridge client entirely in dev
+    tiktok_bridge_enabled: System.get_env("TIKTOK_BRIDGE_ENABLED", "false") == "true",
     tiktok_bridge_url:
       System.get_env("TIKTOK_BRIDGE_URL") ||
         "http://localhost:#{System.get_env("TIKTOK_BRIDGE_PORT", "8080")}",
@@ -136,6 +138,7 @@ if config_env() == :prod do
     twilio_auth_token: System.get_env("TWILIO_AUTH_TOKEN"),
     twilio_from_number: System.get_env("TWILIO_FROM_NUMBER"),
     # TikTok Bridge service URL for TikTok Live capture
+    tiktok_bridge_enabled: System.get_env("TIKTOK_BRIDGE_ENABLED", "true") == "true",
     tiktok_bridge_url:
       System.get_env("TIKTOK_BRIDGE_URL") ||
         "http://localhost:#{System.get_env("TIKTOK_BRIDGE_PORT", "8080")}",
