@@ -18,9 +18,10 @@ defmodule SocialObjects.Settings.SystemSetting do
   @doc false
   def changeset(system_setting, attrs) do
     system_setting
-    |> cast(attrs, [:key, :value, :value_type])
-    |> validate_required([:brand_id, :key])
+    |> cast(attrs, [:key, :value, :value_type, :brand_id])
+    |> validate_required([:key])
     |> unique_constraint([:brand_id, :key])
+    |> unique_constraint([:key], name: :system_settings_global_key_unique)
     |> foreign_key_constraint(:brand_id)
   end
 end

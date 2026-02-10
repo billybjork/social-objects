@@ -67,7 +67,11 @@ defmodule SocialObjectsWeb.ReadmeLive.Index do
      socket
      |> assign(:page_title, "Readme")
      |> assign(:stats, stats)
-     |> assign(:integrations, integrations)}
+     |> assign(:integrations, integrations)
+     |> assign(
+       :feature_flags,
+       socket.assigns[:feature_flags] || SocialObjects.FeatureFlags.list_all()
+     )}
   end
 
   defp get_bridge_status(brand_id) do
@@ -172,22 +176,24 @@ defmodule SocialObjectsWeb.ReadmeLive.Index do
             </:features>
           </.page_card>
 
-          <.page_card
-            emoji="🎥"
-            title="Videos"
-            description="Browse and analyze affiliate video performance across creators"
-            href={BrandRoutes.brand_path(@current_brand, "/videos", @current_host)}
-            stat={@stats.videos}
-            stat_label="videos"
-          >
-            <:features>
-              <li>Searchable grid with video thumbnails</li>
-              <li>GMV and performance metrics per video</li>
-              <li>Filter by creator</li>
-              <li>Sort by GMV, views, or date posted</li>
-              <li>Sync performance data from BigQuery</li>
-            </:features>
-          </.page_card>
+          <%= if Map.get(@feature_flags, "show_videos_nav", true) do %>
+            <.page_card
+              emoji="🎥"
+              title="Videos"
+              description="Browse and analyze affiliate video performance across creators"
+              href={BrandRoutes.brand_path(@current_brand, "/videos", @current_host)}
+              stat={@stats.videos}
+              stat_label="videos"
+            >
+              <:features>
+                <li>Searchable grid with video thumbnails</li>
+                <li>GMV and performance metrics per video</li>
+                <li>Filter by creator</li>
+                <li>Sort by GMV, views, or date posted</li>
+                <li>Sync performance data from BigQuery</li>
+              </:features>
+            </.page_card>
+          <% end %>
         </div>
       </section>
 

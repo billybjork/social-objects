@@ -550,6 +550,7 @@ defmodule SocialObjectsWeb.CoreComponents do
   attr :capture_loading, :boolean, default: false
   attr :capture_error, :string, default: nil
   attr :is_admin, :boolean, default: false
+  attr :feature_flags, :map, default: %{}
 
   def nav_tabs(assigns) do
     ~H"""
@@ -822,20 +823,24 @@ defmodule SocialObjectsWeb.CoreComponents do
         >
           Creators
         </.link>
-        <.link
-          navigate={nav_path(:videos, @current_brand, @current_host)}
-          class={["navbar__link", @current_page == :videos && "navbar__link--active"]}
-          data-nav-link
-        >
-          Videos
-        </.link>
-        <.link
-          navigate={nav_path(:shop_analytics, @current_brand, @current_host)}
-          class={["navbar__link", @current_page == :shop_analytics && "navbar__link--active"]}
-          data-nav-link
-        >
-          Analytics
-        </.link>
+        <%= if Map.get(@feature_flags, "show_videos_nav", true) do %>
+          <.link
+            navigate={nav_path(:videos, @current_brand, @current_host)}
+            class={["navbar__link", @current_page == :videos && "navbar__link--active"]}
+            data-nav-link
+          >
+            Videos
+          </.link>
+        <% end %>
+        <%= if Map.get(@feature_flags, "show_analytics_nav", true) do %>
+          <.link
+            navigate={nav_path(:shop_analytics, @current_brand, @current_host)}
+            class={["navbar__link", @current_page == :shop_analytics && "navbar__link--active"]}
+            data-nav-link
+          >
+            Analytics
+          </.link>
+        <% end %>
       </div>
 
       <div class="navbar__end">
@@ -894,24 +899,28 @@ defmodule SocialObjectsWeb.CoreComponents do
             >
               Creators
             </.link>
-            <.link
-              navigate={nav_path(:videos, @current_brand, @current_host)}
-              class={[
-                "navbar__nav-dropdown-item",
-                @current_page == :videos && "navbar__nav-dropdown-item--active"
-              ]}
-            >
-              Videos
-            </.link>
-            <.link
-              navigate={nav_path(:shop_analytics, @current_brand, @current_host)}
-              class={[
-                "navbar__nav-dropdown-item",
-                @current_page == :shop_analytics && "navbar__nav-dropdown-item--active"
-              ]}
-            >
-              Analytics
-            </.link>
+            <%= if Map.get(@feature_flags, "show_videos_nav", true) do %>
+              <.link
+                navigate={nav_path(:videos, @current_brand, @current_host)}
+                class={[
+                  "navbar__nav-dropdown-item",
+                  @current_page == :videos && "navbar__nav-dropdown-item--active"
+                ]}
+              >
+                Videos
+              </.link>
+            <% end %>
+            <%= if Map.get(@feature_flags, "show_analytics_nav", true) do %>
+              <.link
+                navigate={nav_path(:shop_analytics, @current_brand, @current_host)}
+                class={[
+                  "navbar__nav-dropdown-item",
+                  @current_page == :shop_analytics && "navbar__nav-dropdown-item--active"
+                ]}
+              >
+                Analytics
+              </.link>
+            <% end %>
           </div>
         </div>
         <.link

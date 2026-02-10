@@ -3,6 +3,8 @@ defmodule SocialObjectsWeb.NavHooks do
   LiveView lifecycle hooks for navigation state.
   """
 
+  import Phoenix.LiveView
+
   def on_mount(:set_current_page, _params, _session, socket) do
     # Get the view module from the socket's private data
     view_module = socket.private[:phoenix_live_view][:view] || socket.view
@@ -18,13 +20,34 @@ defmodule SocialObjectsWeb.NavHooks do
           []
       end
 
+    # Load feature flags and subscribe to changes
+    feature_flags = SocialObjects.FeatureFlags.list_all()
+
     socket =
       socket
       |> Phoenix.Component.assign(:current_page, current_page)
       |> Phoenix.Component.assign(:user_brands, user_brands)
+      |> Phoenix.Component.assign(:feature_flags, feature_flags)
+
+    # Only attach the hook and subscribe when connected (not during static render)
+    # This prevents duplicate hook attachment errors
+    socket =
+      if Phoenix.LiveView.connected?(socket) do
+        SocialObjects.FeatureFlags.subscribe()
+        attach_hook(socket, :feature_flags_update, :handle_info, &handle_feature_flags_info/2)
+      else
+        socket
+      end
 
     {:cont, socket}
   end
+
+  defp handle_feature_flags_info(:feature_flags_changed, socket) do
+    {:halt,
+     Phoenix.Component.assign(socket, :feature_flags, SocialObjects.FeatureFlags.list_all())}
+  end
+
+  defp handle_feature_flags_info(_msg, socket), do: {:cont, socket}
 
   # Brand pages
   defp get_current_page(SocialObjectsWeb.ProductsLive.Index), do: :products
@@ -38,7 +61,6 @@ defmodule SocialObjectsWeb.NavHooks do
   defp get_current_page(SocialObjectsWeb.AdminLive.Dashboard), do: :admin
   defp get_current_page(SocialObjectsWeb.AdminLive.Brands), do: :admin
   defp get_current_page(SocialObjectsWeb.AdminLive.Users), do: :admin
-  defp get_current_page(SocialObjectsWeb.AdminLive.Invites), do: :admin
 
   # Full-page views return nil so navbar doesn't show
   defp get_current_page(SocialObjectsWeb.ProductHostLive.Index), do: nil

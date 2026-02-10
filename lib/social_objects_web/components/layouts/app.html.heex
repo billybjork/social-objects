@@ -32,6 +32,7 @@
         capture_loading={assigns[:capture_loading] || false}
         capture_error={assigns[:capture_error]}
         is_admin={current_scope && current_scope.user && current_scope.user.is_admin}
+        feature_flags={assigns[:feature_flags] || %{}}
       />
     </div>
   <% end %>
