@@ -212,6 +212,8 @@ defmodule SocialObjectsWeb.AdminComponents do
   attr :visible_secrets, :any, required: true
   attr :shared_shopify_brands, :list, default: []
   attr :tiktok_oauth_url, :string, required: true
+  attr :tiktok_auth, :any, default: nil
+  attr :tiktok_shop_region, :string, default: "US"
   attr :on_cancel, :any, required: true
 
   def brand_settings_modal(assigns) do
@@ -408,6 +410,42 @@ defmodule SocialObjectsWeb.AdminComponents do
               <h2 class="settings-section__title">TikTok</h2>
               <p class="settings-section__description">TikTok Shop and live stream monitoring.</p>
             </div>
+
+            <div :if={@tiktok_auth} class="settings-status settings-status--connected">
+              <div class="settings-status__header">
+                <span class="settings-status__indicator"></span>
+                <span class="settings-status__label">TikTok Shop Connected</span>
+              </div>
+              <dl class="settings-status__details">
+                <div>
+                  <dt>Shop Name</dt>
+                  <dd>{@tiktok_auth.shop_name}</dd>
+                </div>
+                <div>
+                  <dt>Shop ID</dt>
+                  <dd><code>{@tiktok_auth.shop_id}</code></dd>
+                </div>
+                <div>
+                  <dt>Region</dt>
+                  <dd>{@tiktok_auth.region}</dd>
+                </div>
+                <div>
+                  <dt>Token Expires</dt>
+                  <dd>{format_datetime(@tiktok_auth.access_token_expires_at)}</dd>
+                </div>
+              </dl>
+            </div>
+
+            <div :if={is_nil(@tiktok_auth)} class="settings-status settings-status--disconnected">
+              <div class="settings-status__header">
+                <span class="settings-status__indicator"></span>
+                <span class="settings-status__label">TikTok Shop Not Connected</span>
+              </div>
+              <p class="settings-status__hint">
+                The TikTok Shop owner must authorize access using the link below.
+              </p>
+            </div>
+
             <div class="settings-grid">
               <.input
                 field={@form[:tiktok_live_accounts]}
@@ -416,9 +454,33 @@ defmodule SocialObjectsWeb.AdminComponents do
                 placeholder="username1, username2"
               />
             </div>
+            <div :if={is_nil(@tiktok_auth)} class="settings-subsection">
+              <h3 class="settings-subsection__title">Shop Region</h3>
+              <p class="settings-subsection__description">
+                Select the region for the TikTok Shop authorization. US shops use a different authorization endpoint than Global shops.
+              </p>
+              <div class="settings-actions">
+                <button
+                  type="button"
+                  class={"button " <> if(@tiktok_shop_region == "US", do: "button--primary", else: "button--outline")}
+                  phx-click="set_tiktok_region"
+                  phx-value-region="US"
+                >
+                  US
+                </button>
+                <button
+                  type="button"
+                  class={"button " <> if(@tiktok_shop_region == "Global", do: "button--primary", else: "button--outline")}
+                  phx-click="set_tiktok_region"
+                  phx-value-region="Global"
+                >
+                  Global
+                </button>
+              </div>
+            </div>
             <div class="settings-actions">
               <a href={@tiktok_oauth_url} class="button button--outline" target="_blank">
-                Connect TikTok Shop
+                {if @tiktok_auth, do: "Reconnect TikTok Shop", else: "Connect TikTok Shop"}
               </a>
               <button
                 type="button"
@@ -429,7 +491,7 @@ defmodule SocialObjectsWeb.AdminComponents do
               >
                 Copy Link
               </button>
-              <span class="settings-actions__hint">
+              <span :if={is_nil(@tiktok_auth)} class="settings-actions__hint">
                 Send the link to the TikTok Shop owner to authorize.
               </span>
             </div>
@@ -446,6 +508,181 @@ defmodule SocialObjectsWeb.AdminComponents do
         >
           Save Settings
         </.button>
+      </div>
+    </.modal>
+    """
+  end
+
+  @doc """
+  Modal for creating a new brand.
+  """
+  attr :form, :any, required: true
+  attr :on_cancel, :any, required: true
+
+  def new_brand_modal(assigns) do
+    ~H"""
+    <.modal id="new-brand-modal" show={true} on_cancel={@on_cancel}>
+      <div class="modal__header">
+        <h2 class="modal__title">New Brand</h2>
+      </div>
+      <div class="modal__body">
+        <.form
+          for={@form}
+          id="new-brand-form"
+          phx-change="validate_new_brand"
+          phx-submit="create_brand"
+        >
+          <div class="settings-grid">
+            <div class="settings-field">
+              <.input
+                field={@form[:name]}
+                type="text"
+                label="Brand Name"
+                placeholder="My Brand"
+                phx-debounce="300"
+              />
+            </div>
+            <div class="settings-field">
+              <.input
+                field={@form[:slug]}
+                type="text"
+                label="Slug"
+                placeholder="my-brand"
+                phx-debounce="300"
+              />
+              <p class="settings-hint">
+                URL-friendly identifier. Auto-generated from name if left blank.
+              </p>
+            </div>
+          </div>
+        </.form>
+      </div>
+      <div class="modal__footer">
+        <.button variant="outline" phx-click={@on_cancel}>Cancel</.button>
+        <.button
+          variant="primary"
+          form="new-brand-form"
+          type="submit"
+          phx-disable-with="Creating..."
+        >
+          Create Brand
+        </.button>
+      </div>
+    </.modal>
+    """
+  end
+
+  @doc """
+  Modal for creating a new user with temporary password.
+  """
+  attr :form, :any, required: true
+  attr :brands, :list, default: []
+  attr :on_cancel, :any, required: true
+
+  def new_user_modal(assigns) do
+    ~H"""
+    <.modal id="new-user-modal" show={true} on_cancel={@on_cancel}>
+      <div class="modal__header">
+        <h2 class="modal__title">Add User</h2>
+      </div>
+      <div class="modal__body">
+        <.form for={@form} id="new-user-form" phx-submit="create_user">
+          <div class="settings-grid">
+            <div class="settings-field settings-field--full">
+              <.input
+                field={@form[:email]}
+                type="email"
+                label="Email"
+                placeholder="user@example.com"
+                required
+              />
+            </div>
+            <div class="settings-field settings-field--full">
+              <label class="checkbox-label">
+                <input type="checkbox" name="is_admin" value="true" class="checkbox" />
+                <span>Make platform admin</span>
+              </label>
+            </div>
+          </div>
+          <div :if={@brands != []} class="settings-subsection" style="margin-top: var(--space-4);">
+            <h3 class="settings-subsection__title">Brand Access</h3>
+            <p class="settings-subsection__description">
+              Select which brands this user can access and their role for each.
+            </p>
+            <div class="brand-access-list">
+              <div :for={brand <- @brands} class="brand-access-row">
+                <label class="checkbox-label">
+                  <input
+                    type="checkbox"
+                    name={"brands[#{brand.id}][enabled]"}
+                    value="true"
+                    class="checkbox"
+                  />
+                  <span>{brand.name}</span>
+                </label>
+                <select name={"brands[#{brand.id}][role]"} class="input input--sm">
+                  <option value="viewer">Viewer</option>
+                  <option value="admin">Admin</option>
+                  <option value="owner">Owner</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </.form>
+      </div>
+      <div class="modal__footer">
+        <.button variant="outline" phx-click={@on_cancel}>Cancel</.button>
+        <.button
+          variant="primary"
+          form="new-user-form"
+          type="submit"
+          phx-disable-with="Creating..."
+        >
+          Create User
+        </.button>
+      </div>
+    </.modal>
+    """
+  end
+
+  @doc """
+  Modal showing the generated temporary password after user creation.
+  """
+  attr :email, :string, required: true
+  attr :temp_password, :string, required: true
+  attr :on_close, :any, required: true
+
+  def user_created_modal(assigns) do
+    ~H"""
+    <.modal id="user-created-modal" show={true} on_cancel={@on_close}>
+      <div class="modal__header">
+        <h2 class="modal__title">User Created</h2>
+      </div>
+      <div class="modal__body">
+        <p style="margin-bottom: var(--space-4);">
+          Account created for <strong>{@email}</strong>
+        </p>
+        <div class="settings-field">
+          <label class="input-label">Temporary Password</label>
+          <div class="temp-password-display">
+            <code class="temp-password-code">{@temp_password}</code>
+            <button
+              type="button"
+              class="button button--sm button--outline"
+              phx-hook="CopyToClipboard"
+              id="copy-temp-password"
+              data-copy-text={@temp_password}
+            >
+              Copy
+            </button>
+          </div>
+        </div>
+        <p class="settings-hint" style="margin-top: var(--space-4);">
+          Share these credentials with the user. They will be required to set a new password on first login.
+        </p>
+      </div>
+      <div class="modal__footer">
+        <.button variant="primary" phx-click={@on_close}>Done</.button>
       </div>
     </.modal>
     """

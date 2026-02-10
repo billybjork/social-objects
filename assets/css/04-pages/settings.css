@@ -79,20 +79,58 @@
 
 /* Status indicator for connected services */
 .settings-status {
-  @apply inline-flex items-center gap-2 text-sm text-text-secondary;
+  @apply p-4 rounded-lg mb-4;
+  border: 1px solid var(--color-border-secondary);
 }
 
 .settings-status--connected {
-  @apply text-accent-green;
+  @apply bg-accent-green/5;
+  border-color: var(--color-accent-green);
 }
 
 .settings-status--disconnected {
+  @apply bg-surface-secondary;
+}
+
+.settings-status__header {
+  @apply flex items-center gap-2 font-medium;
+}
+
+.settings-status--connected .settings-status__header {
+  @apply text-accent-green;
+}
+
+.settings-status--disconnected .settings-status__header {
   @apply text-text-tertiary;
 }
 
-.settings-status__dot {
+.settings-status__indicator {
   @apply w-2 h-2 rounded-full;
   background-color: currentColor;
+}
+
+.settings-status__label {
+  @apply text-sm;
+}
+
+.settings-status__hint {
+  @apply text-sm text-text-tertiary mt-2;
+}
+
+.settings-status__details {
+  @apply grid grid-cols-2 gap-x-6 gap-y-2 mt-3 text-sm;
+}
+
+.settings-status__details dt {
+  @apply text-text-tertiary;
+}
+
+.settings-status__details dd {
+  @apply text-text-primary m-0;
+}
+
+.settings-status__details code {
+  @apply text-xs font-mono bg-surface-tertiary px-1.5 py-0.5 rounded;
 }
 
 /* OAuth/Integration card - for external service connections */

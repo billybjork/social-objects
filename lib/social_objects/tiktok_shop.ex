@@ -11,20 +11,30 @@ defmodule SocialObjects.TiktokShop do
   defp app_key, do: System.get_env("TTS_APP_KEY")
   defp app_secret, do: System.get_env("TTS_APP_SECRET")
   defp service_id, do: System.get_env("TTS_SERVICE_ID")
-  defp region, do: System.get_env("TTS_REGION", "Global")
   defp auth_base, do: System.get_env("TTS_AUTH_BASE", "https://auth.tiktok-shops.com")
   defp api_base, do: System.get_env("TTS_API_BASE", "https://open-api.tiktokglobalshop.com")
+
+  @doc """
+  Returns the TikTok Shop auth record for a brand, or nil if not connected.
+  """
+  def get_auth(brand_id) when is_integer(brand_id) do
+    Repo.get_by(Auth, brand_id: brand_id)
+  end
+
+  def get_auth(nil), do: nil
 
   @doc """
   Generates an authorization URL for the user to approve the app.
 
   Returns the URL as a string that the user should visit in their browser.
   After authorization, they'll be redirected to the configured redirect_uri with an auth code.
+
+  ## Options
+    * `:region` - "US" or "Global" (defaults to "US")
   """
-  def generate_authorization_url(brand_id) do
-    # Determine the correct authorization base URL based on region
+  def generate_authorization_url(brand_id, region \\ "US") do
     auth_url_base =
-      case region() do
+      case region do
         "US" -> "https://services.us.tiktokshop.com"
         _ -> "https://services.tiktokshop.com"
       end
@@ -673,9 +683,6 @@ defmodule SocialObjects.TiktokShop do
     |> Auth.changeset(attrs)
     |> Repo.update()
   end
-
-  defp get_auth(nil), do: nil
-  defp get_auth(brand_id), do: Repo.get_by(Auth, brand_id: brand_id)
 
   defp ensure_valid_token(brand_id, auth) do
     # Check if access token is expired or about to expire (within 5 minutes)

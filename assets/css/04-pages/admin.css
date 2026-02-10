@@ -243,3 +243,86 @@
     @apply py-2 px-3;
   }
 }
+
+/* Feature Flags */
+.feature-flags {
+  @apply flex flex-col gap-3;
+}
+
+.feature-flag {
+  @apply flex justify-between items-center p-3 rounded-lg;
+  background: var(--color-bg-secondary);
+}
+
+.feature-flag__info {
+  @apply flex flex-col gap-1;
+}
+
+.feature-flag__label {
+  @apply font-medium text-text-primary;
+}
+
+.feature-flag__description {
+  @apply text-sm text-text-secondary;
+}
+
+/* Toggle Switch */
+.toggle {
+  @apply appearance-none border-none bg-transparent cursor-pointer p-0;
+}
+
+.toggle__track {
+  @apply flex items-center;
+  width: 44px;
+  height: 24px;
+  background: var(--color-border-primary);
+  border-radius: 12px;
+  padding: 2px;
+  transition: background 0.2s;
+}
+
+.toggle--on .toggle__track {
+  background: var(--color-accent-blue);
+}
+
+.toggle__thumb {
+  @apply bg-white rounded-full;
+  width: 20px;
+  height: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s;
+}
+
+.toggle--on .toggle__thumb {
+  transform: translateX(20px);
+}
+
+/* Brand Access List (Add User Modal) */
+.brand-access-list {
+  @apply flex flex-col gap-2;
+}
+
+.brand-access-row {
+  @apply flex items-center justify-between gap-4 p-3 rounded-lg;
+  background: var(--color-bg-secondary);
+}
+
+.brand-access-row .checkbox-label {
+  @apply flex-1;
+}
+
+.brand-access-row .input--sm {
+  @apply w-auto min-w-[100px];
+}
+
+/* Temp Password Display */
+.temp-password-display {
+  @apply flex items-center gap-3;
+}
+
+.temp-password-code {
+  @apply flex-1 py-3 px-4 text-base font-mono rounded-lg;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-secondary);
+  letter-spacing: 0.05em;
+}

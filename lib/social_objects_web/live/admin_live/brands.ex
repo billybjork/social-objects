@@ -8,6 +8,7 @@ defmodule SocialObjectsWeb.AdminLive.Brands do
   import SocialObjectsWeb.AdminComponents
 
   alias SocialObjects.Catalog
+  alias SocialObjects.Catalog.Brand
   alias SocialObjects.Settings
   alias SocialObjects.TiktokShop
   alias Phoenix.LiveView.JS
@@ -28,7 +29,10 @@ defmodule SocialObjectsWeb.AdminLive.Brands do
      |> assign(:secrets_configured, MapSet.new())
      |> assign(:visible_secrets, MapSet.new())
      |> assign(:shared_shopify_brands, [])
-     |> assign(:tiktok_oauth_url, nil)}
+     |> assign(:tiktok_oauth_url, nil)
+     |> assign(:tiktok_auth, nil)
+     |> assign(:tiktok_shop_region, "US")
+     |> assign(:new_brand_form, nil)}
   end
 
   @impl true
@@ -36,6 +40,8 @@ defmodule SocialObjectsWeb.AdminLive.Brands do
     brand = Catalog.get_brand!(brand_id)
     settings = load_settings(brand)
     shared_shopify_brands = find_shared_shopify_brands(brand, socket.assigns.brands, settings)
+    tiktok_auth = TiktokShop.get_auth(brand.id)
+    region = socket.assigns.tiktok_shop_region
 
     {:noreply,
      socket
@@ -44,7 +50,8 @@ defmodule SocialObjectsWeb.AdminLive.Brands do
      |> assign(:secrets_configured, secrets_configured(settings))
      |> assign(:visible_secrets, MapSet.new())
      |> assign(:shared_shopify_brands, shared_shopify_brands)
-     |> assign(:tiktok_oauth_url, TiktokShop.generate_authorization_url(brand.id))}
+     |> assign(:tiktok_oauth_url, TiktokShop.generate_authorization_url(brand.id, region))
+     |> assign(:tiktok_auth, tiktok_auth)}
   end
 
   @impl true
@@ -56,7 +63,8 @@ defmodule SocialObjectsWeb.AdminLive.Brands do
      |> assign(:secrets_configured, MapSet.new())
      |> assign(:visible_secrets, MapSet.new())
      |> assign(:shared_shopify_brands, [])
-     |> assign(:tiktok_oauth_url, nil)}
+     |> assign(:tiktok_oauth_url, nil)
+     |> assign(:tiktok_auth, nil)}
   end
 
   @impl true
@@ -102,6 +110,73 @@ defmodule SocialObjectsWeb.AdminLive.Brands do
 
     {:noreply, assign(socket, :visible_secrets, new_visible)}
   end
+
+  @impl true
+  def handle_event("set_tiktok_region", %{"region" => region}, socket) do
+    brand = socket.assigns.selected_brand
+
+    {:noreply,
+     socket
+     |> assign(:tiktok_shop_region, region)
+     |> assign(:tiktok_oauth_url, TiktokShop.generate_authorization_url(brand.id, region))}
+  end
+
+  @impl true
+  def handle_event("new_brand", _params, socket) do
+    changeset = Brand.changeset(%Brand{}, %{})
+    {:noreply, assign(socket, :new_brand_form, to_form(changeset))}
+  end
+
+  @impl true
+  def handle_event("close_new_brand_modal", _params, socket) do
+    {:noreply, assign(socket, :new_brand_form, nil)}
+  end
+
+  @impl true
+  def handle_event("validate_new_brand", %{"brand" => params}, socket) do
+    changeset =
+      %Brand{}
+      |> Brand.changeset(params)
+      |> Map.put(:action, :validate)
+
+    {:noreply, assign(socket, :new_brand_form, to_form(changeset))}
+  end
+
+  @impl true
+  def handle_event("create_brand", %{"brand" => params}, socket) do
+    # Auto-generate slug from name if not provided
+    params = ensure_slug(params)
+
+    case Catalog.create_brand(params) do
+      {:ok, brand} ->
+        {:noreply,
+         socket
+         |> assign(:brands, socket.assigns.brands ++ [brand])
+         |> assign(:new_brand_form, nil)
+         |> put_flash(
+           :info,
+           "Brand \"#{brand.name}\" created. Click Settings to configure integrations."
+         )}
+
+      {:error, changeset} ->
+        {:noreply, assign(socket, :new_brand_form, to_form(changeset))}
+    end
+  end
+
+  defp ensure_slug(%{"slug" => slug} = params) when slug != "" and not is_nil(slug), do: params
+
+  defp ensure_slug(%{"name" => name} = params) when is_binary(name) do
+    slug =
+      name
+      |> String.downcase()
+      |> String.replace(~r/[^a-z0-9\s-]/, "")
+      |> String.replace(~r/\s+/, "-")
+      |> String.trim("-")
+
+    Map.put(params, "slug", slug)
+  end
+
+  defp ensure_slug(params), do: params
 
   defp update_brand_in_list(brands, updated_brand) do
     Enum.map(brands, fn brand ->
@@ -204,6 +279,9 @@ defmodule SocialObjectsWeb.AdminLive.Brands do
     <div class="admin-page">
       <div class="admin-page__header">
         <h1 class="admin-page__title">Brands</h1>
+        <.button phx-click="new_brand" variant="primary">
+          New Brand
+        </.button>
       </div>
 
       <div class="admin-panel">
@@ -240,7 +318,15 @@ defmodule SocialObjectsWeb.AdminLive.Brands do
         visible_secrets={@visible_secrets}
         shared_shopify_brands={@shared_shopify_brands}
         tiktok_oauth_url={@tiktok_oauth_url}
+        tiktok_auth={@tiktok_auth}
+        tiktok_shop_region={@tiktok_shop_region}
         on_cancel={JS.push("close_modal")}
+      />
+
+      <.new_brand_modal
+        :if={@new_brand_form}
+        form={@new_brand_form}
+        on_cancel={JS.push("close_new_brand_modal")}
       />
     </div>
     """
