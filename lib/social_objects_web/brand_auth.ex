@@ -47,6 +47,7 @@ defmodule SocialObjectsWeb.BrandAuth do
             socket
             |> Phoenix.Component.assign(:current_brand, brand)
             |> Phoenix.Component.assign(:current_host, host)
+            |> Phoenix.Component.assign(:page_title, brand.name)
             |> maybe_assign_scope_brand(brand)
 
           {:cont, socket}

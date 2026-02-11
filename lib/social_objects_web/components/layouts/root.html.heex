@@ -7,13 +7,7 @@
     <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#161514" media="(prefers-color-scheme: dark)" />
     <meta name="csrf-token" content={get_csrf_token()} />
-    <.live_title
-      default={
-        (assigns[:current_brand] && assigns[:current_brand].name) ||
-          SocialObjects.Settings.app_name()
-      }
-      suffix=" · App"
-    >
+    <.live_title default={assigns[:current_brand] && assigns[:current_brand].name}>
       {assigns[:page_title]}
     </.live_title>
     <link rel="icon" type="image/x-icon" href={~p"/favicon.ico"} />
