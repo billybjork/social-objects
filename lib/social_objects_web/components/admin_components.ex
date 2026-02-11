@@ -6,7 +6,8 @@ defmodule SocialObjectsWeb.AdminComponents do
   use Phoenix.Component
   use SocialObjectsWeb, :verified_routes
 
-  import SocialObjectsWeb.CoreComponents, only: [button: 1, input: 1, modal: 1, secret_input: 1]
+  import SocialObjectsWeb.CoreComponents,
+    only: [button: 1, input: 1, modal: 1, secret_input: 1, format_relative_time: 1]
 
   @doc """
   Renders a stat card for the dashboard.
@@ -688,6 +689,198 @@ defmodule SocialObjectsWeb.AdminComponents do
     """
   end
 
+  # ===========================================================================
+  # Monitoring Dashboard Components
+  # ===========================================================================
+
+  @doc """
+  Renders the queue health stats as compact cards.
+  """
+  attr :stats, :map, required: true
+
+  def queue_health_stats(assigns) do
+    ~H"""
+    <div class="queue-stats">
+      <div class="queue-stat-card">
+        <div class="queue-stat-card__value">{@stats.pending}</div>
+        <div class="queue-stat-card__label">Pending</div>
+      </div>
+      <div class="queue-stat-card queue-stat-card--running">
+        <div class="queue-stat-card__value">{@stats.running}</div>
+        <div class="queue-stat-card__label">Running</div>
+      </div>
+      <div class="queue-stat-card">
+        <div class="queue-stat-card__value">{length(Map.keys(@stats.by_queue))}</div>
+        <div class="queue-stat-card__label">Queues</div>
+      </div>
+      <div class="queue-stat-card queue-stat-card--failed">
+        <div class="queue-stat-card__value">{@stats.failed}</div>
+        <div class="queue-stat-card__label">Failed</div>
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders a worker category panel with its workers.
+  """
+  attr :category, :atom, required: true
+  attr :label, :string, required: true
+  attr :workers, :list, required: true
+  attr :statuses, :map, required: true
+  attr :running_workers, :list, required: true
+  attr :rate_limit_info, :map, default: nil
+  attr :brand_id, :any, required: true
+
+  def worker_category_panel(assigns) do
+    ~H"""
+    <div class="worker-category">
+      <div class="worker-category__header">
+        <h3 class="worker-category__title">{@label}</h3>
+      </div>
+      <table class="worker-table">
+        <thead>
+          <tr>
+            <th>Worker</th>
+            <th>Schedule</th>
+            <th>Last Run</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <.worker_row
+            :for={worker <- @workers}
+            worker={worker}
+            status={get_worker_status(@statuses, @brand_id, worker.status_key)}
+            is_running={is_worker_running?(@running_workers, worker.key)}
+            rate_limit_info={if worker.key == :creator_enrichment, do: @rate_limit_info, else: nil}
+            brand_id={@brand_id}
+          />
+        </tbody>
+      </table>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders a single worker row in the monitoring table.
+  """
+  attr :worker, :map, required: true
+  attr :status, :any, default: nil
+  attr :is_running, :boolean, default: false
+  attr :rate_limit_info, :map, default: nil
+  attr :brand_id, :any, required: true
+
+  def worker_row(assigns) do
+    ~H"""
+    <tr>
+      <td>
+        <div class="worker-name">{@worker.name}</div>
+        <div class="worker-description">{@worker.description}</div>
+        <.rate_limit_warning :if={@rate_limit_info && @rate_limit_info.streak > 0} info={@rate_limit_info} />
+      </td>
+      <td>
+        <span class="worker-schedule">{@worker.schedule}</span>
+      </td>
+      <td>
+        <span class="worker-status__text">{format_last_run(@status)}</span>
+      </td>
+      <td>
+        <div class="worker-status">
+          <span class={"worker-status__indicator " <> status_indicator_class(@status, @is_running)} />
+          <span class={"worker-status__text " <> if(@is_running, do: "worker-status__text--running", else: "")}>
+            {status_text(@status, @is_running)}
+          </span>
+        </div>
+      </td>
+      <td>
+        <.button
+          :if={@worker.triggerable}
+          size="sm"
+          variant="primary"
+          phx-click="trigger_worker"
+          phx-value-worker={@worker.key}
+          phx-value-brand_id={@brand_id}
+          disabled={@is_running}
+        >
+          {if @is_running, do: "Running...", else: "Run"}
+        </.button>
+      </td>
+    </tr>
+    """
+  end
+
+  @doc """
+  Renders a rate limit warning message.
+  """
+  attr :info, :map, required: true
+
+  def rate_limit_warning(assigns) do
+    ~H"""
+    <div class="worker-rate-limit">
+      <span class="worker-rate-limit__icon">⚠</span>
+      <span>
+        Rate limited {format_relative_time(@info.last_limited_at)}
+        {if @info.streak > 1, do: "(streak: #{@info.streak})", else: ""}
+      </span>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders the failed jobs table.
+  """
+  attr :jobs, :list, required: true
+
+  def failed_jobs_table(assigns) do
+    ~H"""
+    <div :if={@jobs != []} class="failed-jobs-panel">
+      <div class="failed-jobs-panel__header">
+        <h3 class="failed-jobs-panel__title">Recent Failed Jobs</h3>
+      </div>
+      <table class="failed-jobs-table">
+        <thead>
+          <tr>
+            <th>Worker</th>
+            <th>Error</th>
+            <th>When</th>
+            <th>State</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr :for={job <- @jobs}>
+            <td>
+              <span class="worker-name">{job.worker_name}</span>
+            </td>
+            <td>
+              <span class="failed-job__error" title={job.error}>{job.error}</span>
+            </td>
+            <td>
+              <span class="failed-job__when">{format_relative_time(job.attempted_at)}</span>
+            </td>
+            <td>
+              <span class={"failed-job__state failed-job__state--#{job.state}"}>{job.state}</span>
+            </td>
+            <td>
+              <.button
+                :if={job.state == "retryable"}
+                size="sm"
+                variant="primary"
+                phx-click="retry_job"
+                phx-value-job_id={job.id}
+              >
+                Retry
+              </.button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    """
+  end
+
   # Helper functions
   defp format_datetime(nil), do: "-"
   defp format_datetime(%DateTime{} = dt), do: Calendar.strftime(dt, "%b %d, %Y %H:%M")
@@ -699,4 +892,41 @@ defmodule SocialObjectsWeb.AdminComponents do
 
   def secret_configured?(secrets_configured, key), do: MapSet.member?(secrets_configured, key)
   def secret_visible?(visible_secrets, key), do: MapSet.member?(visible_secrets, key)
+
+  # Monitoring helper functions
+
+  defp get_worker_status(_statuses, _brand_id, nil), do: nil
+  defp get_worker_status(statuses, brand_id, status_key) do
+    Map.get(statuses, {brand_id, status_key})
+  end
+
+  defp is_worker_running?(running_workers, worker_key) do
+    Enum.any?(running_workers, fn rw -> rw.worker_key == worker_key end)
+  end
+
+  defp format_last_run(nil), do: "Never"
+  defp format_last_run(datetime), do: format_relative_time(datetime)
+
+  defp status_indicator_class(_status, true), do: "worker-status__indicator--running"
+  defp status_indicator_class(nil, _), do: "worker-status__indicator--stale"
+  defp status_indicator_class(datetime, _) do
+    hours_ago = DateTime.diff(DateTime.utc_now(), datetime, :hour)
+    cond do
+      hours_ago < 24 -> "worker-status__indicator--ok"
+      hours_ago < 72 -> "worker-status__indicator--warning"
+      true -> "worker-status__indicator--stale"
+    end
+  end
+
+  defp status_text(_status, true), do: "Running"
+  defp status_text(nil, _), do: "Never run"
+  defp status_text(datetime, _) do
+    hours_ago = DateTime.diff(DateTime.utc_now(), datetime, :hour)
+    cond do
+      hours_ago < 24 -> "OK"
+      hours_ago < 72 -> "Stale"
+      true -> "Stale"
+    end
+  end
+
 end

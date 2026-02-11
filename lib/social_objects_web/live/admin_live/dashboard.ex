@@ -1,29 +1,53 @@
 defmodule SocialObjectsWeb.AdminLive.Dashboard do
   @moduledoc """
-  Admin dashboard with overview stats and quick actions.
+  Admin dashboard with overview stats, quick actions, and system monitoring.
+
+  Provides visibility into:
+  - Brand and user counts
+  - Feature flags
+  - Worker sync statuses
+  - Oban queue health
+  - Failed job management
   """
   use SocialObjectsWeb, :live_view
 
   import SocialObjectsWeb.AdminComponents
 
-  alias SocialObjects.Accounts
   alias SocialObjects.Catalog
+  alias SocialObjects.Monitoring
+  alias SocialObjects.Workers.Registry
 
   @impl true
   def mount(_params, _session, socket) do
     brands = Catalog.list_brands()
-    users = Accounts.list_all_users()
     feature_flags = SocialObjects.FeatureFlags.list_all()
     defined_flags = SocialObjects.FeatureFlags.defined_flags()
 
-    {:ok,
-     socket
-     |> assign(:page_title, "Admin Dashboard")
-     |> assign(:brand_count, length(brands))
-     |> assign(:user_count, length(users))
-     |> assign(:feature_flags, feature_flags)
-     |> assign(:defined_flags, defined_flags)}
+    # Default to first brand or nil
+    selected_brand = List.first(brands)
+    selected_brand_id = if selected_brand, do: selected_brand.id, else: nil
+
+    # Subscribe to PubSub topics for real-time updates
+    if connected?(socket) do
+      subscribe_to_sync_topics(brands)
+    end
+
+    socket =
+      socket
+      |> assign(:page_title, "Admin Dashboard")
+      |> assign(:brands, brands)
+      |> assign(:feature_flags, feature_flags)
+      |> assign(:defined_flags, defined_flags)
+      |> assign(:selected_brand_id, selected_brand_id)
+      |> assign(:workers_by_category, Registry.workers_by_category())
+      |> load_monitoring_data()
+
+    {:ok, socket}
   end
+
+  # ============================================================================
+  # Event Handlers
+  # ============================================================================
 
   @impl true
   def handle_event("toggle_flag", %{"flag" => flag_name}, socket) do
@@ -37,6 +61,146 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
   end
 
   @impl true
+  def handle_event("filter_brand", %{"brand_id" => brand_id}, socket) do
+    brand_id =
+      case brand_id do
+        "" -> nil
+        "all" -> nil
+        id -> String.to_integer(id)
+      end
+
+    {:noreply,
+     socket
+     |> assign(:selected_brand_id, brand_id)
+     |> load_monitoring_data()}
+  end
+
+  @impl true
+  def handle_event("trigger_worker", %{"worker" => worker_key, "brand_id" => brand_id}, socket) do
+    brand_id = parse_brand_id(brand_id)
+    worker = Registry.get_worker(String.to_existing_atom(worker_key))
+
+    if is_nil(brand_id) do
+      {:noreply, put_flash(socket, :error, "Please select a brand to run this worker")}
+    else
+      case trigger_worker(worker, brand_id) do
+        {:ok, _job} ->
+          {:noreply,
+           socket
+           |> put_flash(:info, "#{worker.name} job queued for brand")
+           |> load_monitoring_data()}
+
+        {:error, reason} ->
+          {:noreply, put_flash(socket, :error, "Failed to trigger worker: #{inspect(reason)}")}
+      end
+    end
+  end
+
+  @impl true
+  def handle_event("retry_job", %{"job_id" => job_id}, socket) do
+    job_id = String.to_integer(job_id)
+
+    case Monitoring.retry_job(job_id) do
+      :ok ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Job queued for retry")
+         |> load_monitoring_data()}
+
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to retry job")}
+    end
+  end
+
+  # ============================================================================
+  # PubSub Handlers
+  # ============================================================================
+
+  @impl true
+  def handle_info({:shopify_sync_completed, _brand_id}, socket) do
+    {:noreply, load_monitoring_data(socket)}
+  end
+
+  @impl true
+  def handle_info({:tiktok_sync_completed, _brand_id}, socket) do
+    {:noreply, load_monitoring_data(socket)}
+  end
+
+  @impl true
+  def handle_info({:bigquery_sync_completed, _brand_id}, socket) do
+    {:noreply, load_monitoring_data(socket)}
+  end
+
+  @impl true
+  def handle_info({:enrichment_completed, _brand_id}, socket) do
+    {:noreply, load_monitoring_data(socket)}
+  end
+
+  @impl true
+  def handle_info({:video_sync_completed, _brand_id}, socket) do
+    {:noreply, load_monitoring_data(socket)}
+  end
+
+  @impl true
+  def handle_info({:scan_completed, _source}, socket) do
+    {:noreply, load_monitoring_data(socket)}
+  end
+
+  @impl true
+  def handle_info(_msg, socket) do
+    {:noreply, socket}
+  end
+
+  # ============================================================================
+  # Private Functions
+  # ============================================================================
+
+  defp subscribe_to_sync_topics(brands) do
+    for brand <- brands do
+      Phoenix.PubSub.subscribe(SocialObjects.PubSub, "shopify:sync:#{brand.id}")
+      Phoenix.PubSub.subscribe(SocialObjects.PubSub, "tiktok:sync:#{brand.id}")
+      Phoenix.PubSub.subscribe(SocialObjects.PubSub, "bigquery:sync:#{brand.id}")
+      Phoenix.PubSub.subscribe(SocialObjects.PubSub, "creator:enrichment:#{brand.id}")
+      Phoenix.PubSub.subscribe(SocialObjects.PubSub, "video:sync:#{brand.id}")
+      Phoenix.PubSub.subscribe(SocialObjects.PubSub, "tiktok_live:scan:#{brand.id}")
+    end
+  end
+
+  defp load_monitoring_data(socket) do
+    brand_id = socket.assigns.selected_brand_id
+
+    socket
+    |> assign(:worker_statuses, Monitoring.get_all_sync_statuses(brand_id))
+    |> assign(:oban_stats, Monitoring.get_oban_queue_stats())
+    |> assign(:failed_jobs, Monitoring.get_recent_failed_jobs(brand_id: brand_id, limit: 5))
+    |> assign(:running_workers, get_running_workers(brand_id))
+    |> assign(:rate_limit_info, get_rate_limit_info(brand_id))
+  end
+
+  defp get_running_workers(nil), do: []
+  defp get_running_workers(brand_id), do: Monitoring.get_running_workers_for_brand(brand_id)
+
+  defp get_rate_limit_info(nil), do: nil
+  defp get_rate_limit_info(brand_id), do: Monitoring.get_enrichment_rate_limit_info(brand_id)
+
+  defp parse_brand_id(nil), do: nil
+  defp parse_brand_id(""), do: nil
+  defp parse_brand_id(id) when is_binary(id), do: String.to_integer(id)
+  defp parse_brand_id(id) when is_integer(id), do: id
+
+  defp trigger_worker(worker, brand_id) do
+    args = %{"brand_id" => brand_id}
+
+    worker.module
+    |> apply(:new, [args])
+    |> Oban.insert()
+  end
+
+  # ============================================================================
+  # Render
+  # ============================================================================
+
+  @impl true
   def render(assigns) do
     ~H"""
     <div class="admin-page">
@@ -45,11 +209,6 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
       </div>
 
       <div class="admin-body">
-        <div class="stat-cards">
-          <.stat_card label="Brands" value={@brand_count} href={~p"/admin/brands"} />
-          <.stat_card label="Users" value={@user_count} href={~p"/admin/users"} />
-        </div>
-
         <div class="admin-panel">
           <div class="admin-panel__header">
             <h2 class="admin-panel__title">Quick Actions</h2>
@@ -59,7 +218,7 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
               <.button navigate={~p"/admin/users"} variant="primary">
                 Manage Users
               </.button>
-              <.button navigate={~p"/admin/brands"} variant="outline">
+              <.button navigate={~p"/admin/brands"} variant="primary">
                 Manage Brands
               </.button>
             </div>
@@ -89,6 +248,51 @@ defmodule SocialObjectsWeb.AdminLive.Dashboard do
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+
+        <div class="monitoring-panel">
+          <div class="monitoring-panel__header">
+            <h2 class="monitoring-panel__title">System Monitoring</h2>
+            <div class="brand-filter">
+              <label class="brand-filter__label">Brand:</label>
+              <select
+                class="brand-filter__select"
+                phx-change="filter_brand"
+                name="brand_id"
+              >
+                <option value="all" selected={is_nil(@selected_brand_id)}>All Brands</option>
+                <option
+                  :for={brand <- @brands}
+                  value={brand.id}
+                  selected={@selected_brand_id == brand.id}
+                >
+                  {brand.name}
+                </option>
+              </select>
+            </div>
+          </div>
+          <div class="monitoring-panel__body">
+            <.queue_health_stats stats={@oban_stats} />
+
+            <div :if={@selected_brand_id}>
+              <.worker_category_panel
+                :for={{category, workers} <- @workers_by_category}
+                category={category}
+                label={Registry.category_label(category)}
+                workers={workers}
+                statuses={@worker_statuses}
+                running_workers={@running_workers}
+                rate_limit_info={@rate_limit_info}
+                brand_id={@selected_brand_id}
+              />
+            </div>
+
+            <div :if={is_nil(@selected_brand_id)} class="monitoring-empty">
+              <p>Select a brand to view worker statuses and trigger syncs.</p>
+            </div>
+
+            <.failed_jobs_table jobs={@failed_jobs} />
           </div>
         </div>
       </div>
