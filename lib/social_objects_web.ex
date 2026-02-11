@@ -86,6 +86,8 @@ defmodule SocialObjectsWeb do
       import Phoenix.HTML
       # Core UI components
       import SocialObjectsWeb.CoreComponents
+      # Theme components (light/dark mode toggle)
+      import SocialObjectsWeb.ThemeComponents
 
       # Common modules used in templates
       alias SocialObjectsWeb.Layouts

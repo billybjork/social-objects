@@ -74,6 +74,11 @@ const ThemeToggle = {
     // Update aria attribute for accessibility
     html.setAttribute('data-theme', theme);
 
+    // Update aria-checked for switch role (if using theme-switch component)
+    if (this.el.getAttribute('role') === 'switch') {
+      this.el.setAttribute('aria-checked', theme === 'dark' ? 'true' : 'false');
+    }
+
     // Update theme-color for browser chrome (iOS Safari status bar, etc.)
     const themeColor = theme === 'dark' ? '#1A1A1A' : '#FFFFFF';
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', themeColor);

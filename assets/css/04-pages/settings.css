@@ -217,3 +217,12 @@
 .settings-section form > *:last-child {
   margin-top: 1.5rem;
 }
+
+/* Theme toggle row - label and switch side by side */
+.settings-theme-row {
+  @apply flex items-center justify-between gap-4;
+}
+
+.settings-theme-row__label {
+  @apply text-sm font-medium text-text-primary;
+}
