@@ -27,13 +27,23 @@ defmodule SocialObjects.Workers.TiktokLiveStreamWorker do
   @status_check_interval_seconds 60
 
   @impl Oban.Worker
-  def perform(%Oban.Job{
-        args: %{"stream_id" => stream_id, "unique_id" => unique_id, "brand_id" => brand_id}
-      }) do
+  def perform(%Oban.Job{args: %{"stream_id" => stream_id, "unique_id" => unique_id} = args}) do
+    # Support both explicit brand_id and fallback lookup for backwards compatibility
+    brand_id = args["brand_id"]
+
     Logger.info("Starting capture worker for stream #{stream_id}, @#{unique_id}")
 
     # Check if stream still exists and is in capturing state
-    case Repo.get_by(Stream, id: stream_id, brand_id: brand_id) do
+    stream =
+      if brand_id do
+        Repo.get_by(Stream, id: stream_id, brand_id: brand_id)
+      else
+        # Fallback: lookup stream by id only (handles jobs created without brand_id)
+        Logger.warning("Job missing brand_id, looking up stream #{stream_id} by id only")
+        Repo.get(Stream, stream_id)
+      end
+
+    case stream do
       nil ->
         Logger.warning("Stream #{stream_id} not found, aborting capture")
         :ok
@@ -46,9 +56,17 @@ defmodule SocialObjects.Workers.TiktokLiveStreamWorker do
         Logger.info("Stream #{stream_id} has failed, aborting capture")
         :ok
 
-      stream ->
-        run_capture(stream, unique_id, brand_id)
+      %Stream{} = stream ->
+        # Use brand_id from stream if not provided in args
+        effective_brand_id = brand_id || stream.brand_id
+        run_capture(stream, unique_id, effective_brand_id)
     end
+  end
+
+  # Catch-all for malformed jobs
+  def perform(%Oban.Job{args: args}) do
+    Logger.error("TiktokLiveStreamWorker received invalid args: #{inspect(args)}")
+    {:discard, "Invalid job args - missing stream_id or unique_id"}
   end
 
   defp run_capture(stream, unique_id, brand_id) do

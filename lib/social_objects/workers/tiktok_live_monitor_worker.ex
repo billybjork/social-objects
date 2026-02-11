@@ -260,22 +260,23 @@ defmodule SocialObjects.Workers.TiktokLiveMonitorWorker do
     end
   end
 
-  # Check if a capture is receiving events (stats updated within last 3 minutes)
-  # Stats are saved every 30s, so 3 min = 6 missed saves = definitely stale
-  # Exception: streams that just started (< 2 min old) are considered healthy
-  # since they may not have saved their first stat yet
+  # Check if a capture is receiving events (stats updated within last 5 minutes)
+  # Stats are saved every 30s, so 5 min = 10 missed saves = definitely stale
+  # Exception: streams that just started (< 3 min old) are considered healthy
+  # since they need time to connect to bridge and save first stat
   defp capture_healthy?(stream) do
     import Ecto.Query
     alias SocialObjects.TiktokLive.StreamStat
 
-    # New streams (< 2 min old) are given grace period
+    # New streams (< 3 min old) are given grace period for startup/connection
     stream_age_seconds = DateTime.diff(DateTime.utc_now(), stream.started_at)
 
-    if stream_age_seconds < 120 do
+    if stream_age_seconds < 180 do
       # Stream just started, consider healthy
+      Logger.debug("Stream #{stream.id} is #{stream_age_seconds}s old, within grace period")
       true
     else
-      cutoff = DateTime.utc_now() |> DateTime.add(-3, :minute)
+      cutoff = DateTime.utc_now() |> DateTime.add(-5, :minute)
 
       recent_stat =
         from(s in StreamStat,
@@ -285,6 +286,12 @@ defmodule SocialObjects.Workers.TiktokLiveMonitorWorker do
           limit: 1
         )
         |> Repo.one()
+
+      if recent_stat == nil do
+        Logger.warning(
+          "Stream #{stream.id} has no stats in last 5 min (age: #{stream_age_seconds}s) - capture may be stale"
+        )
+      end
 
       recent_stat != nil
     end
