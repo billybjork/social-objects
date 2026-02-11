@@ -18,4 +18,4 @@ cmds = [
 ]
 
 [start]
-cmd = "echo '=== Starting Social Objects ===' && echo \"PORT=$PORT\" && echo \"PHX_SERVER=$PHX_SERVER\" && echo \"PHX_HOST=$PHX_HOST\" && _build/prod/rel/social_objects/bin/social_objects start"
+cmd = "_build/prod/rel/social_objects/bin/social_objects eval \"SocialObjects.Release.migrate\" && _build/prod/rel/social_objects/bin/social_objects start"
