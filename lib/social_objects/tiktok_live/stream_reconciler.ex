@@ -145,7 +145,7 @@ defmodule SocialObjects.TiktokLive.StreamReconciler do
       |> Repo.update()
 
     # Now enqueue a fresh worker to establish a new connection
-    %{stream_id: stream.id, unique_id: stream.unique_id}
+    %{stream_id: stream.id, unique_id: stream.unique_id, brand_id: stream.brand_id}
     |> TiktokLiveStreamWorker.new()
     |> Oban.insert()
   end
@@ -324,7 +324,7 @@ defmodule SocialObjects.TiktokLive.StreamReconciler do
       |> Repo.update()
 
     # Enqueue capture worker
-    %{stream_id: stream.id, unique_id: stream.unique_id}
+    %{stream_id: stream.id, unique_id: stream.unique_id, brand_id: stream.brand_id}
     |> TiktokLiveStreamWorker.new()
     |> Oban.insert()
   end
