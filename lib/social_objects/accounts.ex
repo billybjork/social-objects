@@ -66,6 +66,87 @@ defmodule SocialObjects.Accounts do
     |> Repo.delete_all()
   end
 
+  @doc """
+  Updates the role for an existing user-brand membership.
+  """
+  def update_user_brand_role(%User{} = user, %Brand{} = brand, new_role)
+      when new_role in [:viewer, :admin, :owner] do
+    from(ub in UserBrand,
+      where: ub.user_id == ^user.id and ub.brand_id == ^brand.id
+    )
+    |> Repo.update_all(set: [role: new_role, updated_at: DateTime.utc_now()])
+    |> case do
+      {1, _} -> :ok
+      {0, _} -> {:error, :not_found}
+    end
+  end
+
+  @doc """
+  Deletes a user and all associated data (tokens, brand memberships).
+  """
+  def delete_user(%User{} = user) do
+    Repo.transaction(fn ->
+      # Delete all user tokens
+      Repo.delete_all(from(t in UserToken, where: t.user_id == ^user.id))
+
+      # Delete all brand memberships
+      Repo.delete_all(from(ub in UserBrand, where: ub.user_id == ^user.id))
+
+      # Delete the user
+      case Repo.delete(user) do
+        {:ok, user} -> user
+        {:error, changeset} -> Repo.rollback(changeset)
+      end
+    end)
+  end
+
+  @doc """
+  Resets a user's password to a new temporary password.
+  Invalidates all existing sessions.
+  Returns {:ok, user, temp_password} on success.
+  """
+  def reset_user_password(%User{} = user) do
+    temp_password = generate_temp_password()
+
+    changeset =
+      user
+      |> User.password_changeset(%{password: temp_password}, hash_password: true)
+      |> Ecto.Changeset.put_change(:must_change_password, true)
+
+    Repo.transaction(fn ->
+      case Repo.update(changeset) do
+        {:ok, updated_user} ->
+          # Delete all existing tokens to invalidate sessions
+          Repo.delete_all(from(t in UserToken, where: t.user_id == ^user.id))
+          {updated_user, temp_password}
+
+        {:error, changeset} ->
+          Repo.rollback(changeset)
+      end
+    end)
+    |> case do
+      {:ok, {user, temp_password}} -> {:ok, user, temp_password}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @doc """
+  Counts the number of platform admins.
+  """
+  def count_admins do
+    from(u in User, where: u.is_admin == true, select: count(u.id))
+    |> Repo.one()
+  end
+
+  @doc """
+  Returns true if the user is the only platform admin.
+  """
+  def only_admin?(%User{is_admin: false}), do: false
+
+  def only_admin?(%User{is_admin: true}) do
+    count_admins() == 1
+  end
+
   ## Database getters
 
   @doc """
@@ -341,6 +422,28 @@ defmodule SocialObjects.Accounts do
     |> User.password_changeset(attrs)
     |> Ecto.Changeset.put_change(:must_change_password, false)
     |> update_user_and_delete_all_tokens()
+  end
+
+  @doc """
+  Updates the user password without invalidating existing sessions.
+
+  Use this for forced password changes (first-time login) where
+  logging the user out would be unnecessary friction.
+
+  ## Examples
+
+      iex> update_user_password_keep_session(user, %{password: ...})
+      {:ok, %User{}}
+
+      iex> update_user_password_keep_session(user, %{password: "too short"})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def update_user_password_keep_session(user, attrs) do
+    user
+    |> User.password_changeset(attrs)
+    |> Ecto.Changeset.put_change(:must_change_password, false)
+    |> Repo.update()
   end
 
   ## Session

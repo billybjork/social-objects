@@ -95,6 +95,9 @@ defmodule SocialObjectsWeb.AdminComponents do
   """
   attr :user, :map, required: true
   attr :last_session_at, :any, default: nil
+  attr :current_user_id, :any, required: true
+  attr :show_add_brand_form, :boolean, default: false
+  attr :available_brands, :list, default: []
   attr :on_cancel, :any, required: true
 
   def user_detail_modal(assigns) do
@@ -153,14 +156,30 @@ defmodule SocialObjectsWeb.AdminComponents do
                 >
                   {if @user.is_admin, do: "Remove Admin", else: "Make Admin"}
                 </.button>
+                <.button
+                  phx-click="reset_password"
+                  phx-value-user_id={@user.id}
+                  variant="outline"
+                  data-confirm={"Generate new temp password for #{@user.email}? This will invalidate all their sessions."}
+                >
+                  Reset Password
+                </.button>
               </div>
             </div>
           </div>
         </div>
 
         <div class="admin-panel" style="margin-top: var(--space-4);">
-          <div class="admin-panel__header">
+          <div class="admin-panel__header admin-panel__header--with-action">
             <h3 class="admin-panel__title">Brand Memberships</h3>
+            <.button
+              :if={@available_brands != [] && !@show_add_brand_form}
+              phx-click="show_add_brand_form"
+              size="sm"
+              variant="outline"
+            >
+              + Add Brand
+            </.button>
           </div>
           <div class="admin-panel__body--flush">
             <table class="admin-table">
@@ -173,10 +192,24 @@ defmodule SocialObjectsWeb.AdminComponents do
                 </tr>
               </thead>
               <tbody>
+                <.add_brand_form_row
+                  :if={@show_add_brand_form}
+                  available_brands={@available_brands}
+                />
                 <tr :for={ub <- @user.user_brands}>
                   <td>{ub.brand.name}</td>
                   <td>
-                    <.badge variant={role_variant(ub.role)}>{ub.role}</.badge>
+                    <select
+                      class="input input--sm"
+                      phx-change="change_brand_role"
+                      phx-value-user_id={@user.id}
+                      phx-value-brand_id={ub.brand.id}
+                      name="role"
+                    >
+                      <option value="viewer" selected={ub.role == :viewer}>viewer</option>
+                      <option value="admin" selected={ub.role == :admin}>admin</option>
+                      <option value="owner" selected={ub.role == :owner}>owner</option>
+                    </select>
                   </td>
                   <td>{format_datetime(ub.inserted_at)}</td>
                   <td>
@@ -192,13 +225,170 @@ defmodule SocialObjectsWeb.AdminComponents do
                     </.button>
                   </td>
                 </tr>
-                <tr :if={@user.user_brands == []}>
+                <tr :if={@user.user_brands == [] && !@show_add_brand_form}>
                   <td colspan="4" class="admin-table__empty">No brand memberships</td>
                 </tr>
               </tbody>
             </table>
+            <div :if={@available_brands == [] && @user.user_brands != []} class="admin-panel__hint">
+              Already member of all brands
+            </div>
           </div>
         </div>
+
+        <div class="admin-panel admin-panel--danger" style="margin-top: var(--space-4);">
+          <div class="admin-panel__header">
+            <h3 class="admin-panel__title">Danger Zone</h3>
+          </div>
+          <div class="admin-panel__body">
+            <div class="danger-zone">
+              <div class="danger-zone__description">
+                <strong>Delete this user</strong>
+                <p>
+                  Once deleted, this action cannot be undone. All user data will be permanently removed.
+                </p>
+              </div>
+              <.button
+                phx-click="show_delete_confirmation"
+                variant="danger"
+                disabled={@user.id == @current_user_id}
+                title={if @user.id == @current_user_id, do: "You cannot delete yourself", else: nil}
+              >
+                Delete User
+              </.button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </.modal>
+    """
+  end
+
+  @doc """
+  Inline form row for adding a brand membership.
+  """
+  attr :available_brands, :list, required: true
+
+  def add_brand_form_row(assigns) do
+    ~H"""
+    <tr class="add-brand-form-row">
+      <td colspan="4">
+        <form id="add-brand-form" phx-submit="add_brand_membership" class="add-brand-form">
+          <div class="add-brand-form__field">
+            <select name="brand_id" class="input input--sm" required>
+              <option value="">Select brand...</option>
+              <option :for={brand <- @available_brands} value={brand.id}>{brand.name}</option>
+            </select>
+          </div>
+          <div class="add-brand-form__field">
+            <select name="role" class="input input--sm">
+              <option value="viewer">viewer</option>
+              <option value="admin">admin</option>
+              <option value="owner">owner</option>
+            </select>
+          </div>
+          <div class="add-brand-form__actions">
+            <.button type="submit" size="sm" variant="primary">Save</.button>
+            <.button type="button" phx-click="cancel_add_brand" size="sm" variant="outline">
+              Cancel
+            </.button>
+          </div>
+        </form>
+      </td>
+    </tr>
+    """
+  end
+
+  @doc """
+  Modal for confirming user deletion by typing their email.
+  """
+  attr :user, :map, required: true
+  attr :typed_email, :string, required: true
+  attr :on_cancel, :any, required: true
+
+  def delete_confirmation_modal(assigns) do
+    email_matches = assigns.typed_email == assigns.user.email
+    assigns = assign(assigns, :email_matches, email_matches)
+
+    ~H"""
+    <.modal id="delete-confirmation-modal" show={true} on_cancel={@on_cancel}>
+      <div class="modal__header">
+        <h2 class="modal__title">Delete User</h2>
+      </div>
+      <div class="modal__body">
+        <div class="delete-confirmation">
+          <p class="delete-confirmation__warning">
+            This action <strong>cannot be undone</strong>. This will permanently delete the user account
+            and remove all associated data including brand memberships and sessions.
+          </p>
+          <p class="delete-confirmation__instruction">
+            Please type <strong>{@user.email}</strong> to confirm.
+          </p>
+          <input
+            type="email"
+            class="input"
+            placeholder="Type email to confirm"
+            value={@typed_email}
+            phx-keyup="update_delete_email"
+            phx-key="*"
+            name="email"
+            autocomplete="off"
+          />
+        </div>
+      </div>
+      <div class="modal__footer">
+        <.button variant="outline" phx-click={@on_cancel}>Cancel</.button>
+        <.button
+          variant="danger"
+          phx-click="confirm_delete"
+          disabled={!@email_matches}
+        >
+          Delete User
+        </.button>
+      </div>
+    </.modal>
+    """
+  end
+
+  @doc """
+  Modal showing the new temp password after password reset.
+  """
+  attr :email, :string, required: true
+  attr :temp_password, :string, required: true
+  attr :on_close, :any, required: true
+
+  def password_reset_result_modal(assigns) do
+    ~H"""
+    <.modal id="password-reset-modal" show={true} on_cancel={@on_close}>
+      <div class="modal__header">
+        <h2 class="modal__title">Password Reset</h2>
+      </div>
+      <div class="modal__body">
+        <p style="margin-bottom: var(--space-4);">
+          Password reset for <strong>{@email}</strong>
+        </p>
+        <div class="settings-field">
+          <label class="input-label">New Temporary Password</label>
+          <div class="temp-password-display">
+            <code class="temp-password-code">{@temp_password}</code>
+            <button
+              type="button"
+              class="button button--sm button--outline"
+              phx-hook="CopyToClipboard"
+              id="copy-reset-password"
+              data-copy-text={@temp_password}
+            >
+              Copy
+            </button>
+          </div>
+        </div>
+        <p class="settings-hint" style="margin-top: var(--space-4);">
+          Share this password with the user. They will be required to set a new password on next login.
+          All existing sessions have been invalidated.
+        </p>
+      </div>
+      <div class="modal__footer">
+        <.button variant="primary" phx-click={@on_close}>Done</.button>
       </div>
     </.modal>
     """
@@ -778,7 +968,10 @@ defmodule SocialObjectsWeb.AdminComponents do
       <td>
         <div class="worker-name">{@worker.name}</div>
         <div class="worker-description">{@worker.description}</div>
-        <.rate_limit_warning :if={@rate_limit_info && @rate_limit_info.streak > 0} info={@rate_limit_info} />
+        <.rate_limit_warning
+          :if={@rate_limit_info && @rate_limit_info.streak > 0}
+          info={@rate_limit_info}
+        />
       </td>
       <td>
         <span class="worker-schedule">{@worker.schedule}</span>
@@ -886,16 +1079,13 @@ defmodule SocialObjectsWeb.AdminComponents do
   defp format_datetime(%DateTime{} = dt), do: Calendar.strftime(dt, "%b %d, %Y %H:%M")
   defp format_datetime(%NaiveDateTime{} = dt), do: Calendar.strftime(dt, "%b %d, %Y %H:%M")
 
-  defp role_variant(:owner), do: :primary
-  defp role_variant(:admin), do: :success
-  defp role_variant(_), do: :default
-
   def secret_configured?(secrets_configured, key), do: MapSet.member?(secrets_configured, key)
   def secret_visible?(visible_secrets, key), do: MapSet.member?(visible_secrets, key)
 
   # Monitoring helper functions
 
   defp get_worker_status(_statuses, _brand_id, nil), do: nil
+
   defp get_worker_status(statuses, brand_id, status_key) do
     Map.get(statuses, {brand_id, status_key})
   end
@@ -909,8 +1099,10 @@ defmodule SocialObjectsWeb.AdminComponents do
 
   defp status_indicator_class(_status, true), do: "worker-status__indicator--running"
   defp status_indicator_class(nil, _), do: "worker-status__indicator--stale"
+
   defp status_indicator_class(datetime, _) do
     hours_ago = DateTime.diff(DateTime.utc_now(), datetime, :hour)
+
     cond do
       hours_ago < 24 -> "worker-status__indicator--ok"
       hours_ago < 72 -> "worker-status__indicator--warning"
@@ -920,13 +1112,14 @@ defmodule SocialObjectsWeb.AdminComponents do
 
   defp status_text(_status, true), do: "Running"
   defp status_text(nil, _), do: "Never run"
+
   defp status_text(datetime, _) do
     hours_ago = DateTime.diff(DateTime.utc_now(), datetime, :hour)
+
     cond do
       hours_ago < 24 -> "OK"
       hours_ago < 72 -> "Stale"
       true -> "Stale"
     end
   end
-
 end

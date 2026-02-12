@@ -1104,6 +1104,7 @@ defmodule SocialObjectsWeb.CoreComponents do
     "success" => "button--success",
     "warning" => "button--warning",
     "error" => "button--error",
+    "danger" => "button--error",
     "ghost" => "button--ghost",
     "outline" => "button--outline",
     "outline-error" => "button--outline-error"

@@ -33,18 +33,31 @@ defmodule SocialObjectsWeb.AdminLive.Users do
      |> assign(:show_new_user_modal, false)
      |> assign(:new_user_form, to_form(%{"email" => ""}))
      |> assign(:created_user_email, nil)
-     |> assign(:created_user_temp_password, nil)}
+     |> assign(:created_user_temp_password, nil)
+     # New assigns for enhanced features
+     |> assign(:show_add_brand_form, false)
+     |> assign(:available_brands, [])
+     |> assign(:show_delete_confirmation, false)
+     |> assign(:delete_confirmation_email, "")
+     |> assign(:reset_password_result, nil)
+     |> assign(:current_user_id, socket.assigns.current_scope.user.id)}
   end
 
   @impl true
   def handle_event("view_user", %{"user_id" => user_id}, socket) do
     user = Accounts.get_user_with_brands!(user_id)
     last_session = Accounts.get_last_session_at(user)
+    available_brands = get_available_brands(socket.assigns.brands, user)
 
     {:noreply,
      socket
      |> assign(:selected_user, user)
-     |> assign(:selected_user_last_session, last_session)}
+     |> assign(:selected_user_last_session, last_session)
+     |> assign(:available_brands, available_brands)
+     |> assign(:show_add_brand_form, false)
+     |> assign(:show_delete_confirmation, false)
+     |> assign(:delete_confirmation_email, "")
+     |> assign(:reset_password_result, nil)}
   end
 
   @impl true
@@ -55,7 +68,12 @@ defmodule SocialObjectsWeb.AdminLive.Users do
      |> assign(:selected_user_last_session, nil)
      |> assign(:show_new_user_modal, false)
      |> assign(:created_user_email, nil)
-     |> assign(:created_user_temp_password, nil)}
+     |> assign(:created_user_temp_password, nil)
+     |> assign(:show_add_brand_form, false)
+     |> assign(:available_brands, [])
+     |> assign(:show_delete_confirmation, false)
+     |> assign(:delete_confirmation_email, "")
+     |> assign(:reset_password_result, nil)}
   end
 
   @impl true
@@ -137,6 +155,7 @@ defmodule SocialObjectsWeb.AdminLive.Users do
       {1, _} ->
         updated_user = Accounts.get_user_with_brands!(user.id)
         last_session = Accounts.get_last_session_at(updated_user)
+        available_brands = get_available_brands(socket.assigns.brands, updated_user)
 
         # Update users list
         users = update_user_in_list(socket.assigns.users, updated_user, last_session)
@@ -145,10 +164,154 @@ defmodule SocialObjectsWeb.AdminLive.Users do
          socket
          |> assign(:users, users)
          |> assign(:selected_user, updated_user)
+         |> assign(:available_brands, available_brands)
          |> put_flash(:info, "User removed from #{brand.name}.")}
 
       _ ->
         {:noreply, put_flash(socket, :error, "Failed to remove user from brand.")}
+    end
+  end
+
+  # Change brand role inline
+  @impl true
+  def handle_event(
+        "change_brand_role",
+        %{"user_id" => user_id, "brand_id" => brand_id, "role" => role},
+        socket
+      ) do
+    user = Accounts.get_user_with_brands!(user_id)
+    brand = Catalog.get_brand!(brand_id)
+    new_role = String.to_existing_atom(role)
+
+    case Accounts.update_user_brand_role(user, brand, new_role) do
+      :ok ->
+        updated_user = Accounts.get_user_with_brands!(user.id)
+        last_session = Accounts.get_last_session_at(updated_user)
+        users = update_user_in_list(socket.assigns.users, updated_user, last_session)
+
+        {:noreply,
+         socket
+         |> assign(:users, users)
+         |> assign(:selected_user, updated_user)
+         |> put_flash(:info, "Role updated to #{role}.")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Failed to update role.")}
+    end
+  end
+
+  # Add brand form toggle
+  @impl true
+  def handle_event("show_add_brand_form", _params, socket) do
+    {:noreply, assign(socket, :show_add_brand_form, true)}
+  end
+
+  @impl true
+  def handle_event("cancel_add_brand", _params, socket) do
+    {:noreply, assign(socket, :show_add_brand_form, false)}
+  end
+
+  # Add brand membership
+  @impl true
+  def handle_event("add_brand_membership", %{"brand_id" => brand_id, "role" => role}, socket) do
+    user = socket.assigns.selected_user
+    brand = Catalog.get_brand!(brand_id)
+    role_atom = String.to_existing_atom(role)
+
+    case Accounts.create_user_brand(user, brand, role_atom) do
+      {:ok, _} ->
+        updated_user = Accounts.get_user_with_brands!(user.id)
+        last_session = Accounts.get_last_session_at(updated_user)
+        available_brands = get_available_brands(socket.assigns.brands, updated_user)
+        users = update_user_in_list(socket.assigns.users, updated_user, last_session)
+
+        {:noreply,
+         socket
+         |> assign(:users, users)
+         |> assign(:selected_user, updated_user)
+         |> assign(:available_brands, available_brands)
+         |> assign(:show_add_brand_form, false)
+         |> put_flash(:info, "Added to #{brand.name} as #{role}.")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Failed to add brand membership.")}
+    end
+  end
+
+  # Reset password
+  @impl true
+  def handle_event("reset_password", %{"user_id" => user_id}, socket) do
+    user = Accounts.get_user!(user_id)
+
+    case Accounts.reset_user_password(user) do
+      {:ok, _user, temp_password} ->
+        {:noreply,
+         socket
+         |> assign(:reset_password_result, %{email: user.email, temp_password: temp_password})}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Failed to reset password.")}
+    end
+  end
+
+  @impl true
+  def handle_event("close_reset_modal", _params, socket) do
+    {:noreply, assign(socket, :reset_password_result, nil)}
+  end
+
+  # Delete user flow
+  @impl true
+  def handle_event("show_delete_confirmation", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:show_delete_confirmation, true)
+     |> assign(:delete_confirmation_email, "")}
+  end
+
+  @impl true
+  def handle_event("cancel_delete", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:show_delete_confirmation, false)
+     |> assign(:delete_confirmation_email, "")}
+  end
+
+  @impl true
+  def handle_event("update_delete_email", %{"email" => email}, socket) do
+    {:noreply, assign(socket, :delete_confirmation_email, email)}
+  end
+
+  @impl true
+  def handle_event("confirm_delete", _params, socket) do
+    user = socket.assigns.selected_user
+    typed_email = socket.assigns.delete_confirmation_email
+
+    cond do
+      typed_email != user.email ->
+        {:noreply, put_flash(socket, :error, "Email does not match.")}
+
+      user.id == socket.assigns.current_user_id ->
+        {:noreply, put_flash(socket, :error, "You cannot delete yourself.")}
+
+      Accounts.only_admin?(user) ->
+        {:noreply, put_flash(socket, :error, "Cannot delete the only platform admin.")}
+
+      true ->
+        case Accounts.delete_user(user) do
+          {:ok, _} ->
+            users = reload_users()
+
+            {:noreply,
+             socket
+             |> assign(:users, users)
+             |> assign(:selected_user, nil)
+             |> assign(:show_delete_confirmation, false)
+             |> assign(:delete_confirmation_email, "")
+             |> put_flash(:info, "User #{user.email} deleted.")}
+
+          {:error, _} ->
+            {:noreply, put_flash(socket, :error, "Failed to delete user.")}
+        end
     end
   end
 
@@ -192,10 +355,27 @@ defmodule SocialObjectsWeb.AdminLive.Users do
       </div>
 
       <.user_detail_modal
-        :if={@selected_user}
+        :if={@selected_user && !@show_delete_confirmation && !@reset_password_result}
         user={@selected_user}
         last_session_at={@selected_user_last_session}
+        current_user_id={@current_user_id}
+        show_add_brand_form={@show_add_brand_form}
+        available_brands={@available_brands}
         on_cancel={JS.push("close_modal")}
+      />
+
+      <.delete_confirmation_modal
+        :if={@selected_user && @show_delete_confirmation}
+        user={@selected_user}
+        typed_email={@delete_confirmation_email}
+        on_cancel={JS.push("cancel_delete")}
+      />
+
+      <.password_reset_result_modal
+        :if={@reset_password_result}
+        email={@reset_password_result.email}
+        temp_password={@reset_password_result.temp_password}
+        on_close={JS.push("close_reset_modal")}
       />
 
       <.new_user_modal
@@ -269,4 +449,9 @@ defmodule SocialObjectsWeb.AdminLive.Users do
   end
 
   defp parse_brand_assignments(_), do: []
+
+  defp get_available_brands(all_brands, user) do
+    user_brand_ids = Enum.map(user.user_brands, & &1.brand.id)
+    Enum.reject(all_brands, fn brand -> brand.id in user_brand_ids end)
+  end
 end

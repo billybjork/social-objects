@@ -326,3 +326,85 @@
   border: 1px solid var(--color-border-secondary);
   letter-spacing: 0.05em;
 }
+
+/* Admin Panel Header with Action Button */
+.admin-panel__header--with-action {
+  @apply flex items-center justify-between py-4 px-5 bg-surface-secondary;
+  border-bottom: 1px solid var(--color-border-secondary);
+}
+
+.admin-panel__hint {
+  @apply text-sm text-text-secondary text-center py-4;
+}
+
+/* Danger Panel */
+.admin-panel--danger {
+  border-color: color-mix(in srgb, var(--color-accent-red) 30%, var(--color-border-secondary));
+}
+
+.admin-panel--danger .admin-panel__header {
+  @apply bg-transparent;
+  border-bottom-color: color-mix(in srgb, var(--color-accent-red) 30%, var(--color-border-secondary));
+}
+
+.admin-panel--danger .admin-panel__title {
+  color: var(--color-accent-red);
+}
+
+/* Danger Zone */
+.danger-zone {
+  @apply flex items-center justify-between gap-4;
+}
+
+.danger-zone__description {
+  @apply flex flex-col gap-1;
+}
+
+.danger-zone__description strong {
+  @apply text-sm font-semibold text-text-primary;
+}
+
+.danger-zone__description p {
+  @apply text-sm text-text-secondary m-0;
+}
+
+/* Delete Confirmation Modal */
+.delete-confirmation {
+  @apply flex flex-col gap-4;
+}
+
+.delete-confirmation__warning {
+  @apply text-sm text-text-primary p-4 rounded-lg m-0;
+  background: color-mix(in srgb, var(--color-accent-red) 10%, var(--color-bg-secondary));
+  border: 1px solid color-mix(in srgb, var(--color-accent-red) 30%, var(--color-border-secondary));
+}
+
+.delete-confirmation__instruction {
+  @apply text-sm text-text-secondary m-0;
+}
+
+/* Add Brand Form Row */
+.add-brand-form-row {
+  @apply bg-surface-secondary;
+}
+
+.add-brand-form-row td {
+  @apply py-3 px-4;
+  border-bottom: 1px solid var(--color-border-primary);
+}
+
+.add-brand-form {
+  @apply flex items-center gap-4;
+}
+
+.add-brand-form__field {
+  @apply flex-1;
+}
+
+.add-brand-form__field:first-child {
+  @apply flex-[2];
+}
+
+.add-brand-form__actions {
+  @apply flex gap-2;
+}
