@@ -793,6 +793,23 @@ wss.on('connection', (ws) => {
   }));
 });
 
+// Periodic heartbeat to all connected WebSocket clients (every 30 seconds)
+// This prevents Elixir client from thinking the connection is stale when no streams are active
+setInterval(() => {
+  if (wsClients.size > 0) {
+    const heartbeat = JSON.stringify({
+      type: 'heartbeat',
+      activeConnections: connections.size,
+      timestamp: Date.now()
+    });
+    for (const client of wsClients) {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(heartbeat);
+      }
+    }
+  }
+}, 30000);
+
 // Graceful shutdown
 async function shutdown(signal) {
   console.log(`\nReceived ${signal}, shutting down...`);

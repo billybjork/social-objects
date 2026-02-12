@@ -293,6 +293,10 @@ defmodule SocialObjects.TiktokLive.BridgeClient do
     Logger.debug("Bridge status: #{length(connections)} active connections")
   end
 
+  defp handle_bridge_event(%{"type" => "heartbeat", "activeConnections" => count}) do
+    Logger.debug("Bridge heartbeat: #{count} active connections")
+  end
+
   defp handle_bridge_event(%{"type" => "connected", "uniqueId" => unique_id} = event) do
     Logger.info("Stream connected: @#{unique_id}")
     room_id = event["roomId"]

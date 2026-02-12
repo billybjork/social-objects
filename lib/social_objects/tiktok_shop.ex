@@ -50,8 +50,13 @@ defmodule SocialObjects.TiktokShop do
   This should be called in your OAuth callback handler after the user approves the app.
   Stores the tokens in the database and returns the auth record.
   """
+  require Logger
+
   def exchange_code_for_token(brand_id, auth_code) do
     url = "#{auth_base()}/api/v2/token/get"
+
+    Logger.info("[TikTok Token] Exchanging code for token at #{url}")
+    Logger.debug("[TikTok Token] app_key present: #{app_key() != nil}, app_secret present: #{app_secret() != nil}")
 
     params = [
       app_key: app_key(),
@@ -62,15 +67,19 @@ defmodule SocialObjects.TiktokShop do
 
     case Req.get(url, params: params) do
       {:ok, %Req.Response{status: 200, body: %{"data" => token_data}}} ->
+        Logger.info("[TikTok Token] Token exchange successful, storing tokens")
         store_tokens(brand_id, token_data)
 
       {:ok, %Req.Response{status: 200, body: response}} ->
+        Logger.error("[TikTok Token] Token exchange failed, response: #{inspect(response)}")
         {:error, "Token exchange failed: #{inspect(response)}"}
 
       {:ok, %Req.Response{status: status, body: body}} ->
+        Logger.error("[TikTok Token] HTTP error #{status}: #{inspect(body)}")
         {:error, "HTTP #{status}: #{inspect(body)}"}
 
       {:error, error} ->
+        Logger.error("[TikTok Token] Request failed: #{inspect(error)}")
         {:error, "Request failed: #{inspect(error)}"}
     end
   end

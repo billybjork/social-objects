@@ -11,13 +11,21 @@ defmodule SocialObjectsWeb.TiktokShopController do
   Called when TikTok redirects back after user authorization.
   Exchanges the authorization code for access tokens and fetches shop information.
   """
+  require Logger
+
   def callback(conn, %{"code" => auth_code, "state" => state} = _params) do
+    Logger.info("[TikTok OAuth] Received callback with code and state")
+
     with {:ok, %{brand_id: brand_id}} <-
            Phoenix.Token.verify(SocialObjectsWeb.Endpoint, "tiktok_oauth", state,
              max_age: 15 * 60
            ),
+         _ <- Logger.info("[TikTok OAuth] State verified for brand_id: #{brand_id}"),
          {:ok, _auth} <- TiktokShop.exchange_code_for_token(brand_id, auth_code),
+         _ <- Logger.info("[TikTok OAuth] Token exchange successful"),
          {:ok, auth} <- TiktokShop.get_authorized_shops(brand_id) do
+      Logger.info("[TikTok OAuth] Successfully connected to shop: #{auth.shop_name || auth.shop_id}")
+
       conn
       |> put_flash(
         :info,
@@ -25,7 +33,9 @@ defmodule SocialObjectsWeb.TiktokShopController do
       )
       |> redirect(to: "/")
     else
-      {:error, _error} ->
+      {:error, error} ->
+        Logger.error("[TikTok OAuth] Connection failed: #{inspect(error)}")
+
         conn
         |> put_flash(:error, "TikTok Shop connection failed. Please try again.")
         |> redirect(to: "/")
@@ -34,6 +44,7 @@ defmodule SocialObjectsWeb.TiktokShopController do
 
   def callback(conn, params) do
     # If there's an error in the OAuth flow
+    Logger.warning("[TikTok OAuth] Callback received. All params: #{inspect(params)}")
     error = Map.get(params, "error", "Unknown error")
     error_description = Map.get(params, "error_description", "")
 
