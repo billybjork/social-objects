@@ -529,10 +529,12 @@ defmodule SocialObjectsWeb.CoreComponents do
   attr :size, :string, default: "sm", values: ["sm", "md"]
 
   def brand_logo(assigns) do
+    assigns = assign(assigns, :logo_url, SocialObjects.Storage.public_url(assigns.brand.logo_url))
+
     ~H"""
     <div class={["brand-logo", "brand-logo--#{@size}"]}>
-      <%= if @brand.logo_url do %>
-        <img src={@brand.logo_url} alt={@brand.name} class="brand-logo__img" />
+      <%= if @logo_url do %>
+        <img src={@logo_url} alt={@brand.name} class="brand-logo__img" />
       <% else %>
         <span class="brand-logo__fallback">
           {String.first(@brand.name)}
