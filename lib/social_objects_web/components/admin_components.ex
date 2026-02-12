@@ -249,7 +249,8 @@ defmodule SocialObjectsWeb.AdminComponents do
                 </p>
               </div>
               <.button
-                phx-click="show_delete_confirmation"
+                phx-click="delete_user"
+                data-confirm="Are you sure you want to delete this user? This action cannot be undone."
                 variant="danger"
                 disabled={@user.id == @current_user_id}
                 title={if @user.id == @current_user_id, do: "You cannot delete yourself", else: nil}
@@ -296,57 +297,6 @@ defmodule SocialObjectsWeb.AdminComponents do
         </form>
       </td>
     </tr>
-    """
-  end
-
-  @doc """
-  Modal for confirming user deletion by typing their email.
-  """
-  attr :user, :map, required: true
-  attr :typed_email, :string, required: true
-  attr :on_cancel, :any, required: true
-
-  def delete_confirmation_modal(assigns) do
-    email_matches = assigns.typed_email == assigns.user.email
-    assigns = assign(assigns, :email_matches, email_matches)
-
-    ~H"""
-    <.modal id="delete-confirmation-modal" show={true} on_cancel={@on_cancel}>
-      <div class="modal__header">
-        <h2 class="modal__title">Delete User</h2>
-      </div>
-      <div class="modal__body">
-        <div class="delete-confirmation">
-          <p class="delete-confirmation__warning">
-            This action <strong>cannot be undone</strong>. This will permanently delete the user account
-            and remove all associated data including brand memberships and sessions.
-          </p>
-          <p class="delete-confirmation__instruction">
-            Please type <strong>{@user.email}</strong> to confirm.
-          </p>
-          <input
-            type="email"
-            class="input"
-            placeholder="Type email to confirm"
-            value={@typed_email}
-            phx-keyup="update_delete_email"
-            phx-key="*"
-            name="email"
-            autocomplete="off"
-          />
-        </div>
-      </div>
-      <div class="modal__footer">
-        <.button variant="outline" phx-click={@on_cancel}>Cancel</.button>
-        <.button
-          variant="danger"
-          phx-click="confirm_delete"
-          disabled={!@email_matches}
-        >
-          Delete User
-        </.button>
-      </div>
-    </.modal>
     """
   end
 

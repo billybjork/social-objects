@@ -37,8 +37,6 @@ defmodule SocialObjectsWeb.AdminLive.Users do
      # New assigns for enhanced features
      |> assign(:show_add_brand_form, false)
      |> assign(:available_brands, [])
-     |> assign(:show_delete_confirmation, false)
-     |> assign(:delete_confirmation_email, "")
      |> assign(:reset_password_result, nil)
      |> assign(:current_user_id, socket.assigns.current_scope.user.id)}
   end
@@ -55,8 +53,6 @@ defmodule SocialObjectsWeb.AdminLive.Users do
      |> assign(:selected_user_last_session, last_session)
      |> assign(:available_brands, available_brands)
      |> assign(:show_add_brand_form, false)
-     |> assign(:show_delete_confirmation, false)
-     |> assign(:delete_confirmation_email, "")
      |> assign(:reset_password_result, nil)}
   end
 
@@ -71,8 +67,6 @@ defmodule SocialObjectsWeb.AdminLive.Users do
      |> assign(:created_user_temp_password, nil)
      |> assign(:show_add_brand_form, false)
      |> assign(:available_brands, [])
-     |> assign(:show_delete_confirmation, false)
-     |> assign(:delete_confirmation_email, "")
      |> assign(:reset_password_result, nil)}
   end
 
@@ -259,37 +253,12 @@ defmodule SocialObjectsWeb.AdminLive.Users do
     {:noreply, assign(socket, :reset_password_result, nil)}
   end
 
-  # Delete user flow
+  # Delete user
   @impl true
-  def handle_event("show_delete_confirmation", _params, socket) do
-    {:noreply,
-     socket
-     |> assign(:show_delete_confirmation, true)
-     |> assign(:delete_confirmation_email, "")}
-  end
-
-  @impl true
-  def handle_event("cancel_delete", _params, socket) do
-    {:noreply,
-     socket
-     |> assign(:show_delete_confirmation, false)
-     |> assign(:delete_confirmation_email, "")}
-  end
-
-  @impl true
-  def handle_event("update_delete_email", %{"email" => email}, socket) do
-    {:noreply, assign(socket, :delete_confirmation_email, email)}
-  end
-
-  @impl true
-  def handle_event("confirm_delete", _params, socket) do
+  def handle_event("delete_user", _params, socket) do
     user = socket.assigns.selected_user
-    typed_email = socket.assigns.delete_confirmation_email
 
     cond do
-      typed_email != user.email ->
-        {:noreply, put_flash(socket, :error, "Email does not match.")}
-
       user.id == socket.assigns.current_user_id ->
         {:noreply, put_flash(socket, :error, "You cannot delete yourself.")}
 
@@ -305,8 +274,6 @@ defmodule SocialObjectsWeb.AdminLive.Users do
              socket
              |> assign(:users, users)
              |> assign(:selected_user, nil)
-             |> assign(:show_delete_confirmation, false)
-             |> assign(:delete_confirmation_email, "")
              |> put_flash(:info, "User #{user.email} deleted.")}
 
           {:error, _} ->
@@ -355,20 +322,13 @@ defmodule SocialObjectsWeb.AdminLive.Users do
       </div>
 
       <.user_detail_modal
-        :if={@selected_user && !@show_delete_confirmation && !@reset_password_result}
+        :if={@selected_user && !@reset_password_result}
         user={@selected_user}
         last_session_at={@selected_user_last_session}
         current_user_id={@current_user_id}
         show_add_brand_form={@show_add_brand_form}
         available_brands={@available_brands}
         on_cancel={JS.push("close_modal")}
-      />
-
-      <.delete_confirmation_modal
-        :if={@selected_user && @show_delete_confirmation}
-        user={@selected_user}
-        typed_email={@delete_confirmation_email}
-        on_cancel={JS.push("cancel_delete")}
       />
 
       <.password_reset_result_modal
