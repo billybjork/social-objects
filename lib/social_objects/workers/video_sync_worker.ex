@@ -20,7 +20,10 @@ defmodule SocialObjects.Workers.VideoSyncWorker do
   - API server error (5xx): Returns error for Oban retry
   """
 
-  use Oban.Worker, queue: :analytics, max_attempts: 3
+  use Oban.Worker,
+    queue: :analytics,
+    max_attempts: 3,
+    unique: [period: :infinity, states: [:available, :scheduled, :executing]]
 
   require Logger
 
@@ -64,6 +67,17 @@ defmodule SocialObjects.Workers.VideoSyncWorker do
 
       {:snooze, seconds} ->
         {:snooze, seconds}
+
+      {:error, :no_auth_record} ->
+        Logger.warning("Video sync skipped for brand #{brand_id}: no TikTok auth record")
+
+        Phoenix.PubSub.broadcast(
+          SocialObjects.PubSub,
+          "video:sync:#{brand_id}",
+          {:video_sync_failed, :no_auth_record}
+        )
+
+        {:discard, :no_auth_record}
 
       {:error, reason} ->
         Phoenix.PubSub.broadcast(
@@ -114,27 +128,83 @@ defmodule SocialObjects.Workers.VideoSyncWorker do
 
     opts = if page_token, do: Keyword.put(opts, :page_token, page_token), else: opts
 
-    case Analytics.get_shop_video_performance_list(brand_id, opts) do
-      {:ok, %{"data" => data}} ->
-        videos = Map.get(data, "videos", [])
-        next_token = Map.get(data, "next_page_token")
-        all_videos = acc ++ videos
+    Analytics.get_shop_video_performance_list(brand_id, opts)
+    |> handle_fetch_page_response(brand_id, start_date, end_date, acc)
+  end
 
-        if next_token && next_token != "" do
-          fetch_all_pages(brand_id, start_date, end_date, next_token, all_videos)
-        else
-          {:ok, all_videos}
-        end
+  defp handle_fetch_page_response(
+         {:ok, %{"data" => data}},
+         brand_id,
+         start_date,
+         end_date,
+         acc
+       )
+       when is_map(data) do
+    videos = Map.get(data, "videos", [])
+    next_token = Map.get(data, "next_page_token")
+    all_videos = acc ++ videos
 
-      {:ok, %{"code" => 429}} ->
-        {:error, :rate_limited}
-
-      {:ok, %{"code" => code}} when code >= 500 ->
-        {:error, {:server_error, code}}
-
-      {:error, reason} ->
-        {:error, reason}
+    if next_token && next_token != "" do
+      fetch_all_pages(brand_id, start_date, end_date, next_token, all_videos)
+    else
+      {:ok, all_videos}
     end
+  end
+
+  defp handle_fetch_page_response(
+         {:ok, %{"data" => nil}},
+         _brand_id,
+         _start_date,
+         _end_date,
+         acc
+       ) do
+    {:ok, acc}
+  end
+
+  defp handle_fetch_page_response(
+         {:ok, %{"data" => data}},
+         _brand_id,
+         _start_date,
+         _end_date,
+         acc
+       ) do
+    Logger.warning("Unexpected video analytics data payload: #{inspect(data, limit: 80)}")
+    {:ok, acc}
+  end
+
+  defp handle_fetch_page_response(
+         {:ok, %{"code" => 429}},
+         _brand_id,
+         _start_date,
+         _end_date,
+         _acc
+       ) do
+    {:error, :rate_limited}
+  end
+
+  defp handle_fetch_page_response(
+         {:ok, %{"code" => code}},
+         _brand_id,
+         _start_date,
+         _end_date,
+         _acc
+       )
+       when code >= 500 do
+    {:error, {:server_error, code}}
+  end
+
+  defp handle_fetch_page_response(
+         {:ok, response},
+         _brand_id,
+         _start_date,
+         _end_date,
+         _acc
+       ) do
+    {:error, {:unexpected_response, response}}
+  end
+
+  defp handle_fetch_page_response({:error, reason}, _brand_id, _start_date, _end_date, _acc) do
+    {:error, reason}
   end
 
   defp process_videos(brand_id, videos) do

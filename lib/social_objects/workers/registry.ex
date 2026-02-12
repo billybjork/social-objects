@@ -35,7 +35,8 @@ defmodule SocialObjects.Workers.Registry do
       queue: :tiktok,
       status_key: "tiktok_last_sync_at",
       triggerable: true,
-      brand_scoped: true
+      brand_scoped: true,
+      requires_tiktok_auth: true
     },
     %{
       key: :product_performance_sync,
@@ -47,7 +48,8 @@ defmodule SocialObjects.Workers.Registry do
       queue: :tiktok,
       status_key: "product_performance_last_sync_at",
       triggerable: true,
-      brand_scoped: true
+      brand_scoped: true,
+      requires_tiktok_auth: true
     },
 
     # Creators
@@ -73,7 +75,8 @@ defmodule SocialObjects.Workers.Registry do
       queue: :enrichment,
       status_key: "enrichment_last_sync_at",
       triggerable: true,
-      brand_scoped: true
+      brand_scoped: true,
+      requires_tiktok_auth: true
     },
     %{
       key: :video_sync,
@@ -85,7 +88,8 @@ defmodule SocialObjects.Workers.Registry do
       queue: :video_sync,
       status_key: "videos_last_import_at",
       triggerable: true,
-      brand_scoped: true
+      brand_scoped: true,
+      requires_tiktok_auth: true
     },
     %{
       key: :creator_import,
@@ -121,7 +125,8 @@ defmodule SocialObjects.Workers.Registry do
       queue: :tiktok,
       status_key: "creator_purchase_last_sync_at",
       triggerable: true,
-      brand_scoped: true
+      brand_scoped: true,
+      requires_tiktok_auth: true
     },
 
     # Streaming
@@ -135,7 +140,8 @@ defmodule SocialObjects.Workers.Registry do
       queue: :tiktok_live,
       status_key: "tiktok_live_last_scan_at",
       triggerable: true,
-      brand_scoped: true
+      brand_scoped: true,
+      requires_tiktok_auth: true
     },
     %{
       key: :tiktok_live_stream,
@@ -159,7 +165,8 @@ defmodule SocialObjects.Workers.Registry do
       queue: :tiktok,
       status_key: "stream_analytics_last_sync_at",
       triggerable: true,
-      brand_scoped: true
+      brand_scoped: true,
+      requires_tiktok_auth: true
     },
     %{
       key: :stream_report,
@@ -177,9 +184,9 @@ defmodule SocialObjects.Workers.Registry do
       key: :weekly_stream_recap,
       module: SocialObjects.Workers.WeeklyStreamRecapWorker,
       name: "Weekly Recap",
-      description: "Sends weekly stream recap to Slack",
+      description: "Sends weekly stream recap to Slack (previous week)",
       category: :streaming,
-      schedule: "Weekly (Mon 9 AM)",
+      schedule: "Mon 9 AM PST",
       queue: :default,
       status_key: "weekly_recap_last_sent_at",
       triggerable: true,
@@ -197,7 +204,8 @@ defmodule SocialObjects.Workers.Registry do
       queue: :default,
       status_key: nil,
       triggerable: true,
-      brand_scoped: true
+      brand_scoped: true,
+      requires_tiktok_auth: true
     },
     %{
       key: :talking_points,

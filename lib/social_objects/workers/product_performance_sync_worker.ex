@@ -16,7 +16,10 @@ defmodule SocialObjects.Workers.ProductPerformanceSyncWorker do
   - API server error (5xx): Returns error for Oban retry
   """
 
-  use Oban.Worker, queue: :analytics, max_attempts: 3
+  use Oban.Worker,
+    queue: :analytics,
+    max_attempts: 3,
+    unique: [period: :infinity, states: [:available, :scheduled, :executing]]
 
   require Logger
 
@@ -130,13 +133,35 @@ defmodule SocialObjects.Workers.ProductPerformanceSyncWorker do
          start_date,
          end_date,
          acc
-       ) do
+       )
+       when is_map(data) do
     products = Map.get(data, "shop_products", [])
     next_token = Map.get(data, "next_page_token")
     all_products = acc ++ products
 
     maybe_log_api_sample(acc, products)
     maybe_fetch_next_page(next_token, brand_id, start_date, end_date, all_products)
+  end
+
+  defp handle_fetch_page_response(
+         {:ok, %{"data" => nil}},
+         _brand_id,
+         _start_date,
+         _end_date,
+         acc
+       ) do
+    {:ok, acc}
+  end
+
+  defp handle_fetch_page_response(
+         {:ok, %{"data" => data}},
+         _brand_id,
+         _start_date,
+         _end_date,
+         acc
+       ) do
+    Logger.warning("Unexpected product performance data payload: #{inspect(data, limit: 80)}")
+    {:ok, acc}
   end
 
   defp handle_fetch_page_response(

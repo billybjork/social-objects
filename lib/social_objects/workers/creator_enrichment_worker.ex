@@ -270,9 +270,17 @@ defmodule SocialObjects.Workers.CreatorEnrichmentWorker do
     brand_id = context.brand_id
 
     case TiktokShop.make_api_request(brand_id, :post, "/order/202309/orders/search", params, %{}) do
-      {:ok, %{"data" => data}} ->
+      {:ok, %{"data" => data}} when is_map(data) ->
         Process.sleep(api_delay_ms())
         handle_orders_response(data, stats, context, max_pages)
+
+      {:ok, %{"data" => nil}} ->
+        Logger.warning("[SampleSync] Orders API returned nil data payload")
+        {:ok, %{stats | pages: stats.pages + 1}}
+
+      {:ok, %{"data" => data}} ->
+        Logger.warning("[SampleSync] Unexpected orders data payload: #{inspect(data, limit: 80)}")
+        {:ok, %{stats | pages: stats.pages + 1}}
 
       {:error, reason} ->
         if rate_limited_reason?(reason) do

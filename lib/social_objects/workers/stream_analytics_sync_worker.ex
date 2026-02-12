@@ -21,7 +21,10 @@ defmodule SocialObjects.Workers.StreamAnalyticsSyncWorker do
   - GMV discrepancy >20%: Logs warning only
   """
 
-  use Oban.Worker, queue: :analytics, max_attempts: 3
+  use Oban.Worker,
+    queue: :analytics,
+    max_attempts: 3,
+    unique: [period: :infinity, states: [:available, :scheduled, :executing]]
 
   require Logger
 
@@ -325,7 +328,7 @@ defmodule SocialObjects.Workers.StreamAnalyticsSyncWorker do
     opts = if page_token, do: Keyword.put(opts, :page_token, page_token), else: opts
 
     case Analytics.get_shop_live_performance_per_minutes(brand_id, opts) do
-      {:ok, %{"data" => data}} ->
+      {:ok, %{"data" => data}} when is_map(data) ->
         minutes = Map.get(data, "performance_per_minutes", [])
         next_token = Map.get(data, "next_page_token")
         all_minutes = acc ++ minutes
@@ -335,6 +338,18 @@ defmodule SocialObjects.Workers.StreamAnalyticsSyncWorker do
         else
           {:ok, all_minutes}
         end
+
+      {:ok, %{"data" => nil}} ->
+        # TikTok occasionally returns {"data": null} for this endpoint.
+        # Treat it as "no per-minute data" instead of crashing the sync.
+        {:ok, acc}
+
+      {:ok, %{"data" => data}} ->
+        Logger.debug(
+          "Unexpected per-minute payload for live #{live_id}: data=#{inspect(data, limit: 80)}"
+        )
+
+        {:ok, acc}
 
       {:ok, %{"code" => code, "message" => message}} ->
         {:error, {:api_error, code, message}}
@@ -363,10 +378,20 @@ defmodule SocialObjects.Workers.StreamAnalyticsSyncWorker do
            live_id: live_id,
            currency: "USD"
          ) do
-      {:ok, %{"data" => data}} ->
+      {:ok, %{"data" => data}} when is_map(data) ->
         products = Map.get(data, "products", [])
         parsed_products = Parsers.parse_product_performance(products)
         %{"products" => parsed_products}
+
+      {:ok, %{"data" => nil}} ->
+        nil
+
+      {:ok, %{"data" => data}} ->
+        Logger.debug(
+          "Unexpected product performance payload for live #{live_id}: data=#{inspect(data, limit: 80)}"
+        )
+
+        nil
 
       {:ok, %{"code" => code, "message" => message}} ->
         Logger.debug(

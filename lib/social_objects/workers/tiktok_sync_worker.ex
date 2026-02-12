@@ -72,6 +72,19 @@ defmodule SocialObjects.Workers.TiktokSyncWorker do
 
             :ok
 
+          {:error, :no_auth_record} ->
+            Logger.warning(
+              "TikTok Shop sync skipped for brand #{brand_id}: no TikTok auth record"
+            )
+
+            Phoenix.PubSub.broadcast(
+              SocialObjects.PubSub,
+              "tiktok:sync:#{brand_id}",
+              {:tiktok_sync_failed, :no_auth_record}
+            )
+
+            {:discard, :no_auth_record}
+
           {:error, :rate_limited} ->
             handle_rate_limit(brand_id)
 

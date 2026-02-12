@@ -94,17 +94,28 @@ defmodule SocialObjects.Workers.CreatorPurchaseSyncWorker do
     params = build_page_params(page_token)
 
     case TiktokShop.make_api_request(brand_id, :post, "/order/202309/orders/search", params, %{}) do
-      {:ok, %{"data" => data}} ->
+      {:ok, %{"data" => data}} when is_map(data) ->
         Process.sleep(@api_delay_ms)
         new_stats = handle_orders_response(brand_id, data, creator_lookup, existing_ids, stats)
 
         maybe_fetch_next_page(
           brand_id,
-          data["next_page_token"],
+          Map.get(data, "next_page_token"),
           creator_lookup,
           existing_ids,
           new_stats
         )
+
+      {:ok, %{"data" => nil}} ->
+        Logger.warning("[CreatorPurchaseSync] Orders API returned nil data payload")
+        {:ok, %{stats | pages: stats.pages + 1}}
+
+      {:ok, %{"data" => data}} ->
+        Logger.warning(
+          "[CreatorPurchaseSync] Unexpected data payload: #{inspect(data, limit: 80)}"
+        )
+
+        {:ok, %{stats | pages: stats.pages + 1}}
 
       {:ok, response} ->
         Logger.error("[CreatorPurchaseSync] Unexpected API response: #{inspect(response)}")
