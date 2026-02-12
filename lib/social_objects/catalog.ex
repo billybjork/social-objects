@@ -14,7 +14,8 @@ defmodule SocialObjects.Catalog do
   Returns the list of brands.
   """
   def list_brands do
-    Repo.all(Brand)
+    from(b in Brand, order_by: [asc: b.name])
+    |> Repo.all()
   end
 
   @doc """
