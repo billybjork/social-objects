@@ -24,8 +24,13 @@ body {
 img,
 picture,
 video,
-canvas,
-svg {
+canvas {
+  display: block;
+  max-width: 100%;
+}
+
+/* SVG uses :where() for zero specificity - allows icon libraries to override */
+:where(svg) {
   display: block;
   max-width: 100%;
 }
@@ -47,7 +52,8 @@ h6 {
   overflow-wrap: break-word;
 }
 
-button {
+/* Use :where() for zero specificity - allows any component CSS to override */
+:where(button) {
   cursor: pointer;
   background: none;
   border: none;

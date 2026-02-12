@@ -81,7 +81,7 @@
       <% else %>
         <div
           id="streams-list"
-          class="streams-scroll-container"
+          class="streams-scroll-container data-table-scroll-container"
           phx-viewport-bottom={@has_more && !@loading_streams && "load_more"}
         >
           <.streams_table

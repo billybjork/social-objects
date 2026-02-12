@@ -80,28 +80,12 @@
   transition: all 0.2s ease;
 }
 
-/* Scroll container - handles scrolling and visual frame */
 .creators-scroll-container {
-  @apply overflow-y-auto overflow-x-auto bg-surface-primary;
   height: calc(100vh - 220px);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border);
-}
-
-.creator-table {
-  @apply w-full text-sm;
-  border-collapse: collapse;
-  table-layout: fixed;
-}
-
-.creator-table th {
-  @apply py-0 px-4 text-left font-semibold text-text-secondary bg-surface-secondary whitespace-nowrap sticky top-0 z-10;
-  height: 44px;
-  border-bottom: 1px solid var(--color-border);
 }
 
 /* =============================================================================
-   UNIFIED MODE - 12 columns (using data-column-id for robustness)
+   UNIFIED MODE COLUMN WIDTHS
    ============================================================================= */
 
 .creator-table.mode-unified th[data-column-id="checkbox"] { width: 55px; }
@@ -121,68 +105,6 @@
 .creator-table.mode-unified th[data-column-id="status"],
 .creator-table.mode-unified td[data-column-id="status"] {
   @apply text-center;
-}
-
-/* Sortable headers - padding is on the button inside, not the th */
-.sortable-header,
-.creator-table .sortable-header {
-  @apply p-0;
-}
-
-.sortable-header__btn {
-  @apply flex items-center justify-start gap-1 w-full h-full px-4 bg-transparent border-none font-semibold text-text-secondary cursor-pointer text-left;
-  font: inherit;
-  transition: color 0.15s ease;
-}
-
-.sortable-header__btn:hover {
-  @apply text-text-primary;
-}
-
-.sortable-header__btn:hover .sortable-header__icon--inactive {
-  @apply opacity-50;
-}
-
-.sortable-header--active .sortable-header__btn {
-  @apply text-primary;
-}
-
-.sortable-header__icon {
-  @apply flex shrink-0;
-}
-
-.sortable-header__icon .sort-icon {
-  @apply w-3 h-3;
-}
-
-.sortable-header__icon--inactive {
-  @apply opacity-0;
-  transition: opacity 0.15s ease;
-}
-
-.sortable-header--active .sortable-header__icon {
-  @apply opacity-100;
-}
-
-.creator-table td {
-  @apply py-3 px-4 text-text-primary overflow-hidden text-ellipsis whitespace-nowrap;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.creator-table tbody tr:last-child td {
-  @apply border-b-0;
-}
-
-.creator-table tbody tr:hover {
-  @apply bg-bg-hover;
-}
-
-.creator-table .text-right {
-  @apply text-right;
-}
-
-.creator-table .text-secondary {
-  @apply text-text-secondary;
 }
 
 .creator-table .font-mono {
@@ -294,14 +216,8 @@
   }
 }
 
-/* Mobile: edge-to-edge table and header wrapping */
+/* Mobile: header wrapping (edge-to-edge inherited from .data-table-scroll-container) */
 @media (max-width: 768px) {
-  .creators-scroll-container {
-    @apply rounded-none border-l-0 border-r-0;
-    margin-left: calc(-1 * var(--space-4));
-    margin-right: calc(-1 * var(--space-4));
-  }
-
   .creators-index .page-header {
     @apply flex-wrap;
   }

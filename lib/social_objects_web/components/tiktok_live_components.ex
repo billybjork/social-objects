@@ -127,7 +127,12 @@ defmodule SocialObjectsWeb.TiktokLiveComponents do
   def streams_table(assigns) do
     ~H"""
     <div class="streams-table-wrapper">
-      <table id="streams-table" class="streams-table" phx-hook="ColumnResize" data-table-id="streams">
+      <table
+        id="streams-table"
+        class="data-table streams-table"
+        phx-hook="ColumnResize"
+        data-table-id="streams"
+      >
         <thead>
           <tr>
             <th data-column-id="thumbnail"></th>
@@ -1163,10 +1168,10 @@ defmodule SocialObjectsWeb.TiktokLiveComponents do
       <% else %>
         <div
           id="analytics-comments-list"
-          class="analytics-comments-scroll-container"
+          class="analytics-comments-scroll-container data-table-scroll-container"
           phx-viewport-bottom={@has_more && !@loading && "analytics_load_more"}
         >
-          <table class="analytics-comments-table">
+          <table class="data-table analytics-comments-table">
             <thead>
               <tr>
                 <th>Comment</th>

@@ -124,46 +124,10 @@
 
 /* ============================================================================
    STREAMS TABLE
+   ============================================================================
+   Base styles inherited from .data-table class.
+   Column widths and streams-specific overrides only.
    ============================================================================ */
-
-.streams-table-wrapper {
-  /* Scrolling moved to .streams-scroll-container for phx-viewport-bottom to work */
-}
-
-.streams-table {
-  @apply w-full text-sm;
-  border-collapse: collapse;
-  table-layout: fixed;
-  min-width: 840px;
-}
-
-.streams-table th {
-  @apply py-0 px-4 text-left font-semibold text-text-secondary bg-surface-secondary whitespace-nowrap sticky top-0 z-10;
-  height: 44px;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.sortable-header {
-  @apply p-0;
-}
-
-.streams-table td {
-  @apply py-3 px-4 text-text-primary overflow-hidden whitespace-nowrap;
-  border-bottom: 1px solid var(--color-border);
-  text-overflow: ellipsis;
-}
-
-.streams-table tbody tr:last-child td {
-  @apply border-b-0;
-}
-
-.streams-table tbody tr {
-  transition: background-color 0.15s ease;
-}
-
-.streams-table tbody tr:hover {
-  @apply bg-bg-hover;
-}
 
 /* Column widths (using data-column-id for robustness) */
 .streams-table th[data-column-id="thumbnail"] { width: 75px; }
@@ -176,14 +140,6 @@
 .streams-table th[data-column-id="gmv"] { width: 105px; }
 .streams-table th[data-column-id="comments"] { width: 130px; }
 .streams-table th[data-column-id="sentiment"] { width: 140px; }
-
-.streams-table .text-right {
-  @apply text-right;
-}
-
-.streams-table .text-secondary {
-  @apply text-text-secondary;
-}
 
 .streams-table td[data-column-id="title"] {
   @apply whitespace-normal;
@@ -249,9 +205,7 @@
 }
 
 .streams-scroll-container {
-  @apply min-h-[200px] overflow-y-auto rounded-md bg-surface-primary;
   height: calc(100vh - 260px);
-  border: 1px solid var(--color-border);
 }
 
 .streams-loading {
@@ -446,6 +400,13 @@
    ============================================================================ */
 
 @media (max-width: 768px) {
+  /* Mobile edge-to-edge for streams table */
+  .streams-scroll-container {
+    @apply rounded-none border-l-0 border-r-0;
+    margin-left: calc(-1 * var(--space-4));
+    margin-right: calc(-1 * var(--space-4));
+  }
+
   .stream-modal-header__top {
     @apply gap-3;
   }
@@ -1031,40 +992,18 @@
 }
 
 .analytics-comments-scroll-container {
-  @apply flex-1 min-h-[150px] overflow-y-auto rounded-md bg-surface-primary;
-  border: 1px solid var(--color-border);
+  @apply flex-1 min-h-[150px];
 }
 
 .analytics-comments-loading {
   @apply flex items-center justify-center gap-3 p-6 text-text-secondary;
 }
 
-.analytics-comments-table {
-  @apply w-full text-sm;
-  border-collapse: collapse;
-  table-layout: fixed;
-}
-
-.analytics-comments-table th {
-  @apply py-0 px-4 text-left font-semibold text-text-secondary bg-surface-secondary whitespace-nowrap sticky top-0 z-10;
-  height: 44px;
-  border-bottom: 1px solid var(--color-border);
-}
-
 .analytics-comments-table td {
-  @apply py-3 px-4 text-text-primary align-middle;
-  border-bottom: 1px solid var(--color-border);
+  @apply align-middle;
 }
 
-.analytics-comments-table tbody tr:last-child td {
-  @apply border-b-0;
-}
-
-.analytics-comments-table tbody tr:hover {
-  @apply bg-bg-hover;
-}
-
-/* Column widths */
+/* Analytics comments column widths */
 .analytics-comments-table th:nth-child(1),
 .analytics-comments-table td:nth-child(1) { width: 40%; }
 .analytics-comments-table th:nth-child(2),
