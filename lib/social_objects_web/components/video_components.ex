@@ -310,19 +310,21 @@ defmodule SocialObjectsWeb.VideoComponents do
         phx-mounted={show_video_player()}
       >
         <div class="video-hover-player__backdrop"></div>
-        <div
-          class="video-hover-player__container"
-          id="video-hover-player-container"
-          phx-hook="TikTokEmbed"
-          data-video-id={@video.tiktok_video_id}
-          data-video-url={video_url(@video)}
-        >
+        <div class="video-hover-player__wrapper">
           <button type="button" class="video-hover-player__close" aria-label="Close video">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </button>
-          <div id="tiktok-embed" phx-update="ignore"></div>
+          <div
+            class="video-hover-player__container"
+            id="video-hover-player-container"
+            phx-hook="TikTokEmbed"
+            data-video-id={@video.tiktok_video_id}
+            data-video-url={video_url(@video)}
+          >
+            <div id="tiktok-embed" phx-update="ignore"></div>
+          </div>
         </div>
       </div>
     <% end %>

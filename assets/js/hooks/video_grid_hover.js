@@ -64,8 +64,8 @@ const VideoGridHover = {
         return
       }
 
-      // Check if over the player - cancel any pending video switch
-      const player = e.target.closest("#video-hover-player-container")
+      // Check if over the player or close button - cancel any pending video switch
+      const player = e.target.closest(".video-hover-player__wrapper")
       if (player) {
         this.clearCloseTimeout()
         this.clearHoverTimeout()
@@ -133,9 +133,11 @@ const VideoGridHover = {
       const relatedTarget = e.relatedTarget
       const toCard = relatedTarget?.closest?.(".video-card")
       const toGrid = relatedTarget?.closest?.("#video-grid-container")
+      const toCloseBtn = relatedTarget?.closest?.(".video-hover-player__close")
+      const toWrapper = relatedTarget?.closest?.(".video-hover-player__wrapper")
 
-      // Only close if not moving to the grid or a card
-      if (!toCard && !toGrid) {
+      // Only close if not moving to the grid, a card, or the close button/wrapper
+      if (!toCard && !toGrid && !toCloseBtn && !toWrapper) {
         this.scheduleClose()
       }
     }
@@ -154,11 +156,11 @@ const VideoGridHover = {
   checkForPlayer() {
     const playerOverlay = document.getElementById("video-hover-player")
     if (playerOverlay && !playerOverlay._hoverListenersAttached) {
-      // Attach hover listeners to the container
-      const container = playerOverlay.querySelector("#video-hover-player-container")
-      if (container) {
-        container.addEventListener("mouseleave", this.handlePlayerLeave)
-        container.addEventListener("mouseover", () => {
+      // Attach hover listeners to the wrapper (includes close button and container)
+      const wrapper = playerOverlay.querySelector(".video-hover-player__wrapper")
+      if (wrapper) {
+        wrapper.addEventListener("mouseleave", this.handlePlayerLeave)
+        wrapper.addEventListener("mouseover", () => {
           // Cancel any pending video switch when user reaches the player
           this.clearCloseTimeout()
           this.clearHoverTimeout()
@@ -214,9 +216,9 @@ const VideoGridHover = {
     const playerOverlay = document.getElementById("video-hover-player")
     if (playerOverlay) {
       playerOverlay.removeEventListener("click", this.handlePlayerClick)
-      const container = playerOverlay.querySelector("#video-hover-player-container")
-      if (container) {
-        container.removeEventListener("mouseleave", this.handlePlayerLeave)
+      const wrapper = playerOverlay.querySelector(".video-hover-player__wrapper")
+      if (wrapper) {
+        wrapper.removeEventListener("mouseleave", this.handlePlayerLeave)
       }
     }
   }

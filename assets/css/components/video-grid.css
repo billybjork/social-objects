@@ -335,12 +335,9 @@
   }
 }
 
-/* Player container - 9:16 vertical video */
-.video-hover-player__container {
-  @apply relative overflow-hidden rounded-lg shadow-2xl;
-  background: var(--color-bg-tertiary);
-  aspect-ratio: 9 / 16;
-  height: min(70vh, 600px);
+/* Wrapper for positioning close button outside video */
+.video-hover-player__wrapper {
+  @apply relative;
   pointer-events: auto;
   z-index: 1;
   opacity: 1;
@@ -348,19 +345,30 @@
   transition: opacity var(--transition-fast), transform var(--transition-fast);
 }
 
-.video-hover-player--hidden .video-hover-player__container {
+.video-hover-player--hidden .video-hover-player__wrapper {
   opacity: 0;
   transform: scale(0.95);
 }
 
-/* Close button - always rendered but hidden on hover-capable devices */
+/* Player container - 9:16 vertical video */
+.video-hover-player__container {
+  @apply relative overflow-hidden rounded-lg shadow-2xl;
+  background: var(--color-bg-tertiary);
+  aspect-ratio: 9 / 16;
+  height: min(70vh, 600px);
+}
+
+/* Close button - positioned above top-right corner of video */
 .video-hover-player__close {
-  @apply absolute top-3 right-3 z-10;
+  @apply absolute z-10;
   @apply w-10 h-10 p-2;
   @apply flex items-center justify-center;
   @apply rounded-full;
   @apply text-white bg-black/50 border-none cursor-pointer;
   @apply opacity-0 pointer-events-none;
+  right: 0;
+  bottom: 100%;
+  margin-bottom: 0.5rem;
   transition: opacity var(--transition-fast), background-color var(--transition-fast);
 }
 
@@ -437,6 +445,7 @@
   }
 
   .video-hover-player__close {
-    @apply top-2 right-2 w-9 h-9;
+    @apply w-9 h-9;
+    margin-bottom: 0.375rem;
   }
 }

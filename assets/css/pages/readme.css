@@ -5,6 +5,10 @@
    Uses @apply for base styles while maintaining existing class API.
    ============================================================================ */
 
+body:has(.readme-page) .app-content {
+  @apply !pt-0;
+}
+
 .readme-page {
   @apply min-h-screen bg-bg-primary p-8 px-4;
 }
