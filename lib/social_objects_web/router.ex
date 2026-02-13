@@ -134,6 +134,7 @@ defmodule SocialObjectsWeb.Router do
         {SocialObjectsWeb.UserAuth, :require_authenticated},
         {SocialObjectsWeb.UserAuth, :require_password_changed},
         {SocialObjectsWeb.AdminAuth, :require_admin},
+        {SocialObjectsWeb.BrandAuth, :set_brand},
         {SocialObjectsWeb.NavHooks, :set_current_page}
       ] do
       live "/", AdminLive.Dashboard, :index

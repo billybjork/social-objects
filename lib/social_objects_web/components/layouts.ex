@@ -12,6 +12,13 @@ defmodule SocialObjectsWeb.Layouts do
   embed_templates "layouts/*"
 
   @doc """
+  Extracts the first brand from a list of user_brands.
+  Used as a fallback when current_brand is not set (e.g., on admin pages).
+  """
+  def get_first_brand([%{brand: brand} | _]), do: brand
+  def get_first_brand(_), do: nil
+
+  @doc """
   Shows the flash group with standard titles and content.
 
   ## Examples

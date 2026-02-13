@@ -1,8 +1,9 @@
 <% current_scope = assigns[:current_scope] %>
-<% current_brand = assigns[:current_brand] %>
+<% user_brands = assigns[:user_brands] || [] %>
+<% current_brand =
+  assigns[:current_brand] || SocialObjectsWeb.Layouts.get_first_brand(user_brands) %>
 <% current_page = assigns[:current_page] %>
 <% show_nav = current_scope && current_page && current_brand %>
-<% user_brands = assigns[:user_brands] || [] %>
 
 <main class="app-shell">
   <%= if show_nav do %>

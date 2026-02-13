@@ -24,11 +24,15 @@ defmodule SocialObjectsWeb.BrandAuth do
 
   @doc """
   Resolves the brand from params or host and assigns it to the socket.
+
+  For brand-scoped views, the brand is resolved from the URL path (brand_slug)
+  or custom domain. For non-brand-scoped views (like admin), the brand can be
+  passed via a "brand" query parameter to preserve context during navigation.
   """
   def on_mount(:set_brand, params, _session, socket) do
-    if brand_scoped_view?(socket.view) do
-      host = current_host(socket)
+    host = current_host(socket)
 
+    if brand_scoped_view?(socket.view) do
       brand =
         cond do
           is_binary(params["brand_slug"]) ->
@@ -61,6 +65,17 @@ defmodule SocialObjectsWeb.BrandAuth do
           {:halt, socket}
       end
     else
+      # For non-brand-scoped views, optionally resolve brand from query param
+      brand =
+        if is_binary(params["brand"]) do
+          Catalog.get_brand_by_slug(params["brand"])
+        end
+
+      socket =
+        socket
+        |> Phoenix.Component.assign(:current_brand, brand)
+        |> Phoenix.Component.assign(:current_host, host)
+
       {:cont, socket}
     end
   end

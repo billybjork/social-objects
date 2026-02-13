@@ -661,7 +661,7 @@ defmodule SocialObjectsWeb.CoreComponents do
         <% end %>
         <.link
           :if={@is_admin}
-          navigate={~p"/admin"}
+          navigate={admin_path(@current_brand)}
           class={["navbar__link", @current_page == :admin && "navbar__link--active"]}
           data-nav-link
         >
@@ -749,7 +749,7 @@ defmodule SocialObjectsWeb.CoreComponents do
             <% end %>
             <.link
               :if={@is_admin}
-              navigate={~p"/admin"}
+              navigate={admin_path(@current_brand)}
               class={[
                 "navbar__nav-dropdown-item",
                 @current_page == :admin && "navbar__nav-dropdown-item--active"
@@ -785,6 +785,9 @@ defmodule SocialObjectsWeb.CoreComponents do
   defp nav_path(page, brand, current_host) do
     BrandRoutes.brand_path(brand, nav_page_path(page), current_host)
   end
+
+  defp admin_path(%{slug: slug}) when is_binary(slug), do: "/admin?brand=#{slug}"
+  defp admin_path(_), do: "/admin"
 
   defp nav_page_path(:products), do: "/products"
   defp nav_page_path(:streams), do: "/streams"
