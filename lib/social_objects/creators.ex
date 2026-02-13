@@ -1031,6 +1031,7 @@ defmodule SocialObjects.Creators do
       where: v.brand_id == ^brand_id,
       where: is_nil(v.thumbnail_url),
       where: not is_nil(v.video_url),
+      order_by: [desc: v.gmv_cents],
       limit: ^limit
     )
     |> Repo.all()
