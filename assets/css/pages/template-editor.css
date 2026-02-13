@@ -7,8 +7,8 @@
    ============================================================================ */
 
 /* Page Layout */
-.app-content:has(.template-editor-page) {
-  padding-top: 0;
+body:has(.template-editor-page) .app-content {
+  @apply !pt-0;
 }
 
 .template-editor-page {

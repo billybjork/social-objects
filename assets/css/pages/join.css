@@ -163,6 +163,16 @@
   line-height: 1.6;
 }
 
+/* Templated join pages - remove wrapper padding for maximized viewport fit */
+body:has(.join-page--templated) .app-content {
+  @apply !pt-0;
+}
+
+.join-page--templated {
+  @apply p-0;
+  background: transparent;
+}
+
 /* Mobile responsiveness */
 @media (max-width: 560px) {
   .join-page {
