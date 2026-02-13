@@ -950,6 +950,7 @@ defmodule SocialObjects.Workers.CreatorEnrichmentWorker do
   end
 
   # Enrich using username search (original method)
+  # Falls back to nickname search if username not found (to detect handle changes)
   defp enrich_creator_by_username(brand_id, creator) do
     username = creator.tiktok_username
 
@@ -958,8 +959,8 @@ defmodule SocialObjects.Workers.CreatorEnrichmentWorker do
         # Find exact match by username
         case find_exact_match(creators, username) do
           nil ->
-            Logger.debug("No marketplace match for @#{username}")
-            {:error, :not_found}
+            # Username not found - try fallback by nickname to detect handle changes
+            enrich_creator_by_nickname_fallback(brand_id, creator)
 
           marketplace_creator ->
             update_creator_from_marketplace(brand_id, creator, marketplace_creator, nil)
@@ -974,6 +975,168 @@ defmodule SocialObjects.Workers.CreatorEnrichmentWorker do
 
         {:error, reason}
     end
+  end
+
+  # Fallback: search by nickname or name when username search fails
+  # This detects handle changes for creators without a tiktok_user_id
+  defp enrich_creator_by_nickname_fallback(brand_id, creator) do
+    # Try nickname first, then fall back to first+last name
+    search_term = get_fallback_search_term(creator)
+
+    if is_nil(search_term) do
+      Logger.debug(
+        "No marketplace match for @#{creator.tiktok_username} (no nickname/name for fallback)"
+      )
+
+      {:error, :not_found}
+    else
+      Logger.debug(
+        "[HandleChange] Username @#{creator.tiktok_username} not found, trying fallback search: #{search_term}"
+      )
+
+      case TiktokShop.search_marketplace_creators(brand_id, keyword: search_term) do
+        {:ok, %{creators: creators}} ->
+          process_name_match_result(creators, search_term, brand_id, creator)
+
+        {:error, _reason} ->
+          Logger.debug(
+            "No marketplace match for @#{creator.tiktok_username} (fallback search failed)"
+          )
+
+          {:error, :not_found}
+      end
+    end
+  end
+
+  # Get the best search term for fallback (nickname or full name)
+  defp get_fallback_search_term(creator) do
+    cond do
+      creator.tiktok_nickname && creator.tiktok_nickname != "" ->
+        creator.tiktok_nickname
+
+      creator.first_name && creator.last_name &&
+        creator.first_name != "" && creator.last_name != "" ->
+        "#{creator.first_name} #{creator.last_name}"
+
+      true ->
+        nil
+    end
+  end
+
+  # Process the result of a name match search
+  defp process_name_match_result(creators, search_term, brand_id, creator) do
+    case find_name_match(creators, search_term, creator) do
+      nil ->
+        Logger.debug(
+          "No marketplace match for @#{creator.tiktok_username} (fallback search failed)"
+        )
+
+        {:error, :not_found}
+
+      marketplace_creator ->
+        new_username = marketplace_creator["username"]
+
+        Logger.info(
+          "[HandleChange] Detected via name search: creator #{creator.id} @#{creator.tiktok_username} -> @#{new_username}"
+        )
+
+        handle_change = %{
+          old_username: creator.tiktok_username,
+          new_username: new_username
+        }
+
+        update_creator_from_marketplace(brand_id, creator, marketplace_creator, handle_change)
+    end
+  end
+
+  # Find a creator by matching nickname/name and validating with additional criteria
+  # Prefers candidates with similar username prefixes to detect handle changes like
+  # "annaschae.fitness" -> "annaschae.finds"
+  defp find_name_match(creators, search_term, stored_creator) do
+    normalized_search = String.downcase(search_term)
+    stored_username = String.downcase(stored_creator.tiktok_username || "")
+
+    valid_candidates =
+      Enum.filter(creators, &valid_name_match_candidate?(&1, normalized_search, stored_username, stored_creator))
+
+    select_best_candidate(valid_candidates, stored_username)
+  end
+
+  defp valid_name_match_candidate?(candidate, normalized_search, stored_username, stored_creator) do
+    c_nickname = candidate["nickname"] || ""
+    c_username = String.downcase(candidate["username"] || "")
+
+    name_matches = String.downcase(c_nickname) == normalized_search
+    username_different = c_username != stored_username
+    follower_valid = validate_follower_range(candidate["follower_count"], stored_creator.follower_count)
+
+    name_matches && username_different && follower_valid
+  end
+
+  defp select_best_candidate([], _stored_username), do: nil
+  defp select_best_candidate([single], _stored_username), do: single
+
+  defp select_best_candidate(candidates, stored_username) do
+    Enum.max_by(candidates, fn c ->
+      c_username = String.downcase(c["username"] || "")
+      score_username_similarity(stored_username, c_username)
+    end)
+  end
+
+  # Score username similarity based on shared prefix length
+  # Higher score = more similar (better match for handle change detection)
+  defp score_username_similarity(old_username, new_username) do
+    # Extract the base part before any dots/underscores
+    old_base = extract_username_base(old_username)
+    new_base = extract_username_base(new_username)
+    shared = shared_prefix_length(old_username, new_username)
+
+    cond do
+      # Same base prefix (e.g., "annaschae" matches "annaschae")
+      old_base != "" && old_base == new_base ->
+        100
+
+      # Significant shared prefix (at least 6 chars)
+      shared >= 6 ->
+        50 + shared
+
+      # Some shared prefix (at least 3 chars)
+      shared >= 3 ->
+        shared
+
+      # No significant similarity
+      true ->
+        0
+    end
+  end
+
+  # Extract base username before dots/underscores
+  # "annaschae.fitness" -> "annaschae"
+  defp extract_username_base(username) do
+    username
+    |> String.split(~r/[._]/, parts: 2)
+    |> List.first()
+    |> (fn s -> if String.length(s || "") >= 3, do: s, else: "" end).()
+  end
+
+  # Count shared prefix characters
+  defp shared_prefix_length(str1, str2) do
+    str1
+    |> String.graphemes()
+    |> Enum.zip(String.graphemes(str2))
+    |> Enum.take_while(fn {a, b} -> a == b end)
+    |> length()
+  end
+
+  # Validate follower counts are within reasonable range (50% tolerance)
+  defp validate_follower_range(nil, _stored), do: true
+  defp validate_follower_range(_api, nil), do: true
+
+  defp validate_follower_range(api_followers, stored_followers) do
+    min_ratio = 0.5
+    max_ratio = 2.0
+    ratio = api_followers / max(stored_followers, 1)
+    ratio >= min_ratio && ratio <= max_ratio
   end
 
   # Detect if the creator's TikTok handle has changed

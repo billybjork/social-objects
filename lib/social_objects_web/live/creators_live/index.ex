@@ -1040,35 +1040,19 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
   # INFINITE SCROLL IMPLEMENTATION
   # =============================================================================
   #
-  # Why this uses send(self(), ...) instead of loading directly:
+  # Uses CreatorsInfiniteScroll hook (assets/js/hooks/creators_infinite_scroll.js)
+  # which pushes "load_more" events when scrolling near the bottom.
   #
-  # The template uses: phx-viewport-bottom={@has_more && !@loading_creators && "load_more"}
-  #
-  # WRONG approach (causes infinite loop):
-  #   def handle_event("load_more", _params, socket) do
-  #     socket
-  #     |> assign(:loading_creators, true)   # Set loading
-  #     |> assign(:page, socket.assigns.page + 1)
-  #     |> load_creators()                   # This sets loading_creators back to false!
-  #     |> then(&{:noreply, &1})
-  #   end
-  #
-  # Problem: LiveView only sends ONE diff to the client - the FINAL state.
-  # The client never sees loading_creators=true, only the final loading_creators=false.
-  # So the phx-viewport-bottom binding remains active, fires again, infinite loop.
-  #
-  # CORRECT approach (two-phase update):
+  # Two-phase loading prevents race conditions:
   #   1. handle_event sets loading_creators=true and returns immediately
-  #   2. Client receives diff with loading_creators=true → binding disabled
+  #   2. Client receives diff with loading=true → hook skips further events
   #   3. handle_info loads data and sets loading_creators=false
-  #   4. Client receives new data → user scrolls to see it → no longer at bottom
+  #   4. Client receives new data → user scrolls → cycle repeats if needed
   #
   # =============================================================================
 
   @impl true
   def handle_event("load_more", _params, socket) do
-    # Phase 1: Disable the viewport binding immediately by setting loading=true
-    # The actual data loading happens in handle_info (Phase 2)
     send(self(), :load_more_creators)
     {:noreply, assign(socket, :loading_creators, true)}
   end
@@ -1276,7 +1260,7 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
     {:noreply, socket}
   end
 
-  # Infinite scroll Phase 2 - see comment block above handle_event("load_more", ...)
+  # Infinite scroll data loading (triggered by handle_event "load_more")
   @impl true
   def handle_info(:load_more_creators, socket) do
     socket =

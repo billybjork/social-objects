@@ -239,7 +239,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
-              tooltip="TikTok follower count · Creator Profiles sync"
+              tooltip="TikTok follower count"
               time_filtered={@time_filter_active}
             />
             <%!-- 7. Cumulative GMV --%>
@@ -259,7 +259,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
-              tooltip="Average video views · Creator Profiles sync"
+              tooltip="Average video views"
             />
             <%!-- 9. Samples --%>
             <.sort_header
@@ -268,7 +268,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
-              tooltip="Sample products sent · Shop Orders sync"
+              tooltip="Sample products sent"
             />
             <%!-- 10. Videos Posted --%>
             <.sort_header
@@ -277,7 +277,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
-              tooltip="Affiliate videos posted · Video Performance sync"
+              tooltip="Affiliate videos posted"
             />
             <%!-- 11. Commission --%>
             <.sort_header
@@ -286,7 +286,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
-              tooltip="Total commission earned · Video Performance sync"
+              tooltip="Total commission earned"
             />
             <%!-- 12. Last Sample --%>
             <.sort_header
@@ -295,7 +295,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
-              tooltip="Most recent sample received · Shop Orders sync"
+              tooltip="Most recent sample received"
             />
           </tr>
         </thead>

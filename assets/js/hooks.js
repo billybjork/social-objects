@@ -27,6 +27,7 @@ import ChannelBreakdownChart from "./hooks/channel_breakdown_chart"
 import HourlyPerformanceChart from "./hooks/hourly_performance_chart"
 import TikTokEmbed from "./hooks/tiktok_embed"
 import VideoGridHover from "./hooks/video_grid_hover"
+import CreatorsInfiniteScroll from "./hooks/creators_infinite_scroll"
 
 // Lazy-loaded VoiceControl hook wrapper
 // Only loads the full voice_control.js when hook actually mounts (feature flag enabled)
@@ -77,6 +78,7 @@ const Hooks = {
   HourlyPerformanceChart,
   TikTokEmbed,
   VideoGridHover,
+  CreatorsInfiniteScroll,
 }
 
 export default Hooks

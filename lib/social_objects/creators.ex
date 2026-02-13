@@ -114,6 +114,7 @@ defmodule SocialObjects.Creators do
     creators =
       query
       |> apply_unified_sort(sort_by, sort_dir, brand_id)
+      |> order_by([c], asc: c.id)
       |> limit(^per_page)
       |> offset(^((page - 1) * per_page))
       |> Repo.all()
@@ -402,7 +403,12 @@ defmodule SocialObjects.Creators do
       ilike(c.tiktok_username, ^pattern) or
         ilike(c.email, ^pattern) or
         ilike(c.first_name, ^pattern) or
-        ilike(c.last_name, ^pattern)
+        ilike(c.last_name, ^pattern) or
+        fragment(
+          "EXISTS (SELECT 1 FROM unnest(?) AS prev WHERE prev ILIKE ?)",
+          c.previous_tiktok_usernames,
+          ^pattern
+        )
     )
   end
 
