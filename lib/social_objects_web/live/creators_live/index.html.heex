@@ -146,7 +146,10 @@
           <div class="status-filter">
             <button
               type="button"
-              class={["status-filter__trigger", @outreach_status && "status-filter__trigger--active"]}
+              class={[
+                "status-filter__trigger",
+                @outreach_status && "status-filter__trigger--active"
+              ]}
             >
               <span>
                 <%= case @outreach_status do %>
@@ -191,7 +194,10 @@
               <div class="status-filter__list">
                 <button
                   type="button"
-                  class={["status-filter__item", is_nil(@outreach_status) && "status-filter__item--selected"]}
+                  class={[
+                    "status-filter__item",
+                    is_nil(@outreach_status) && "status-filter__item--selected"
+                  ]}
                   phx-click="change_outreach_status"
                   phx-value-status=""
                 >
@@ -199,7 +205,10 @@
                 </button>
                 <button
                   type="button"
-                  class={["status-filter__item", @outreach_status == "sampled" && "status-filter__item--selected"]}
+                  class={[
+                    "status-filter__item",
+                    @outreach_status == "sampled" && "status-filter__item--selected"
+                  ]}
                   phx-click="change_outreach_status"
                   phx-value-status="sampled"
                 >
@@ -207,7 +216,10 @@
                 </button>
                 <button
                   type="button"
-                  class={["status-filter__item", @outreach_status == "never_contacted" && "status-filter__item--selected"]}
+                  class={[
+                    "status-filter__item",
+                    @outreach_status == "never_contacted" && "status-filter__item--selected"
+                  ]}
                   phx-click="change_outreach_status"
                   phx-value-status="never_contacted"
                 >
@@ -215,7 +227,10 @@
                 </button>
                 <button
                   type="button"
-                  class={["status-filter__item", @outreach_status == "contacted" && "status-filter__item--selected"]}
+                  class={[
+                    "status-filter__item",
+                    @outreach_status == "contacted" && "status-filter__item--selected"
+                  ]}
                   phx-click="change_outreach_status"
                   phx-value-status="contacted"
                 >
@@ -223,7 +238,10 @@
                 </button>
                 <button
                   type="button"
-                  class={["status-filter__item", @outreach_status == "opted_out" && "status-filter__item--selected"]}
+                  class={[
+                    "status-filter__item",
+                    @outreach_status == "opted_out" && "status-filter__item--selected"
+                  ]}
                   phx-click="change_outreach_status"
                   phx-value-status="opted_out"
                 >

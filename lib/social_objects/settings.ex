@@ -297,7 +297,9 @@ defmodule SocialObjects.Settings do
   Returns nil if not configured.
   """
   def get_shopify_client_secret(nil), do: nil
-  def get_shopify_client_secret(brand_id), do: get_setting_value(brand_id, "shopify_client_secret")
+
+  def get_shopify_client_secret(brand_id),
+    do: get_setting_value(brand_id, "shopify_client_secret")
 
   @doc """
   Returns true when all required Shopify credentials are configured for the brand.
@@ -368,7 +370,9 @@ defmodule SocialObjects.Settings do
   Returns nil if not configured.
   """
   def get_bigquery_service_account_email(nil), do: nil
-  def get_bigquery_service_account_email(brand_id), do: get_setting_value(brand_id, "bigquery_service_account_email")
+
+  def get_bigquery_service_account_email(brand_id),
+    do: get_setting_value(brand_id, "bigquery_service_account_email")
 
   @doc """
   Returns BigQuery private key for a brand.

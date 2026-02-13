@@ -154,7 +154,10 @@ defmodule SocialObjectsWeb.CreatorTagComponents do
             </div>
             <button
               type="button"
-              class={["tag-picker__quick-create-btn", "tag-picker__quick-create-btn--#{@new_tag_color}"]}
+              class={[
+                "tag-picker__quick-create-btn",
+                "tag-picker__quick-create-btn--#{@new_tag_color}"
+              ]}
               phx-click="quick_create_tag"
               phx-value-creator-id={@creator_id}
               phx-value-name={@search_query}
