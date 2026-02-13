@@ -631,6 +631,12 @@
             creator{if MapSet.size(@selected_ids) - @sendable_selected_count != 1, do: "s"} skipped (no email or opted out)
           </p>
         <% end %>
+        <%= if @tiktok_forwarding_count > 0 do %>
+          <p class="text-sm text-text-secondary mt-2">
+            <span class="text-sky-600 dark:text-sky-400">{@tiktok_forwarding_count}</span>
+            will go to TikTok forwarding address{if @tiktok_forwarding_count != 1, do: "es"}
+          </p>
+        <% end %>
       </div>
 
       <%= unless @outreach_email_enabled do %>
@@ -655,7 +661,7 @@
             navigate={
               SocialObjectsWeb.BrandRoutes.brand_path(
                 @current_brand,
-                "/creators?tab=templates",
+                "/creators?pt=templates",
                 @current_host
               )
             }

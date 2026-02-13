@@ -84,6 +84,7 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
       |> assign(:select_all_matching, false)
       |> assign(:show_status_filter, false)
       |> assign(:sendable_selected_count, 0)
+      |> assign(:tiktok_forwarding_count, 0)
       |> assign(:outreach_stats, %{pending: 0, sent: 0, skipped: 0})
       |> assign(:sent_today, 0)
       |> assign(:outreach_email_override, Keyword.get(features, :outreach_email_override))
@@ -378,6 +379,7 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
       |> assign(:selected_ids, MapSet.new())
       |> assign(:select_all_matching, false)
       |> assign(:sendable_selected_count, 0)
+      |> assign(:tiktok_forwarding_count, 0)
 
     {:noreply, socket}
   end
@@ -1117,6 +1119,7 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
       |> assign(:selected_ids, MapSet.new())
       |> assign(:select_all_matching, false)
       |> assign(:sendable_selected_count, 0)
+      |> assign(:tiktok_forwarding_count, 0)
       |> put_flash(:info, "Queued #{count} emails for sending")
       |> push_patch(to: creators_path(socket, %{status: "contacted"}))
     end
@@ -1364,14 +1367,14 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
     template_type = params["tt"] || "email"
 
     # Preserve selection when only switching tabs (not changing filters/search/page)
-    {selected_ids, select_all_matching, sendable_count} =
+    {selected_ids, select_all_matching, sendable_count, tiktok_count} =
       if new_page_tab != old_page_tab do
         # Switching tabs - preserve selection
         {socket.assigns.selected_ids, socket.assigns.select_all_matching,
-         socket.assigns.sendable_selected_count}
+         socket.assigns.sendable_selected_count, socket.assigns.tiktok_forwarding_count}
       else
         # Normal navigation - clear selection
-        {MapSet.new(), false, 0}
+        {MapSet.new(), false, 0, 0}
       end
 
     socket
@@ -1384,6 +1387,7 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
     |> assign(:selected_ids, selected_ids)
     |> assign(:select_all_matching, select_all_matching)
     |> assign(:sendable_selected_count, sendable_count)
+    |> assign(:tiktok_forwarding_count, tiktok_count)
     |> assign(:filter_tag_ids, parse_tag_ids(params["tags"]))
     |> assign(:delta_period, delta_period)
     |> assign(:time_preset, derive_time_preset_from_delta(delta_period))
@@ -1617,28 +1621,32 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
 
   # Computes how many selected creators can be sent emails
   # A creator is sendable if they have an email and haven't opted out
+  # Also counts how many are TikTok forwarding addresses
   defp compute_sendable_selected_count(socket) do
     selected_ids = socket.assigns.selected_ids
     select_all_matching = socket.assigns.select_all_matching
     creators = socket.assigns.creators
 
-    count =
+    selected_creators =
       cond do
         select_all_matching ->
-          # When "select all matching" is active, count all loaded sendable creators
+          # When "select all matching" is active, use all loaded creators
           # Note: This is approximate since not all creators may be loaded
-          Enum.count(creators, &sendable?/1)
+          creators
 
         MapSet.size(selected_ids) == 0 ->
-          0
+          []
 
         true ->
-          creators
-          |> Enum.filter(&MapSet.member?(selected_ids, &1.id))
-          |> Enum.count(&sendable?/1)
+          Enum.filter(creators, &MapSet.member?(selected_ids, &1.id))
       end
 
-    assign(socket, :sendable_selected_count, count)
+    sendable_count = Enum.count(selected_creators, &sendable?/1)
+    tiktok_count = Enum.count(selected_creators, &tiktok_forwarding_email?/1)
+
+    socket
+    |> assign(:sendable_selected_count, sendable_count)
+    |> assign(:tiktok_forwarding_count, tiktok_count)
   end
 
   # Recompute sendable count if there's an active selection
@@ -1652,6 +1660,10 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
 
   defp sendable?(creator) do
     creator.email != nil and creator.email != "" and not creator.email_opted_out
+  end
+
+  defp tiktok_forwarding_email?(creator) do
+    sendable?(creator) and String.ends_with?(creator.email || "", "@scs.tiktokw.us")
   end
 
   # Returns true if there's an active selection (either explicit IDs or "select all matching")
