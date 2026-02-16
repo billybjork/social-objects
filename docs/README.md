@@ -1,13 +1,13 @@
-# Pavoi Documentation
+# Social Objects Documentation
 
-**Pavoi** is a live session orchestrator for TikTok streaming built with Phoenix LiveView, optimized for 3-4 hour live sessions.
+**Social Objects** is a live session orchestrator for TikTok streaming built with Phoenix LiveView, optimized for 3-4 hour live sessions.
 
 ## Quick Start
 
 ```bash
 # Clone and setup
-git clone <repository-url>
-cd pavoi
+git clone https://github.com/pavoi/social-objects.git
+cd social-objects
 mix deps.get
 mix ecto.setup
 
@@ -38,7 +38,7 @@ TikTok live streaming sessions (3-4 hours) need:
 - Easy remote control and editing
 
 ### The Solution
-Pavoi provides:
+Social Objects provides:
 - **Product Catalog Management** - CRUD interface for products, images, and talking points (manual entry + Shopify sync)
 - **Session Planning** - Build sessions with product selection, ordering, and per-session overrides
 - **Host View** - Large-format display optimized for streaming with keyboard navigation

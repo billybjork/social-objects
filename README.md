@@ -1,4 +1,4 @@
-# Pavoi
+# Social Objects
 
 Phoenix LiveView app for TikTok live streaming sessions. Real-time product catalog with keyboard-driven navigation and synchronized host/controller views.
 
@@ -32,15 +32,18 @@ See [VOICE_CONTROL_PLAN.md](VOICE_CONTROL_PLAN.md) for complete documentation.
 
 ## Production (Railway)
 
+Deployments are automated via GitHub Actions on push to `main`:
+- **Main app**: `.github/workflows/deploy-main.yml`
+- **TikTok Bridge**: `.github/workflows/deploy-tiktok-bridge.yml`
+
+### Manual Deployment
+
 ```bash
 railway login && railway link
-railway add  # Select Postgres
-railway variables set SECRET_KEY_BASE="$(mix phx.gen.secret)"
-railway variables set PHX_SERVER="true"
-railway variables set PHX_HOST="your-app.up.railway.app"
-railway variables set SITE_PASSWORD="your-password"
-railway variables set MIX_ENV="prod"
-railway up
+railway up --service pavoi        # Main app
+railway up --service tiktok-bridge  # TikTok Bridge (from services/tiktok-bridge/)
 ```
+
+### Environment Variables
 
 Set `SITE_PASSWORD` to enable password protection.

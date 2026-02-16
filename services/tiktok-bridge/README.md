@@ -6,7 +6,7 @@ A Node.js service that connects to TikTok Live streams and forwards events to th
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  Elixir App (Pavoi)                                         │
+│  Elixir App (Social Objects)                                │
 │    └─ BridgeClient (WebSocket client)                       │
 │         │                                                    │
 │         │ WebSocket (ws://tiktok-bridge:8080/events)        │
