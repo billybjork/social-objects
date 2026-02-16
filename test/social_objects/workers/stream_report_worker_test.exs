@@ -137,6 +137,58 @@ defmodule SocialObjects.Workers.StreamReportWorkerTest do
     end
   end
 
+  describe "report guards - short stream stabilization" do
+    test "snoozes short streams to wait for possible continuation" do
+      brand = brand_fixture()
+
+      now = DateTime.utc_now() |> DateTime.truncate(:second)
+      two_minutes_ago = DateTime.add(now, -2 * 60, :second)
+
+      stream =
+        stream_fixture(
+          brand: brand,
+          started_at: two_minutes_ago,
+          ended_at: now,
+          status: :ended,
+          total_comments: 25
+        )
+
+      job = create_test_job(brand.id, stream.id)
+
+      assert {:snooze, seconds} = StreamReportWorker.perform(job)
+      assert seconds > 0
+    end
+
+    test "cancels short stream report when a continuation stream exists" do
+      brand = brand_fixture()
+
+      now = DateTime.utc_now() |> DateTime.truncate(:second)
+      source_started_at = DateTime.add(now, -35 * 60, :second)
+      source_ended_at = DateTime.add(now, -30 * 60, :second)
+
+      source_stream =
+        stream_fixture(
+          brand: brand,
+          started_at: source_started_at,
+          ended_at: source_ended_at,
+          status: :ended,
+          total_comments: 30
+        )
+
+      _continuation_stream =
+        stream_fixture(
+          brand: brand,
+          unique_id: source_stream.unique_id,
+          started_at: DateTime.add(source_ended_at, 6 * 60, :second),
+          status: :capturing
+        )
+
+      job = create_test_job(brand.id, source_stream.id)
+
+      assert {:cancel, :superseded_by_continuation_stream} = StreamReportWorker.perform(job)
+    end
+  end
+
   describe "stream state changes during processing" do
     test "handles stream being recovered (status changed to capturing)" do
       brand = brand_fixture()

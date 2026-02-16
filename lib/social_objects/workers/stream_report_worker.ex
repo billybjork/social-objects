@@ -13,10 +13,15 @@ defmodule SocialObjects.Workers.StreamReportWorker do
   - `stream_id` - ID of the completed stream
   """
 
+  import Ecto.Query, only: [from: 2]
+
   # Compile-time check for unique opts only (safe since uniqueness is an Oban compile-time concern)
   @unique_opts if Mix.env() == :dev, do: false, else: [period: 300, keys: [:stream_id]]
   @live_check_retry_seconds 120
   @live_check_grace_seconds 120
+  @short_stream_max_duration_seconds 10 * 60
+  @short_stream_stabilization_seconds 20 * 60
+  @continuation_gap_seconds 30 * 60
 
   use Oban.Worker,
     queue: :slack,
@@ -26,8 +31,10 @@ defmodule SocialObjects.Workers.StreamReportWorker do
   require Logger
 
   alias SocialObjects.AI.CommentClassifier
+  alias SocialObjects.Repo
   alias SocialObjects.StreamReport
   alias SocialObjects.TiktokLive
+  alias SocialObjects.TiktokLive.Stream
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"stream_id" => stream_id, "brand_id" => brand_id}}) do
@@ -82,7 +89,14 @@ defmodule SocialObjects.Workers.StreamReportWorker do
         {:cancel, :false_start}
 
       true ->
-        verify_stream_ended(stream)
+        apply_stability_guards(stream)
+    end
+  end
+
+  defp apply_stability_guards(stream) do
+    with :ok <- short_stream_stability_guard(stream),
+         :ok <- continuation_stream_guard(stream) do
+      verify_stream_ended(stream)
     end
   end
 
@@ -100,6 +114,70 @@ defmodule SocialObjects.Workers.StreamReportWorker do
   end
 
   defp stream_duration_seconds(_), do: 0
+
+  defp short_stream_stability_guard(%{ended_at: %DateTime{} = ended_at} = stream) do
+    if short_stream?(stream) do
+      elapsed_seconds = DateTime.diff(DateTime.utc_now(), ended_at, :second)
+
+      if elapsed_seconds < @short_stream_stabilization_seconds do
+        delay = @short_stream_stabilization_seconds - elapsed_seconds
+
+        Logger.info(
+          "Stream #{stream.id} is short (#{stream_duration_seconds(stream)}s), " <>
+            "holding report for stabilization (#{delay}s remaining)"
+        )
+
+        {:snooze, delay}
+      else
+        :ok
+      end
+    else
+      :ok
+    end
+  end
+
+  defp short_stream_stability_guard(_stream), do: :ok
+
+  defp continuation_stream_guard(%{ended_at: %DateTime{}} = stream) do
+    if short_stream?(stream) do
+      case find_continuation_stream(stream) do
+        nil ->
+          :ok
+
+        continuation ->
+          Logger.warning(
+            "Skipping report for stream #{stream.id} - continuation stream #{continuation.id} " <>
+              "started at #{continuation.started_at}"
+          )
+
+          {:cancel, :superseded_by_continuation_stream}
+      end
+    else
+      :ok
+    end
+  end
+
+  defp continuation_stream_guard(_stream), do: :ok
+
+  defp find_continuation_stream(stream) do
+    continuation_window_end = DateTime.add(stream.ended_at, @continuation_gap_seconds, :second)
+
+    from(s in Stream,
+      where: s.brand_id == ^stream.brand_id,
+      where: s.unique_id == ^stream.unique_id,
+      where: s.id != ^stream.id,
+      where: s.status in [:capturing, :ended],
+      where: s.started_at >= ^stream.ended_at,
+      where: s.started_at <= ^continuation_window_end,
+      order_by: [asc: s.started_at],
+      limit: 1
+    )
+    |> Repo.one()
+  end
+
+  defp short_stream?(stream) do
+    stream_duration_seconds(stream) <= @short_stream_max_duration_seconds
+  end
 
   defp verify_stream_ended(stream) do
     if live_check_enabled?() do
@@ -177,13 +255,31 @@ defmodule SocialObjects.Workers.StreamReportWorker do
     else
       case TiktokLive.mark_report_sent(brand_id, stream_id) do
         {:ok, :marked} ->
-          do_generate_and_send_report(brand_id, stream_id)
+          do_generate_and_send_report_with_claim(brand_id, stream_id)
 
         {:error, :already_sent} ->
           Logger.info("Report for stream #{stream_id} claimed by another job")
           {:cancel, :report_already_sent}
       end
     end
+  end
+
+  defp do_generate_and_send_report_with_claim(brand_id, stream_id) do
+    do_generate_and_send_report(brand_id, stream_id)
+  rescue
+    exception ->
+      Logger.error(
+        "Stream #{stream_id} report crashed after claim: #{Exception.message(exception)}"
+      )
+
+      clear_report_sent(brand_id, stream_id)
+      reraise(exception, __STACKTRACE__)
+  catch
+    kind, reason ->
+      Logger.error("Stream #{stream_id} report crashed after claim: #{inspect({kind, reason})}")
+
+      clear_report_sent(brand_id, stream_id)
+      :erlang.raise(kind, reason, __STACKTRACE__)
   end
 
   defp do_generate_and_send_report(brand_id, stream_id) do
@@ -259,10 +355,6 @@ defmodule SocialObjects.Workers.StreamReportWorker do
   defp validate_sentiment_if_needed(_report_data), do: :ok
 
   defp clear_report_sent(brand_id, stream_id) do
-    import Ecto.Query
-    alias SocialObjects.Repo
-    alias SocialObjects.TiktokLive.Stream
-
     from(s in Stream, where: s.brand_id == ^brand_id and s.id == ^stream_id)
     |> Repo.update_all(set: [report_sent_at: nil])
   end

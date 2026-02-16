@@ -214,5 +214,42 @@ defmodule SocialObjects.TiktokLive.StreamReportTest do
                  String.contains?(get_in(block, [:text, :text]), "duration")
              end)
     end
+
+    test "formats products section when stream brand association is not preloaded" do
+      brand = brand_fixture()
+      stream = stream_fixture(brand: brand, status: :ended)
+
+      report_data = %{
+        stream: stream,
+        stats: %{
+          duration: 600,
+          duration_formatted: "10m",
+          peak_viewers: 120,
+          total_likes: 240,
+          total_gifts_value: 10,
+          total_comments: 42,
+          total_follows: 5,
+          total_shares: 3
+        },
+        unique_commenters: 21,
+        top_products: [
+          %{product_name: "Gold Hoop Earrings", product_id: 123, comment_count: 12}
+        ],
+        top_selling_products: nil,
+        flash_sales: [],
+        sentiment_analysis: nil,
+        gmv_data: nil,
+        sentiment_breakdown: nil,
+        category_breakdown: []
+      }
+
+      assert {:ok, blocks} = StreamReport.format_slack_blocks(report_data)
+
+      assert Enum.any?(blocks, fn block ->
+               block[:type] == "section" &&
+                 is_binary(get_in(block, [:text, :text])) &&
+                 String.contains?(get_in(block, [:text, :text]), "Top Products in Comments")
+             end)
+    end
   end
 end

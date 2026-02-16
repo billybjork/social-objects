@@ -542,7 +542,12 @@ defmodule SocialObjects.StreamReport do
   defp format_money(_), do: "$0"
 
   defp products_block(stream, products) do
-    brand = stream.brand || Catalog.get_brand!(stream.brand_id)
+    brand =
+      if Ecto.assoc_loaded?(stream.brand) do
+        stream.brand
+      else
+        Catalog.get_brand!(stream.brand_id)
+      end
 
     lines =
       products
