@@ -18,7 +18,7 @@
     <link rel="preconnect" href="https://lf16-tiktok-web.ttwstatic.com" crossorigin />
     <link rel="dns-prefetch" href="https://www.tiktok.com" />
     <%!-- FOUC Prevention: Apply theme class before styles load --%>
-    <script>
+    <script nonce={@csp_nonce}>
       (function() {
         const getTheme = () => {
           const saved = localStorage.getItem('theme');
@@ -34,7 +34,7 @@
       })();
     </script>
     <%!-- Column Width Restoration: Apply saved widths before table renders to prevent FOUC --%>
-    <script>
+    <script nonce={@csp_nonce}>
       (function() {
         const PREFIX = 'table-columns-';
         const tables = ['creators-unified', 'creators-crm', 'creators-outreach', 'streams'];

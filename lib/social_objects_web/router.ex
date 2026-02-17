@@ -2,43 +2,7 @@ defmodule SocialObjectsWeb.Router do
   use SocialObjectsWeb, :router
 
   import SocialObjectsWeb.UserAuth
-
-  # Strict CSP for most routes - no unsafe-inline/unsafe-eval for scripts
-  # This provides protection against XSS attacks for the majority of the application.
-  # Note: 'unsafe-inline' is allowed for styles to support email template previews,
-  # which use inline styles (standard for email HTML) in sandboxed iframe srcdoc.
-  @strict_csp %{
-    "content-security-policy" =>
-      "default-src 'self'; " <>
-        "script-src 'self' blob: data:; " <>
-        "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; " <>
-        "style-src-elem 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; " <>
-        "img-src 'self' data: blob: https:; " <>
-        "font-src 'self' data: https://cdnjs.cloudflare.com; " <>
-        "frame-src 'self' blob: data: https://www.tiktok.com; " <>
-        "child-src 'self' blob: data:; " <>
-        "connect-src 'self' ws: wss: https://storage.railway.app; " <>
-        "frame-ancestors 'self'; " <>
-        "base-uri 'self';"
-  }
-
-  # Permissive CSP ONLY for GrapesJS template editor
-  # The editor requires 'unsafe-inline' and 'unsafe-eval' for its canvas iframe
-  # This is isolated to template editor routes only
-  @editor_csp %{
-    "content-security-policy" =>
-      "default-src 'self'; " <>
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data:; " <>
-        "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; " <>
-        "style-src-elem 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; " <>
-        "img-src 'self' data: blob: https:; " <>
-        "font-src 'self' data: https://cdnjs.cloudflare.com; " <>
-        "frame-src 'self' blob: data: https://www.tiktok.com; " <>
-        "child-src 'self' blob: data:; " <>
-        "connect-src 'self' ws: wss: https://storage.railway.app; " <>
-        "frame-ancestors 'self'; " <>
-        "base-uri 'self';"
-  }
+  alias SocialObjectsWeb.Plugs.CSPNonce
 
   pipeline :browser do
     plug :accepts, ["html"]
@@ -46,18 +10,21 @@ defmodule SocialObjectsWeb.Router do
     plug :fetch_live_flash
     plug :put_root_layout, html: {SocialObjectsWeb.Layouts, :root}
     plug :protect_from_forgery
-    plug :put_secure_browser_headers, @strict_csp
+    plug :put_secure_browser_headers
+    plug CSPNonce, csp_config: :strict
     plug :fetch_current_scope_for_user
   end
 
   # Separate pipeline for template editor with permissive CSP
+  # The editor requires 'unsafe-inline' and 'unsafe-eval' for its canvas iframe
   pipeline :browser_editor do
     plug :accepts, ["html"]
     plug :fetch_session
     plug :fetch_live_flash
     plug :put_root_layout, html: {SocialObjectsWeb.Layouts, :root}
     plug :protect_from_forgery
-    plug :put_secure_browser_headers, @editor_csp
+    plug :put_secure_browser_headers
+    plug CSPNonce, csp_config: :editor
     plug :fetch_current_scope_for_user
   end
 
