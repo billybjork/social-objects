@@ -167,6 +167,26 @@ defmodule SocialObjectsWeb.ViewHelpers do
   end
 
   @doc """
+  Formats an optional metric value, returning "-" for nil/unknown.
+  Use for metrics where nil means "no data" vs 0 meaning "actual zero".
+
+  ## Examples
+
+      iex> format_metric(nil)
+      "-"
+
+      iex> format_metric(0)
+      "0"
+
+      iex> format_metric(1234)
+      "1,234"
+  """
+  def format_metric(nil), do: "-"
+  def format_metric(0), do: "0"
+  def format_metric(value) when is_integer(value), do: format_number(value)
+  def format_metric(_), do: "-"
+
+  @doc """
   Formats GMV (in cents) with compact display for larger values.
 
   ## Examples
@@ -193,6 +213,24 @@ defmodule SocialObjectsWeb.ViewHelpers do
       "$#{trunc(dollars)}"
     end
   end
+
+  @doc """
+  Formats GMV value, returning "-" for nil (unknown data).
+  Unlike format_gmv which shows "$0" for nil, this distinguishes unknown from zero.
+
+  ## Examples
+
+      iex> format_gmv_or_dash(nil)
+      "-"
+
+      iex> format_gmv_or_dash(0)
+      "$0"
+
+      iex> format_gmv_or_dash(12345)
+      "$123"
+  """
+  def format_gmv_or_dash(nil), do: "-"
+  def format_gmv_or_dash(cents), do: format_gmv(cents)
 
   @doc """
   Converts cents (integer) to dollars (float).

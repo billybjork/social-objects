@@ -129,6 +129,15 @@
   color: var(--color-text-secondary);
 }
 
+.video-card__username--link {
+  @apply no-underline transition-colors duration-150;
+}
+
+.video-card__username--link:hover {
+  color: var(--color-text-primary);
+  text-decoration: underline;
+}
+
 /* Title */
 .video-card__title {
   @apply text-sm font-medium m-0 line-clamp-2;

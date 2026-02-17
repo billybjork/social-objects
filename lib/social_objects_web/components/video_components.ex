@@ -5,6 +5,7 @@ defmodule SocialObjectsWeb.VideoComponents do
   use Phoenix.Component
 
   alias Phoenix.LiveView.JS
+  alias SocialObjectsWeb.BrandRoutes
 
   import SocialObjectsWeb.CoreComponents
   import SocialObjectsWeb.ViewHelpers
@@ -15,6 +16,8 @@ defmodule SocialObjectsWeb.VideoComponents do
   Displays thumbnail with play overlay, duration badge, creator info, title, and metrics.
   """
   attr :video, :any, required: true
+  attr :current_brand, :any, required: true
+  attr :current_host, :string, required: true
 
   def video_card(assigns) do
     ~H"""
@@ -38,7 +41,14 @@ defmodule SocialObjectsWeb.VideoComponents do
       <div class="video-card__content">
         <div class="video-card__creator">
           <.creator_avatar_mini creator={@video.creator} />
-          <span class="video-card__username">@{@video.creator.tiktok_username}</span>
+          <a
+            href={creator_modal_url(@current_brand, @current_host, @video.creator.id)}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="video-card__username video-card__username--link"
+          >
+            @{@video.creator.tiktok_username}
+          </a>
         </div>
 
         <h3 class="video-card__title" title={@video.title}>
@@ -51,7 +61,7 @@ defmodule SocialObjectsWeb.VideoComponents do
             <span class="video-card__metric-label">GMV</span>
           </div>
           <div class="video-card__metric">
-            <span class="video-card__metric-value">{format_gpm(@video.gpm_cents)}</span>
+            <span class="video-card__metric-value">{format_gmv_or_dash(@video.gpm_cents)}</span>
             <span class="video-card__metric-label">GPM</span>
           </div>
           <div class="video-card__metric">
@@ -177,6 +187,8 @@ defmodule SocialObjectsWeb.VideoComponents do
   attr :has_more, :boolean, default: false
   attr :loading, :boolean, default: false
   attr :is_empty, :boolean, default: false
+  attr :current_brand, :any, required: true
+  attr :current_host, :string, required: true
 
   def video_grid(assigns) do
     ~H"""
@@ -205,7 +217,7 @@ defmodule SocialObjectsWeb.VideoComponents do
           phx-viewport-bottom={@has_more && !@loading && "load_more"}
         >
           <%= for video <- @videos do %>
-            <.video_card video={video} />
+            <.video_card video={video} current_brand={@current_brand} current_host={@current_host} />
           <% end %>
         </div>
 
@@ -345,19 +357,7 @@ defmodule SocialObjectsWeb.VideoComponents do
     "#{minutes}:#{String.pad_leading(Integer.to_string(secs), 2, "0")}"
   end
 
-  defp format_gpm(nil), do: "$0"
-
-  defp format_gpm(cents) when is_integer(cents) do
-    dollars = cents / 100
-
-    if dollars >= 1000 do
-      "$#{Float.round(dollars / 1000, 1)}k"
-    else
-      "$#{trunc(dollars)}"
-    end
-  end
-
-  defp format_views(nil), do: "0"
+  defp format_views(nil), do: "-"
   defp format_views(0), do: "0"
 
   defp format_views(num) when num >= 1_000_000 do
@@ -414,5 +414,9 @@ defmodule SocialObjectsWeb.VideoComponents do
       username = video.creator && video.creator.tiktok_username
       "https://www.tiktok.com/@#{username || "unknown"}/video/#{video.tiktok_video_id}"
     end
+  end
+
+  defp creator_modal_url(brand, host, creator_id) do
+    BrandRoutes.brand_path(brand, "/creators?c=#{creator_id}", host)
   end
 end
