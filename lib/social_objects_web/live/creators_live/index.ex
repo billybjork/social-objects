@@ -1519,7 +1519,6 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
     sample_counts_map = Creators.batch_count_samples(brand_id, creator_ids)
     last_sample_at_map = Creators.batch_get_last_sample_at(brand_id, creator_ids)
     tags_map = Creators.batch_list_tags_for_creators(creator_ids, brand_id)
-    video_counts_map = Creators.batch_count_videos(brand_id, creator_ids)
     commission_map = Creators.batch_sum_commission(brand_id, creator_ids)
     brand_gmv_map = BrandGmv.batch_load_brand_gmv(brand_id, creator_ids)
 
@@ -1555,7 +1554,7 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
         |> Map.put(:last_sample_at, Map.get(last_sample_at_map, creator.id))
         |> Map.put(:creator_tags, Map.get(tags_map, creator.id, []))
         |> Map.put(:email_outreach_log, Map.get(outreach_logs_map, creator.id))
-        |> Map.put(:video_count, Map.get(video_counts_map, creator.id, 0))
+        |> Map.put(:video_count, Map.get(brand_gmv, :video_count, 0))
         |> Map.put(:total_commission_cents, Map.get(commission_map, creator.id, 0))
         |> Map.put(:snapshot_delta, snapshot_delta)
         |> Map.put(:brand_gmv_cents, Map.get(brand_gmv, :brand_gmv_cents, 0))

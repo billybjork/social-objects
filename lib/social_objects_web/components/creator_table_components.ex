@@ -795,6 +795,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
   """
   attr :videos, :list, required: true
   attr :username, :string, required: true
+  attr :video_count, :integer, default: 0
 
   def videos_table(assigns) do
     ~H"""
@@ -811,10 +812,17 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
         >
           <path d="m22 8-6 4 6 4V8Z" /><rect x="2" y="6" width="14" height="12" rx="2" />
         </svg>
-        <p class="empty-state__title">No videos found</p>
-        <p class="empty-state__description">
-          Video data syncs from TikTok Shop affiliate analytics
-        </p>
+        <%= if @video_count > 0 do %>
+          <p class="empty-state__title">{@video_count} videos tracked</p>
+          <p class="empty-state__description">
+            Video details sync daily from TikTok Shop
+          </p>
+        <% else %>
+          <p class="empty-state__title">No videos found</p>
+          <p class="empty-state__description">
+            Video data syncs from TikTok Shop affiliate analytics
+          </p>
+        <% end %>
       </div>
     <% else %>
       <table class="creator-table">
@@ -1069,7 +1077,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
             </div>
             <div class="creator-modal-stat creator-modal-stat--primary">
               <span class="creator-modal-stat__label">
-                Cumulative GMV
+                Brand GMV (Total)
                 <%= if @creator.gmv_tracking_started_at do %>
                   <span class="creator-modal-stat__since">
                     since {format_tracking_date(@creator.gmv_tracking_started_at)}
@@ -1081,7 +1089,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               </span>
             </div>
             <div class="creator-modal-stat">
-              <span class="creator-modal-stat__label">30-Day GMV</span>
+              <span class="creator-modal-stat__label">Brand GMV (30d)</span>
               <span class="creator-modal-stat__value">{format_gmv(@creator.total_gmv_cents)}</span>
             </div>
             <div class="creator-modal-stat">
@@ -1155,7 +1163,11 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               <% "purchases" -> %>
                 <.purchases_table purchases={@purchases || []} />
               <% "videos" -> %>
-                <.videos_table videos={@videos || []} username={@creator.tiktok_username} />
+                <.videos_table
+                  videos={@videos || []}
+                  username={@creator.tiktok_username}
+                  video_count={@creator.video_count || 0}
+                />
               <% "performance" -> %>
                 <.performance_table snapshots={@performance || []} />
             <% end %>

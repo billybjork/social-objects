@@ -540,11 +540,23 @@ defmodule SocialObjects.Creators do
 
   @spec get_creator_for_modal!(pos_integer(), pos_integer()) :: Creator.t() | no_return()
   def get_creator_for_modal!(brand_id, id) do
-    Creator
-    |> join(:inner, [c], bc in BrandCreator, on: bc.creator_id == c.id)
-    |> where([c, bc], c.id == ^id and bc.brand_id == ^brand_id)
-    |> preload([:brands, :creator_tags])
-    |> Repo.one!()
+    query =
+      from c in Creator,
+        join: bc in BrandCreator,
+        on: bc.creator_id == c.id,
+        where: c.id == ^id and bc.brand_id == ^brand_id,
+        select: {c, bc}
+
+    {creator, brand_creator} = Repo.one!(query)
+
+    creator
+    |> Repo.preload([:brands, :creator_tags])
+    # Override creator metrics with brand-specific values
+    |> Map.put(:cumulative_gmv_cents, brand_creator.cumulative_brand_gmv_cents)
+    |> Map.put(:total_gmv_cents, brand_creator.brand_gmv_cents)
+    |> Map.put(:gmv_tracking_started_at, brand_creator.brand_gmv_tracking_started_at)
+    |> Map.put(:video_count, brand_creator.video_count)
+    |> Map.put(:live_count, brand_creator.live_count)
   end
 
   @spec get_samples_for_modal(pos_integer()) :: [CreatorSample.t()]
@@ -1005,36 +1017,6 @@ defmodule SocialObjects.Creators do
   def count_videos_for_brand(brand_id) do
     from(cv in CreatorVideo, where: cv.brand_id == ^brand_id)
     |> Repo.aggregate(:count)
-  end
-
-  @spec count_videos_for_creator(pos_integer(), pos_integer()) :: non_neg_integer()
-  @doc """
-  Gets video count for a creator.
-  """
-  def count_videos_for_creator(brand_id, creator_id) do
-    from(cv in CreatorVideo, where: cv.brand_id == ^brand_id and cv.creator_id == ^creator_id)
-    |> Repo.aggregate(:count)
-  end
-
-  @spec batch_count_videos(pos_integer(), [pos_integer()]) :: %{
-          optional(pos_integer()) => non_neg_integer()
-        }
-  @doc """
-  Batch gets video counts for multiple creators.
-  Returns a map of creator_id => count.
-  """
-  def batch_count_videos(brand_id, creator_ids) when is_list(creator_ids) do
-    if creator_ids == [] do
-      %{}
-    else
-      from(cv in CreatorVideo,
-        where: cv.brand_id == ^brand_id and cv.creator_id in ^creator_ids,
-        group_by: cv.creator_id,
-        select: {cv.creator_id, count(cv.id)}
-      )
-      |> Repo.all()
-      |> Map.new()
-    end
   end
 
   @spec batch_sum_commission(pos_integer(), [pos_integer()]) :: %{

@@ -464,7 +464,9 @@ defmodule SocialObjects.Creators.BrandGmv do
              cumulative_brand_gmv_cents: bc.cumulative_brand_gmv_cents,
              cumulative_brand_video_gmv_cents: bc.cumulative_brand_video_gmv_cents,
              cumulative_brand_live_gmv_cents: bc.cumulative_brand_live_gmv_cents,
-             brand_gmv_tracking_started_at: bc.brand_gmv_tracking_started_at
+             brand_gmv_tracking_started_at: bc.brand_gmv_tracking_started_at,
+             video_count: bc.video_count,
+             live_count: bc.live_count
            }}
       )
       |> Repo.all()
