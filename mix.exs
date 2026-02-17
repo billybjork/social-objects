@@ -15,6 +15,7 @@ defmodule SocialObjects.MixProject do
       dialyzer: [
         plt_file: {:no_warn, "priv/plts/dialyzer.plt"},
         plt_add_apps: [:ex_unit, :mix],
+        ignore_warnings: ".dialyzer_ignore.exs",
         flags: [
           :unmatched_returns,
           :error_handling,
@@ -87,7 +88,7 @@ defmodule SocialObjects.MixProject do
       {:mox, "~> 1.2", only: :test},
 
       # TikTok Live stream capture
-      {:websockex, "~> 0.4.3"},
+      {:websockex, "~> 0.5.1"},
       {:protobuf, "~> 0.12.0"},
 
       # S3-compatible storage (Railway Buckets)
