@@ -8,6 +8,7 @@ defmodule SocialObjectsWeb.VideoComponents do
   alias SocialObjectsWeb.BrandRoutes
 
   import SocialObjectsWeb.CoreComponents
+  import SocialObjectsWeb.FilterComponents
   import SocialObjectsWeb.ViewHelpers
 
   @doc """
@@ -268,6 +269,12 @@ defmodule SocialObjectsWeb.VideoComponents do
   attr :creators, :list, default: []
   attr :selected_creator_id, :any, default: nil
   attr :total, :integer, default: 0
+  attr :time_preset, :string, default: "all"
+  attr :min_gmv, :any, default: nil
+  attr :time_filter_open, :boolean, default: false
+  attr :min_gmv_filter_open, :boolean, default: false
+  attr :creator_filter_open, :boolean, default: false
+  attr :sort_filter_open, :boolean, default: false
 
   def video_filters(assigns) do
     ~H"""
@@ -284,51 +291,148 @@ defmodule SocialObjectsWeb.VideoComponents do
         </div>
 
         <%= if length(@creators) > 0 do %>
-          <%!-- Wrap in phx-update="ignore" to prevent morphdom from diffing all options on every update --%>
-          <div id="creator-filter-wrapper" phx-update="ignore">
-            <form phx-change="filter_creator" class="video-filters__creator">
-              <select name="creator_id" class="filter-select" id="creator-filter-select">
-                <option value="">All Creators</option>
-                <%= for creator <- @creators do %>
-                  <option value={creator.id} selected={@selected_creator_id == creator.id}>
-                    @{creator.tiktok_username}
-                  </option>
-                <% end %>
-              </select>
-            </form>
-          </div>
+          <.hover_dropdown
+            id="creator-filter"
+            options={
+              [{"", "All Creators"}] ++ Enum.map(@creators, &{&1.id, "@#{&1.tiktok_username}"})
+            }
+            current_value={@selected_creator_id}
+            change_event="filter_creator"
+            toggle_event="toggle_creator_filter"
+            open={@creator_filter_open}
+          />
         <% end %>
       </div>
 
       <div class="video-filters__right">
-        <form phx-change="sort_videos" class="video-filters__sort">
-          <select name="sort" class="filter-select">
-            <option value="gmv_desc" selected={@sort_by == "gmv" && @sort_dir == "desc"}>
-              GMV: High to Low
-            </option>
-            <option value="gmv_asc" selected={@sort_by == "gmv" && @sort_dir == "asc"}>
-              GMV: Low to High
-            </option>
-            <option value="gpm_desc" selected={@sort_by == "gpm" && @sort_dir == "desc"}>
-              GPM: High to Low
-            </option>
-            <option value="views_desc" selected={@sort_by == "views" && @sort_dir == "desc"}>
-              Views: High to Low
-            </option>
-            <option value="ctr_desc" selected={@sort_by == "ctr" && @sort_dir == "desc"}>
-              CTR: High to Low
-            </option>
-            <option value="items_sold_desc" selected={@sort_by == "items_sold" && @sort_dir == "desc"}>
-              Items Sold: High to Low
-            </option>
-            <option value="posted_at_desc" selected={@sort_by == "posted_at" && @sort_dir == "desc"}>
-              Newest First
-            </option>
-            <option value="posted_at_asc" selected={@sort_by == "posted_at" && @sort_dir == "asc"}>
-              Oldest First
-            </option>
-          </select>
-        </form>
+        <div class="video-filters__presets">
+          <%!-- Min GMV Filter (only shown when not sorting by GMV) --%>
+          <%= if @sort_by != "gmv" do %>
+            <div class={["preset-filter", "preset-filter--min-gmv", @min_gmv_filter_open && "is-open"]}>
+              <button
+                type="button"
+                class="preset-filter__trigger"
+                phx-click="toggle_min_gmv_filter"
+                aria-label="Toggle minimum GMV filter"
+                aria-expanded={@min_gmv_filter_open}
+              >
+                <svg
+                  class="preset-filter__trigger-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                </svg>
+                <%= if @min_gmv do %>
+                  <span class="preset-filter__trigger-value">{format_min_gmv_short(@min_gmv)}</span>
+                <% end %>
+              </button>
+              <div class="preset-filter__content">
+                <span class="preset-filter__label">Min GMV</span>
+                <div class="preset-filter__buttons">
+                  <button
+                    type="button"
+                    class={"preset-filter__btn #{if @min_gmv == 50_000, do: "preset-filter__btn--active"}"}
+                    phx-click="set_min_gmv"
+                    phx-value-amount="50000"
+                  >
+                    $500
+                  </button>
+                  <button
+                    type="button"
+                    class={"preset-filter__btn #{if @min_gmv == 100_000, do: "preset-filter__btn--active"}"}
+                    phx-click="set_min_gmv"
+                    phx-value-amount="100000"
+                  >
+                    $1K
+                  </button>
+                  <button
+                    type="button"
+                    class={"preset-filter__btn #{if @min_gmv == 500_000, do: "preset-filter__btn--active"}"}
+                    phx-click="set_min_gmv"
+                    phx-value-amount="500000"
+                  >
+                    $5K
+                  </button>
+                </div>
+              </div>
+            </div>
+          <% end %>
+
+          <%!-- Time Period Filter --%>
+          <div class={["preset-filter", "preset-filter--time", @time_filter_open && "is-open"]}>
+            <button
+              type="button"
+              class="preset-filter__trigger"
+              phx-click="toggle_time_filter"
+              aria-label="Toggle time period filter"
+              aria-expanded={@time_filter_open}
+            >
+              <svg
+                class="preset-filter__trigger-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="12" cy="12" r="10" /><polyline points="12,6 12,12 16,14" />
+              </svg>
+              <%= if @time_preset != "all" do %>
+                <span class="preset-filter__trigger-value">L{@time_preset}d</span>
+              <% end %>
+            </button>
+            <div class="preset-filter__content">
+              <span class="preset-filter__label">Period</span>
+              <div class="preset-filter__buttons">
+                <button
+                  type="button"
+                  class={"preset-filter__btn #{if @time_preset == "all", do: "preset-filter__btn--active"}"}
+                  phx-click="set_time_preset"
+                  phx-value-preset="all"
+                >
+                  All Time
+                </button>
+                <button
+                  type="button"
+                  class={"preset-filter__btn #{if @time_preset == "90", do: "preset-filter__btn--active"}"}
+                  phx-click="set_time_preset"
+                  phx-value-preset="90"
+                >
+                  L90d
+                </button>
+                <button
+                  type="button"
+                  class={"preset-filter__btn #{if @time_preset == "30", do: "preset-filter__btn--active"}"}
+                  phx-click="set_time_preset"
+                  phx-value-preset="30"
+                >
+                  L30d
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <span class="video-filters__sort-label">Sort by:</span>
+
+        <.hover_dropdown
+          id="sort-filter"
+          options={[
+            {"gmv_desc", "GMV"},
+            {"gpm_desc", "GPM"},
+            {"views_desc", "Views"},
+            {"ctr_desc", "CTR"},
+            {"items_sold_desc", "Items Sold"},
+            {"posted_at_desc", "Newest First"},
+            {"posted_at_asc", "Oldest First"}
+          ]}
+          current_value={"#{@sort_by}_#{@sort_dir}"}
+          change_event="sort_videos"
+          toggle_event="toggle_sort_filter"
+          open={@sort_filter_open}
+        />
       </div>
     </div>
     """
@@ -446,4 +550,9 @@ defmodule SocialObjectsWeb.VideoComponents do
   defp creator_modal_url(brand, host, creator_id) do
     BrandRoutes.brand_path(brand, "/creators?c=#{creator_id}", host)
   end
+
+  defp format_min_gmv_short(50_000), do: "$500+"
+  defp format_min_gmv_short(100_000), do: "$1K+"
+  defp format_min_gmv_short(500_000), do: "$5K+"
+  defp format_min_gmv_short(_), do: ""
 end

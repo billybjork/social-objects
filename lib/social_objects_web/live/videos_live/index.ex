@@ -15,6 +15,8 @@ defmodule SocialObjectsWeb.VideosLive.Index do
   import SocialObjectsWeb.ParamHelpers
   import SocialObjectsWeb.VideoComponents
 
+  @default_min_gmv 100_000
+
   @impl true
   def mount(_params, _session, socket) do
     brand_id = socket.assigns.current_brand.id
@@ -51,6 +53,13 @@ defmodule SocialObjectsWeb.VideosLive.Index do
       # Version counter for search - used to ignore stale async results
       |> assign(:search_version, 0)
       |> assign(:videos_last_import_at, Settings.get_videos_last_import_at(brand_id))
+      # Time and min GMV filters
+      |> assign(:time_preset, "all")
+      |> assign(:min_gmv, nil)
+      |> assign(:time_filter_open, false)
+      |> assign(:min_gmv_filter_open, false)
+      |> assign(:creator_filter_open, false)
+      |> assign(:sort_filter_open, false)
 
     {:ok, socket}
   end
@@ -83,17 +92,92 @@ defmodule SocialObjectsWeb.VideosLive.Index do
   end
 
   @impl true
-  def handle_event("sort_videos", %{"sort" => sort_value}, socket) do
+  def handle_event("sort_videos", params, socket) do
+    sort_value = params["selection"] || params["value"] || ""
     {sort_by, sort_dir} = parse_sort(sort_value)
-    params = build_query_params(socket, sort_by: sort_by, sort_dir: sort_dir, page: 1)
-    {:noreply, push_patch(socket, to: videos_path(socket, params))}
+    min_gmv = normalize_min_gmv(sort_by, socket.assigns.min_gmv)
+
+    params =
+      build_query_params(
+        socket,
+        sort_by: sort_by,
+        sort_dir: sort_dir,
+        page: 1,
+        min_gmv: min_gmv
+      )
+
+    {:noreply,
+     socket
+     |> assign(:time_filter_open, false)
+     |> assign(:min_gmv_filter_open, false)
+     |> assign(:sort_filter_open, false)
+     |> push_patch(to: videos_path(socket, params))}
   end
 
   @impl true
-  def handle_event("filter_creator", %{"creator_id" => creator_id}, socket) do
+  def handle_event("filter_creator", params, socket) do
+    creator_id = params["selection"] || params["value"] || ""
     creator_id = parse_id_or_nil(creator_id)
     params = build_query_params(socket, selected_creator_id: creator_id, page: 1)
-    {:noreply, push_patch(socket, to: videos_path(socket, params))}
+
+    {:noreply,
+     socket
+     |> assign(:creator_filter_open, false)
+     |> push_patch(to: videos_path(socket, params))}
+  end
+
+  @impl true
+  def handle_event("set_time_preset", %{"preset" => preset}, socket) do
+    preset = validate_time_preset(preset)
+    params = build_query_params(socket, time_preset: preset, page: 1)
+
+    {:noreply,
+     socket
+     |> assign(:time_filter_open, false)
+     |> assign(:min_gmv_filter_open, false)
+     |> push_patch(to: videos_path(socket, params))}
+  end
+
+  @impl true
+  def handle_event("set_min_gmv", %{"amount" => amount}, socket) do
+    min_gmv = parse_min_gmv(amount)
+    params = build_query_params(socket, min_gmv: min_gmv, page: 1)
+
+    {:noreply,
+     socket
+     |> assign(:time_filter_open, false)
+     |> assign(:min_gmv_filter_open, false)
+     |> push_patch(to: videos_path(socket, params))}
+  end
+
+  @impl true
+  def handle_event("toggle_time_filter", _, socket) do
+    time_filter_open = !socket.assigns.time_filter_open
+
+    {:noreply,
+     socket
+     |> assign(:time_filter_open, time_filter_open)
+     |> assign(:min_gmv_filter_open, false)}
+  end
+
+  @impl true
+  def handle_event("toggle_min_gmv_filter", _, socket) do
+    min_gmv_filter_open = !socket.assigns.min_gmv_filter_open
+
+    {:noreply,
+     socket
+     |> assign(:min_gmv_filter_open, min_gmv_filter_open)
+     |> assign(:time_filter_open, false)}
+  end
+
+  @impl true
+  def handle_event("toggle_creator_filter", _, socket) do
+    {:noreply, assign(socket, :creator_filter_open, !socket.assigns.creator_filter_open)}
+  end
+
+  @impl true
+  def handle_event("toggle_sort_filter", _, socket) do
+    {:noreply, assign(socket, :sort_filter_open, !socket.assigns.sort_filter_open)}
   end
 
   @impl true
@@ -196,6 +280,8 @@ defmodule SocialObjectsWeb.VideosLive.Index do
 
   defp apply_params(socket, params) do
     {sort_by, sort_dir} = parse_sort(params["sort"])
+    time_preset = validate_time_preset(params["period"])
+    min_gmv = normalize_min_gmv(sort_by, parse_min_gmv(params["min_gmv"]))
 
     socket
     |> assign(:search_query, params["q"] || "")
@@ -203,18 +289,21 @@ defmodule SocialObjectsWeb.VideosLive.Index do
     |> assign(:sort_dir, sort_dir)
     |> assign(:page, parse_page(params["page"]))
     |> assign(:selected_creator_id, parse_creator_id(params["creator"]))
+    |> assign(:time_preset, time_preset)
+    |> assign(:min_gmv, min_gmv)
   end
 
+  # Whitelist-only sort parsing
   defp parse_sort(nil), do: {"gmv", "desc"}
   defp parse_sort(""), do: {"gmv", "desc"}
-
-  defp parse_sort(sort) do
-    case String.split(sort, "_", parts: 2) do
-      [field, dir] when dir in ["asc", "desc"] -> {field, dir}
-      [field] -> {field, "desc"}
-      _ -> {"gmv", "desc"}
-    end
-  end
+  defp parse_sort("gmv_desc"), do: {"gmv", "desc"}
+  defp parse_sort("gpm_desc"), do: {"gpm", "desc"}
+  defp parse_sort("views_desc"), do: {"views", "desc"}
+  defp parse_sort("ctr_desc"), do: {"ctr", "desc"}
+  defp parse_sort("items_sold_desc"), do: {"items_sold", "desc"}
+  defp parse_sort("posted_at_desc"), do: {"posted_at", "desc"}
+  defp parse_sort("posted_at_asc"), do: {"posted_at", "asc"}
+  defp parse_sort(_), do: {"gmv", "desc"}
 
   defp parse_page(nil), do: 1
   defp parse_page(""), do: 1
@@ -233,11 +322,14 @@ defmodule SocialObjectsWeb.VideosLive.Index do
       per_page: per_page,
       selected_creator_id: creator_id,
       brand_id: brand_id,
-      search_version: current_version
+      search_version: current_version,
+      time_preset: time_preset,
+      min_gmv: min_gmv
     } = socket.assigns
 
     # Increment version to track this search request
     new_version = current_version + 1
+    posted_after = time_preset_to_date(time_preset)
 
     opts =
       [
@@ -249,6 +341,8 @@ defmodule SocialObjectsWeb.VideosLive.Index do
       ]
       |> maybe_add_opt(:search_query, search_query)
       |> maybe_add_opt(:creator_id, creator_id)
+      |> maybe_add_opt(:posted_after, posted_after)
+      |> maybe_add_opt(:min_gmv, min_gmv)
 
     socket
     |> assign(:loading_videos, true)
@@ -268,8 +362,12 @@ defmodule SocialObjectsWeb.VideosLive.Index do
       page: page,
       per_page: per_page,
       selected_creator_id: creator_id,
-      brand_id: brand_id
+      brand_id: brand_id,
+      time_preset: time_preset,
+      min_gmv: min_gmv
     } = socket.assigns
+
+    posted_after = time_preset_to_date(time_preset)
 
     opts =
       [
@@ -281,6 +379,8 @@ defmodule SocialObjectsWeb.VideosLive.Index do
       ]
       |> maybe_add_opt(:search_query, search_query)
       |> maybe_add_opt(:creator_id, creator_id)
+      |> maybe_add_opt(:posted_after, posted_after)
+      |> maybe_add_opt(:min_gmv, min_gmv)
 
     result = Creators.search_videos_paginated(opts)
 
@@ -299,7 +399,9 @@ defmodule SocialObjectsWeb.VideosLive.Index do
       q: socket.assigns.search_query,
       sort: "#{socket.assigns.sort_by}_#{socket.assigns.sort_dir}",
       page: socket.assigns.page,
-      creator: socket.assigns.selected_creator_id
+      creator: socket.assigns.selected_creator_id,
+      period: socket.assigns.time_preset,
+      min_gmv: socket.assigns.min_gmv
     }
 
     overrides
@@ -322,6 +424,12 @@ defmodule SocialObjectsWeb.VideosLive.Index do
         :page ->
           Map.put(acc, :page, value)
 
+        :time_preset ->
+          Map.put(acc, :period, value)
+
+        :min_gmv ->
+          Map.put(acc, :min_gmv, value)
+
         _ ->
           acc
       end
@@ -339,5 +447,44 @@ defmodule SocialObjectsWeb.VideosLive.Index do
   defp default_value?({_k, nil}), do: true
   defp default_value?({:page, 1}), do: true
   defp default_value?({:sort, "gmv_desc"}), do: true
+  defp default_value?({:period, "all"}), do: true
   defp default_value?(_), do: false
+
+  # Time preset validation and conversion
+  defp validate_time_preset(preset) when preset in ["30", "90", "all"], do: preset
+  defp validate_time_preset(_), do: "all"
+
+  defp time_preset_to_date("90") do
+    Date.utc_today() |> Date.add(-90) |> to_start_of_day_utc()
+  end
+
+  defp time_preset_to_date("30") do
+    Date.utc_today() |> Date.add(-30) |> to_start_of_day_utc()
+  end
+
+  defp time_preset_to_date(_), do: nil
+
+  defp to_start_of_day_utc(date) do
+    DateTime.new!(date, ~T[00:00:00], "Etc/UTC")
+  end
+
+  # Min GMV validation - only allow specific preset values (stored in cents)
+  @valid_min_gmv_values [50_000, 100_000, 500_000]
+
+  defp parse_min_gmv(""), do: nil
+  defp parse_min_gmv(nil), do: nil
+
+  defp parse_min_gmv(amount) when is_binary(amount) do
+    case Integer.parse(amount) do
+      {num, ""} when num in @valid_min_gmv_values -> num
+      _ -> nil
+    end
+  end
+
+  defp parse_min_gmv(amount) when amount in @valid_min_gmv_values, do: amount
+  defp parse_min_gmv(_), do: nil
+
+  defp normalize_min_gmv("gmv", _min_gmv), do: nil
+  defp normalize_min_gmv(_sort_by, nil), do: @default_min_gmv
+  defp normalize_min_gmv(_sort_by, min_gmv), do: min_gmv
 end
