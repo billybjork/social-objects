@@ -195,34 +195,36 @@ defmodule SocialObjects.TiktokLive.EventHandler do
     if msg_id && MapSet.member?(state.seen_msg_ids, msg_id) do
       state
     else
-      # Add comment to batch
-      comment_attrs = %{
-        brand_id: state.brand_id,
-        stream_id: state.stream_id,
-        tiktok_user_id: event.user_id,
-        tiktok_username: event.username,
-        tiktok_nickname: event.nickname,
-        comment_text: event.content,
-        commented_at: event.timestamp,
-        raw_event: sanitize_raw_event(event.raw)
-      }
-
-      new_batch = [comment_attrs | state.comment_batch]
-      new_stats = %{state.stats | comment_count: state.stats.comment_count + 1}
-
       # Track seen msg_id (only if present), reset if too large
       new_seen = update_seen_msg_ids(state.seen_msg_ids, msg_id)
 
-      # Broadcast to UI
+      # Broadcast to UI regardless of content
       _ = broadcast_to_stream(state.stream_id, {:comment, event})
 
-      # Flush if batch is full
-      new_state = %{state | comment_batch: new_batch, stats: new_stats, seen_msg_ids: new_seen}
+      # Only add to batch if comment has text content (skip emoji-only/sticker comments)
+      content = event.content
 
-      if length(new_batch) >= @batch_size do
-        flush_comment_batch(new_state)
+      if is_binary(content) and String.trim(content) != "" do
+        comment_attrs = %{
+          brand_id: state.brand_id,
+          stream_id: state.stream_id,
+          tiktok_user_id: event.user_id,
+          tiktok_username: event.username,
+          tiktok_nickname: event.nickname,
+          comment_text: content,
+          commented_at: event.timestamp,
+          raw_event: sanitize_raw_event(event.raw)
+        }
+
+        new_batch = [comment_attrs | state.comment_batch]
+        new_stats = %{state.stats | comment_count: state.stats.comment_count + 1}
+
+        %{state | comment_batch: new_batch, stats: new_stats, seen_msg_ids: new_seen}
+        |> maybe_flush_batch()
       else
-        new_state
+        # No text content - still count and track but don't persist
+        new_stats = %{state.stats | comment_count: state.stats.comment_count + 1}
+        %{state | stats: new_stats, seen_msg_ids: new_seen}
       end
     end
   end
@@ -447,6 +449,14 @@ defmodule SocialObjects.TiktokLive.EventHandler do
   end
 
   # Batch operations
+
+  defp maybe_flush_batch(state) do
+    if length(state.comment_batch) >= @batch_size do
+      flush_comment_batch(state)
+    else
+      state
+    end
+  end
 
   defp flush_comment_batch(%{comment_batch: []} = state), do: state
 

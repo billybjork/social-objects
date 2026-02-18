@@ -518,15 +518,19 @@ defmodule SocialObjectsWeb.TiktokLive.Index do
   @impl true
   def handle_info({:tiktok_live_stream_event, {:comment, comment}}, socket) do
     # New comment for the stream we're viewing - add directly for real-time display
+    # Skip comments without text content (emoji-only, stickers, etc.)
+    content = comment.content
+
     if socket.assigns.selected_stream &&
          socket.assigns.active_tab == "comments" &&
-         socket.assigns.comment_search_query == "" do
+         socket.assigns.comment_search_query == "" &&
+         is_binary(content) && String.trim(content) != "" do
       # Build a comment with a unique ID for the stream
       new_comment = %{
         id: "rt-#{System.unique_integer([:positive, :monotonic])}",
         tiktok_username: comment.username,
         tiktok_nickname: comment.nickname,
-        comment_text: comment.content,
+        comment_text: content,
         commented_at: comment.timestamp || DateTime.utc_now()
       }
 
