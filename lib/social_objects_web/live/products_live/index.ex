@@ -174,7 +174,7 @@ defmodule SocialObjectsWeb.ProductsLive.Index do
       # Products tab state (for browsing all products)
       |> assign(:platform_filter, "")
       |> assign(:browse_product_search_query, "")
-      |> assign(:browse_product_sort_by, "name")
+      |> assign(:browse_product_sort_by, "most_sampled")
       |> assign(:browse_product_page, 1)
       |> assign(:browse_products_total_count, 0)
       |> assign(:browse_products_has_more, false)
@@ -2086,7 +2086,7 @@ defmodule SocialObjectsWeb.ProductsLive.Index do
   defp maybe_load_products_tab(socket, "products", old_page_tab, params) do
     # Apply browse product search params
     search_query = params["q"] || ""
-    sort_by = params["sort"] || "name"
+    sort_by = params["sort"] || "most_sampled"
     platform_filter = params["platform"] || ""
     product_id = params["p"]
 

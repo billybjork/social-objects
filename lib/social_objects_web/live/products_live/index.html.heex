@@ -560,6 +560,9 @@
 
           <form phx-change="browse_sort_changed">
             <select name="sort" class="filter-select" value={@browse_product_sort_by}>
+              <option value="most_sampled" selected={@browse_product_sort_by == "most_sampled"}>
+                Most Sampled
+              </option>
               <option value="name" selected={@browse_product_sort_by == "name"}>
                 Name (A-Z)
               </option>

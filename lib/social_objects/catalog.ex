@@ -149,13 +149,14 @@ defmodule SocialObjects.Catalog do
   # Allow-list for safe product sorting
   defp build_order_by(sort_by) do
     case sort_by do
+      "most_sampled" -> [desc: :sample_count]
       "price_asc" -> [asc: :original_price_cents]
       "price_desc" -> [desc: :original_price_cents]
       "name" -> [asc: :name]
-      # Default/blank: sort by name
-      "" -> [asc: :name]
+      # Default/blank: sort by most sampled
+      "" -> [desc: :sample_count]
       # Fallback for invalid values
-      _ -> [asc: :name]
+      _ -> [desc: :sample_count]
     end
   end
 
