@@ -154,6 +154,10 @@ defmodule SocialObjects.Workers.StreamAnalyticsSyncWorker do
       {:ok, %{"code" => code}} when code >= 500 ->
         {:error, {:server_error, code}}
 
+      # Handle HTTP 429 rate limiting (returns tuple from tiktok_shop.ex)
+      {:error, {:rate_limited, _body}} ->
+        {:error, :rate_limited}
+
       {:error, reason} ->
         {:error, reason}
     end

@@ -51,7 +51,26 @@ defmodule SocialObjects.Creators.BrandGmv do
       stats = process_analytics_data(brand_id, video_data, live_data)
       Logger.info("[BrandGmv] Completed sync for brand #{brand_id}: #{inspect(stats)}")
       {:ok, stats}
+    else
+      {:error, :rate_limited} = error ->
+        Logger.warning("[BrandGmv] Rate limited during sync for brand #{brand_id}")
+        error
+
+      {:error, :no_auth_record} = error ->
+        Logger.warning("[BrandGmv] No TikTok auth record for brand #{brand_id}")
+        error
+
+      {:error, reason} = error ->
+        Logger.error("[BrandGmv] Sync failed for brand #{brand_id}: #{inspect(reason)}")
+        error
     end
+  rescue
+    e ->
+      Logger.error(
+        "[BrandGmv] Exception during sync for brand #{brand_id}: #{Exception.format(:error, e, __STACKTRACE__)}"
+      )
+
+      {:error, {:exception, Exception.message(e)}}
   end
 
   @doc """
@@ -145,7 +164,20 @@ defmodule SocialObjects.Creators.BrandGmv do
     {:error, {:server_error, code}}
   end
 
+  # Handle HTTP 429 rate limiting (returns tuple from tiktok_shop.ex)
+  defp handle_page_response(
+         _type,
+         {:error, {:rate_limited, _body}},
+         _brand_id,
+         _start_date,
+         _end_date,
+         _acc
+       ) do
+    {:error, :rate_limited}
+  end
+
   defp handle_page_response(_type, {:error, reason}, _brand_id, _start_date, _end_date, _acc) do
+    Logger.error("[BrandGmv] API error: #{inspect(reason)}")
     {:error, reason}
   end
 

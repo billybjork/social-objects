@@ -207,6 +207,17 @@ defmodule SocialObjects.Workers.VideoSyncWorker do
     {:error, {:unexpected_response, response}}
   end
 
+  # Handle HTTP 429 rate limiting (returns tuple from tiktok_shop.ex)
+  defp handle_fetch_page_response(
+         {:error, {:rate_limited, _body}},
+         _brand_id,
+         _start_date,
+         _end_date,
+         _acc
+       ) do
+    {:error, :rate_limited}
+  end
+
   defp handle_fetch_page_response({:error, reason}, _brand_id, _start_date, _end_date, _acc) do
     {:error, reason}
   end
