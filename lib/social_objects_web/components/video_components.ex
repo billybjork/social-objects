@@ -99,15 +99,30 @@ defmodule SocialObjectsWeb.VideoComponents do
 
   @doc """
   Renders video thumbnail with actual image or placeholder fallback.
+  Uses storage key if available, falling back to thumbnail_url.
   """
   attr :video, :any, required: true
 
   def video_thumbnail(assigns) do
+    thumbnail_url =
+      case assigns.video do
+        %{thumbnail_storage_key: key} when is_binary(key) and key != "" ->
+          SocialObjects.Storage.public_url(key) || assigns.video.thumbnail_url
+
+        %{thumbnail_url: url} when is_binary(url) and url != "" ->
+          url
+
+        _ ->
+          nil
+      end
+
+    assigns = assign(assigns, :thumbnail_url, thumbnail_url)
+
     ~H"""
     <div class="video-thumbnail">
-      <%= if @video.thumbnail_url do %>
+      <%= if @thumbnail_url do %>
         <img
-          src={@video.thumbnail_url}
+          src={@thumbnail_url}
           alt=""
           class="video-thumbnail__image"
           loading="lazy"
