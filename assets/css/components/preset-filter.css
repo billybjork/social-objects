@@ -1,0 +1,206 @@
+/* ============================================
+   PRESET FILTER COMPONENT
+   ============================================
+   Shared hover-triggered button group pattern.
+   Used by time-preset-filter, min-gmv-filter, etc.
+   ============================================ */
+
+.preset-filter {
+  --preset-expanded-width: 220px;
+  @apply flex items-center h-[30px] shrink-0;
+}
+
+.preset-filter__trigger {
+  @apply flex items-center justify-center gap-1 h-[30px] px-2 bg-surface-primary text-text-secondary cursor-pointer shrink-0 overflow-hidden;
+  min-width: 32px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  transition: all 0.18s ease;
+}
+
+.preset-filter__trigger:hover {
+  @apply text-text-primary;
+  border-color: var(--color-text-tertiary);
+}
+
+.preset-filter__trigger-icon {
+  @apply w-4 h-4;
+}
+
+.preset-filter__trigger-value {
+  @apply text-[11px] font-semibold text-primary;
+}
+
+.preset-filter__content {
+  @apply flex items-center gap-2 h-[30px] bg-surface-primary overflow-hidden whitespace-nowrap;
+  max-width: 0;
+  opacity: 0;
+  margin-left: 0;
+  padding-left: 0;
+  padding-right: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  box-shadow: none;
+  pointer-events: none;
+  transform: translateX(4px);
+  transition:
+    max-width 0.18s ease,
+    opacity 0.12s ease,
+    margin-left 0.18s ease,
+    padding 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+}
+
+/* Desktop: hover to show */
+.preset-filter:hover .preset-filter__content,
+.preset-filter.is-open .preset-filter__content {
+  max-width: var(--preset-expanded-width);
+  opacity: 1;
+  margin-left: 4px;
+  padding-left: 4px;
+  padding-right: 4px;
+  border-color: var(--color-border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  pointer-events: auto;
+  transform: translateX(0);
+}
+
+.preset-filter:hover .preset-filter__trigger,
+.preset-filter.is-open .preset-filter__trigger {
+  @apply text-text-primary;
+  border-color: var(--color-text-tertiary);
+}
+
+.preset-filter__label {
+  @apply text-xs text-text-secondary whitespace-nowrap pl-1;
+}
+
+.preset-filter__buttons {
+  @apply flex gap-0.5 bg-surface-secondary p-0.5;
+  border-radius: 4px;
+}
+
+.preset-filter__btn {
+  @apply py-0.5 px-2 text-[11px] border-none bg-transparent text-text-secondary font-medium cursor-pointer whitespace-nowrap;
+  border-radius: 3px;
+  transition: all 0.15s ease;
+}
+
+.preset-filter__btn:hover {
+  @apply text-text-primary;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.preset-filter__btn--active {
+  @apply bg-surface-primary text-text-primary;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.preset-filter--time {
+  --preset-expanded-width: 205px;
+  @apply relative;
+}
+
+.preset-filter--time .preset-filter__content {
+  @apply absolute right-0 top-0;
+  margin-left: 0;
+}
+
+.preset-filter--time:hover .preset-filter__content,
+.preset-filter--time.is-open .preset-filter__content {
+  margin-left: 0;
+}
+
+.preset-filter--min-gmv {
+  --preset-expanded-width: 230px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .preset-filter--time:hover .preset-filter__trigger,
+  .preset-filter--time.is-open .preset-filter__trigger {
+    min-width: 0;
+    width: 0;
+    opacity: 0;
+    margin: 0;
+    padding-left: 0;
+    padding-right: 0;
+    border-width: 0;
+  }
+}
+
+/* Mobile: click to toggle via is-open class (set by LiveView event) */
+@media (hover: none) {
+  .preset-filter:hover .preset-filter__content {
+    max-width: 0;
+    opacity: 0;
+    margin-left: 0;
+    padding-left: 0;
+    padding-right: 0;
+    border-color: transparent;
+    box-shadow: none;
+    pointer-events: none;
+    transform: translateX(4px);
+  }
+
+  .preset-filter:hover .preset-filter__trigger {
+    min-width: 32px;
+    width: auto;
+    opacity: 1;
+    padding-left: 8px;
+    padding-right: 8px;
+    border-width: 1px;
+  }
+
+  .preset-filter.is-open .preset-filter__content {
+    max-width: var(--preset-expanded-width);
+    opacity: 1;
+    margin-left: 4px;
+    padding-left: 4px;
+    padding-right: 4px;
+    border-color: var(--color-border);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    pointer-events: auto;
+    transform: translateX(0);
+  }
+
+  .preset-filter.is-open .preset-filter__trigger {
+    min-width: 0;
+    width: 0;
+    opacity: 0;
+    padding-left: 0;
+    padding-right: 0;
+    border-width: 0;
+  }
+}
+
+/* Dark mode */
+.dark .preset-filter__trigger {
+  @apply bg-surface-secondary;
+  border-color: var(--color-border);
+}
+
+.dark .preset-filter__content {
+  @apply bg-surface-secondary;
+  border-color: var(--color-border);
+}
+
+.dark .preset-filter__buttons {
+  @apply bg-surface-tertiary;
+}
+
+.dark .preset-filter__btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.dark .preset-filter__btn--active {
+  @apply bg-surface-primary;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .preset-filter__btn {
+    @apply py-0.5 px-1.5 text-[10px];
+  }
+}

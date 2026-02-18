@@ -394,6 +394,7 @@
 @import "./components/template-card.css" layer(components);
 @import "./components/video-grid.css" layer(components);
 @import "./components/data-table.css" layer(components);
+@import "./components/preset-filter.css" layer(components);
 
 /* Intentional top-level utilities - keep unlayered so @utility remains valid. */
 @import "./utilities/utilities.css";

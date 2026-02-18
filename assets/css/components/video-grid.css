@@ -238,7 +238,16 @@
 }
 
 .video-filters__right {
-  @apply flex items-center gap-2;
+  @apply flex items-center justify-end gap-2;
+}
+
+.video-filters__presets {
+  @apply flex items-center gap-1;
+  flex-direction: row-reverse;
+}
+
+.video-filters__sort-label {
+  @apply text-sm text-text-secondary font-medium whitespace-nowrap;
 }
 
 .video-filters__search-wrapper {
@@ -259,6 +268,10 @@
   .video-filters__left,
   .video-filters__right {
     @apply w-full;
+  }
+
+  .video-filters__right {
+    @apply justify-start flex-wrap;
   }
 
   .video-filters__search-wrapper {
