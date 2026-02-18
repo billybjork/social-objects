@@ -307,7 +307,6 @@ defmodule SocialObjects.Workers.StreamReportWorker do
 
     with {:ok, report_data} <- StreamReport.generate(brand_id, stream_id),
          :ok <- validate_sentiment_if_needed(report_data),
-         :ok <- persist_gmv_data(brand_id, stream_id, report_data),
          :ok <- log_report_summary(stream_id, report_data),
          {:ok, :sent} <- StreamReport.send_to_slack(report_data) do
       Logger.info("Stream report sent successfully for stream #{stream_id}")
@@ -374,21 +373,6 @@ defmodule SocialObjects.Workers.StreamReportWorker do
   defp clear_report_sent(brand_id, stream_id) do
     from(s in Stream, where: s.brand_id == ^brand_id and s.id == ^stream_id)
     |> Repo.update_all(set: [report_sent_at: nil])
-  end
-
-  defp persist_gmv_data(_brand_id, _stream_id, %{gmv_data: nil}), do: :ok
-
-  defp persist_gmv_data(brand_id, stream_id, %{gmv_data: gmv_data}) do
-    case TiktokLive.update_stream_gmv(brand_id, stream_id, gmv_data) do
-      {:ok, _stream} ->
-        Logger.info("Persisted GMV data for stream #{stream_id}")
-        :ok
-
-      {:error, reason} ->
-        Logger.warning("Failed to persist GMV for stream #{stream_id}: #{inspect(reason)}")
-        # Don't fail the job if GMV persistence fails
-        :ok
-    end
   end
 
   defp classify_comments(brand_id, stream_id) do

@@ -372,14 +372,22 @@ defmodule SocialObjectsWeb.TiktokLive.Index do
 
   @impl true
   def handle_event("analytics_load_more", _params, socket) do
-    send(self(), :load_more_analytics)
-    {:noreply, assign(socket, :analytics_loading, true)}
+    if socket.assigns.analytics_loading or not socket.assigns.analytics_has_more do
+      {:noreply, socket}
+    else
+      send(self(), :load_more_analytics)
+      {:noreply, assign(socket, :analytics_loading, true)}
+    end
   end
 
   @impl true
   def handle_event("load_more", _params, socket) do
-    send(self(), :load_more_streams)
-    {:noreply, assign(socket, :loading_streams, true)}
+    if socket.assigns.loading_streams or not socket.assigns.has_more do
+      {:noreply, socket}
+    else
+      send(self(), :load_more_streams)
+      {:noreply, assign(socket, :loading_streams, true)}
+    end
   end
 
   @impl true
@@ -879,7 +887,7 @@ defmodule SocialObjectsWeb.TiktokLive.Index do
     stats = TiktokLiveContext.list_stream_stats(socket.assigns.brand_id, stream_id)
     stream = socket.assigns.selected_stream
 
-    # Prefer official per-minute data, fall back to order-based
+    # Official-only GMV data for the stats chart.
     gmv_data = build_gmv_data(stream)
 
     socket
@@ -1217,15 +1225,13 @@ defmodule SocialObjectsWeb.TiktokLive.Index do
     end
   end
 
-  # Prefer official per-minute data, fall back to order-based
+  # Build chart GMV data from official per-minute analytics only.
   defp build_gmv_data(%{analytics_per_minute: %{"data" => data}} = stream)
        when is_list(data) and data != [] do
     build_gmv_from_per_minute(stream)
   end
 
-  defp build_gmv_data(stream) do
-    build_gmv_from_stored(stream)
-  end
+  defp build_gmv_data(_stream), do: nil
 
   # Build GMV data from official per-minute analytics
   defp build_gmv_from_per_minute(%{analytics_per_minute: %{"data" => data}} = stream) do
@@ -1250,36 +1256,10 @@ defmodule SocialObjectsWeb.TiktokLive.Index do
     %{
       hourly: hourly,
       total_gmv_cents: stream.official_gmv_cents,
-      total_orders: stream.items_sold,
+      total_orders: stream.official_created_sku_orders || stream.items_sold,
       source: :official
     }
   end
-
-  defp build_gmv_from_stored(nil), do: nil
-  defp build_gmv_from_stored(%{gmv_hourly: nil}), do: nil
-  defp build_gmv_from_stored(%{gmv_hourly: %{"data" => []}}), do: nil
-
-  defp build_gmv_from_stored(%{gmv_hourly: %{"data" => data}} = stream) do
-    hourly =
-      Enum.map(data, fn h ->
-        {:ok, hour, _} = DateTime.from_iso8601(h["hour"])
-
-        %{
-          hour: hour,
-          gmv_cents: h["gmv_cents"],
-          order_count: h["order_count"]
-        }
-      end)
-
-    %{
-      hourly: hourly,
-      total_gmv_cents: stream.gmv_cents,
-      total_orders: stream.gmv_order_count,
-      source: :orders
-    }
-  end
-
-  defp build_gmv_from_stored(_), do: nil
 
   # Analytics helper functions
 

@@ -36,8 +36,6 @@ defmodule SocialObjects.Workers.StreamAnalyticsSyncWorker do
   alias SocialObjects.TiktokShop.Analytics
   alias SocialObjects.TiktokShop.Parsers
 
-  @time_tolerance_seconds 5 * 60
-
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"brand_id" => brand_id}}) do
     _ = broadcast(brand_id, {:stream_analytics_sync_started})
@@ -120,47 +118,7 @@ defmodule SocialObjects.Workers.StreamAnalyticsSyncWorker do
   end
 
   defp fetch_live_sessions(brand_id, start_date, end_date) do
-    fetch_all_pages(brand_id, start_date, end_date, nil, [])
-  end
-
-  defp fetch_all_pages(brand_id, start_date, end_date, page_token, acc) do
-    opts = [
-      start_date_ge: start_date,
-      end_date_lt: end_date,
-      page_size: 100,
-      sort_field: "gmv",
-      sort_order: "DESC",
-      account_type: "ALL"
-    ]
-
-    opts = if page_token, do: Keyword.put(opts, :page_token, page_token), else: opts
-
-    case Analytics.get_shop_live_performance_list(brand_id, opts) do
-      {:ok, %{"data" => data}} ->
-        # API returns sessions in "live_stream_sessions", not "shop_lives"
-        sessions = Map.get(data, "live_stream_sessions", [])
-        next_token = Map.get(data, "next_page_token")
-        all_sessions = acc ++ sessions
-
-        if next_token && next_token != "" do
-          fetch_all_pages(brand_id, start_date, end_date, next_token, all_sessions)
-        else
-          {:ok, all_sessions}
-        end
-
-      {:ok, %{"code" => 429}} ->
-        {:error, :rate_limited}
-
-      {:ok, %{"code" => code}} when code >= 500 ->
-        {:error, {:server_error, code}}
-
-      # Handle HTTP 429 rate limiting (returns tuple from tiktok_shop.ex)
-      {:error, {:rate_limited, _body}} ->
-        {:error, :rate_limited}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
+    Analytics.fetch_all_live_sessions(brand_id, start_date, end_date)
   end
 
   defp match_and_update_streams(brand_id, streams, sessions) do
@@ -185,59 +143,11 @@ defmodule SocialObjects.Workers.StreamAnalyticsSyncWorker do
   end
 
   defp find_matching_session(stream, sessions) do
-    matching_sessions =
-      Enum.filter(sessions, fn session ->
-        username_matches?(stream, session) && time_overlaps?(stream, session)
-      end)
-
-    case matching_sessions do
-      [] ->
-        :no_match
-
-      [session] ->
-        {:ok, session}
-
-      multiple ->
-        # Take session with highest GMV (nested under sales_performance)
-        best =
-          Enum.max_by(multiple, fn s ->
-            Parsers.parse_gmv_amount(get_in(s, ["sales_performance", "gmv"]))
-          end)
-
-        {:ok, best}
-    end
-  end
-
-  defp username_matches?(stream, session) do
-    stream_username = String.downcase(stream.unique_id || "")
-    api_username = String.downcase(session["username"] || "")
-    stream_username == api_username
-  end
-
-  defp time_overlaps?(stream, session) do
-    # Parse API timestamps (Unix seconds), fallback to now if nil
-    now = DateTime.utc_now()
-    api_start = Parsers.parse_unix_timestamp(session["start_time"]) || now
-    api_end = Parsers.parse_unix_timestamp(session["end_time"]) || now
-
-    stream_start =
-      (stream.started_at || now)
-      |> DateTime.add(-@time_tolerance_seconds, :second)
-
-    stream_end =
-      (stream.ended_at || now)
-      |> DateTime.add(@time_tolerance_seconds, :second)
-
-    # Check overlap: stream's window overlaps with API's window
-    DateTime.compare(stream_start, api_end) in [:lt, :eq] &&
-      DateTime.compare(stream_end, api_start) in [:gt, :eq]
+    Analytics.find_matching_session(stream, sessions)
   end
 
   defp update_stream_with_analytics(brand_id, stream, session, synced_at) do
-    # API returns "id" not "live_id", and data is nested under interaction_performance/sales_performance
     live_id = session["id"]
-    interaction = session["interaction_performance"] || %{}
-    sales = session["sales_performance"] || %{}
 
     # Fetch per-minute data if live_id is available
     per_minute_data = fetch_per_minute_data(brand_id, live_id)
@@ -245,49 +155,17 @@ defmodule SocialObjects.Workers.StreamAnalyticsSyncWorker do
     # Fetch per-product performance data
     product_performance = fetch_product_performance(brand_id, live_id)
 
+    # Use shared function to build attrs
     attrs =
-      build_analytics_attrs(
-        live_id,
-        interaction,
-        sales,
-        synced_at,
-        per_minute_data,
-        product_performance
+      Analytics.build_stream_analytics_attrs(session, synced_at,
+        per_minute_data: per_minute_data,
+        product_performance: product_performance
       )
-
-    # Log GMV discrepancy if >20%
-    log_gmv_discrepancy(stream, attrs.official_gmv_cents)
 
     from(s in Stream, where: s.brand_id == ^brand_id and s.id == ^stream.id)
     |> Repo.update_all(set: Enum.to_list(attrs))
 
     log_sync_result(stream.id, attrs, per_minute_data, product_performance)
-  end
-
-  defp build_analytics_attrs(
-         live_id,
-         interaction,
-         sales,
-         synced_at,
-         per_minute_data,
-         product_performance
-       ) do
-    %{
-      tiktok_live_id: live_id,
-      official_gmv_cents: Parsers.parse_gmv_cents(sales["gmv"]),
-      gmv_24h_cents: Parsers.parse_gmv_cents(sales["24h_live_gmv"]),
-      avg_view_duration_seconds: Parsers.parse_integer(interaction["avg_viewing_duration"]),
-      product_impressions: Parsers.parse_integer(interaction["product_impressions"]),
-      product_clicks: Parsers.parse_integer(interaction["product_clicks"]),
-      unique_customers: Parsers.parse_integer(sales["customers"]),
-      conversion_rate: Parsers.parse_percentage(sales["click_to_order_rate"]),
-      analytics_synced_at: synced_at,
-      total_views: Parsers.parse_integer(interaction["views"]),
-      items_sold: Parsers.parse_integer(sales["items_sold"]),
-      click_through_rate: Parsers.parse_percentage(interaction["click_through_rate"]),
-      analytics_per_minute: per_minute_data,
-      product_performance: product_performance
-    }
   end
 
   defp log_sync_result(stream_id, attrs, per_minute_data, product_performance) do
@@ -322,7 +200,7 @@ defmodule SocialObjects.Workers.StreamAnalyticsSyncWorker do
 
       {:error, _reason} ->
         # Per-minute API currently returns 500 for all requests (TikTok API issue)
-        # Silently fall back to order-based GMV data
+        # Silently continue without per-minute chart data
         nil
     end
   end
@@ -416,22 +294,5 @@ defmodule SocialObjects.Workers.StreamAnalyticsSyncWorker do
   defp mark_stream_synced(brand_id, stream_id, synced_at) do
     from(s in Stream, where: s.brand_id == ^brand_id and s.id == ^stream_id)
     |> Repo.update_all(set: [analytics_synced_at: synced_at])
-  end
-
-  defp log_gmv_discrepancy(stream, official_gmv_cents) do
-    order_gmv = stream.gmv_cents || 0
-    official_gmv = official_gmv_cents || 0
-
-    if order_gmv > 0 && official_gmv > 0 do
-      diff_percent = abs(official_gmv - order_gmv) / order_gmv * 100
-
-      if diff_percent > 20 do
-        Logger.warning(
-          "Stream #{stream.id} GMV discrepancy: " <>
-            "order-based=$#{order_gmv / 100}, official=$#{official_gmv / 100} " <>
-            "(#{Float.round(diff_percent, 1)}% difference)"
-        )
-      end
-    end
   end
 end

@@ -450,12 +450,16 @@ defmodule SocialObjectsWeb.ProductsLive.Index do
 
   @impl true
   def handle_event("load_more_product_sets", _params, socket) do
-    socket =
-      socket
-      |> assign(:loading_product_sets, true)
-      |> load_product_sets(append: true)
+    if socket.assigns.loading_product_sets or not socket.assigns.product_sets_has_more do
+      {:noreply, socket}
+    else
+      socket =
+        socket
+        |> assign(:loading_product_sets, true)
+        |> load_product_sets(append: true)
 
-    {:noreply, socket}
+      {:noreply, socket}
+    end
   end
 
   @impl true
@@ -782,12 +786,16 @@ defmodule SocialObjectsWeb.ProductsLive.Index do
 
   @impl true
   def handle_event("load_more_add_products", _params, socket) do
-    socket =
-      socket
-      |> assign(:loading_add_products, true)
-      |> load_products_for_add_modal(append: true)
+    if socket.assigns.loading_add_products or not socket.assigns.add_product_has_more do
+      {:noreply, socket}
+    else
+      socket =
+        socket
+        |> assign(:loading_add_products, true)
+        |> load_products_for_add_modal(append: true)
 
-    {:noreply, socket}
+      {:noreply, socket}
+    end
   end
 
   @impl true
@@ -1301,12 +1309,16 @@ defmodule SocialObjectsWeb.ProductsLive.Index do
 
   @impl true
   def handle_event("load_more_products", _params, socket) do
-    socket =
-      socket
-      |> assign(:loading_products, true)
-      |> load_products_for_new_session(append: true)
+    if socket.assigns.loading_products or not socket.assigns.new_product_set_has_more do
+      {:noreply, socket}
+    else
+      socket =
+        socket
+        |> assign(:loading_products, true)
+        |> load_products_for_new_session(append: true)
 
-    {:noreply, socket}
+      {:noreply, socket}
+    end
   end
 
   @impl true
@@ -1518,12 +1530,16 @@ defmodule SocialObjectsWeb.ProductsLive.Index do
 
   @impl true
   def handle_event("browse_load_more_products", _params, socket) do
-    socket =
-      socket
-      |> assign(:loading_browse_products, true)
-      |> load_products_for_browse(append: true)
+    if socket.assigns.loading_browse_products or not socket.assigns.browse_products_has_more do
+      {:noreply, socket}
+    else
+      socket =
+        socket
+        |> assign(:loading_browse_products, true)
+        |> load_products_for_browse(append: true)
 
-    {:noreply, socket}
+      {:noreply, socket}
+    end
   end
 
   @impl true

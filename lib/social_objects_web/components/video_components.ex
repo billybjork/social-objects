@@ -228,8 +228,12 @@ defmodule SocialObjectsWeb.VideoComponents do
         <div
           id="videos-grid"
           class="video-grid__grid"
+          phx-hook="InfiniteScroll"
+          data-load-event="load_more"
+          data-has-more={to_string(@has_more)}
+          data-loading={to_string(@loading)}
+          data-scroll-scope="viewport"
           phx-update="replace"
-          phx-viewport-bottom={@has_more && !@loading && "load_more"}
         >
           <%= for video <- @videos do %>
             <.video_card video={video} current_brand={@current_brand} current_host={@current_host} />
@@ -241,6 +245,14 @@ defmodule SocialObjectsWeb.VideoComponents do
             <div class="spinner"></div>
             <span>Loading more videos...</span>
           </div>
+        <% else %>
+          <%= if @has_more do %>
+            <div class="video-grid__loader">
+              <.button type="button" variant="outline" size="sm" phx-click="load_more">
+                Load More Videos
+              </.button>
+            </div>
+          <% end %>
         <% end %>
       <% end %>
     </div>

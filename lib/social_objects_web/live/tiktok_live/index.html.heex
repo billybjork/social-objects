@@ -82,7 +82,11 @@
         <div
           id="streams-list"
           class="streams-scroll-container data-table-scroll-container"
-          phx-viewport-bottom={@has_more && !@loading_streams && "load_more"}
+          phx-hook="InfiniteScroll"
+          data-load-event="load_more"
+          data-has-more={to_string(@has_more)}
+          data-loading={to_string(@loading_streams)}
+          data-scroll-scope="container"
         >
           <.streams_table
             streams={@live_streams}

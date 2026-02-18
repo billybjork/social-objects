@@ -114,8 +114,12 @@ defmodule SocialObjectsWeb.VideosLive.Index do
 
   @impl true
   def handle_event("load_more", _params, socket) do
-    send(self(), :load_more_videos)
-    {:noreply, assign(socket, :loading_videos, true)}
+    if socket.assigns.loading_videos or not socket.assigns.has_more do
+      {:noreply, socket}
+    else
+      send(self(), :load_more_videos)
+      {:noreply, assign(socket, :loading_videos, true)}
+    end
   end
 
   @impl true

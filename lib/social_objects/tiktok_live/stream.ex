@@ -46,6 +46,15 @@ defmodule SocialObjects.TiktokLive.Stream do
           items_sold: integer() | nil,
           click_through_rate: Decimal.t() | nil,
           product_performance: map() | nil,
+          official_likes: integer() | nil,
+          official_comments: integer() | nil,
+          official_shares: integer() | nil,
+          official_new_followers: integer() | nil,
+          official_unique_viewers: integer() | nil,
+          official_avg_price_cents: integer() | nil,
+          official_created_sku_orders: integer() | nil,
+          official_products_sold_count: integer() | nil,
+          official_products_added: integer() | nil,
           brand_id: pos_integer() | nil,
           product_set_id: pos_integer() | nil,
           inserted_at: NaiveDateTime.t() | nil,
@@ -95,6 +104,19 @@ defmodule SocialObjects.TiktokLive.Stream do
 
     # Per-product performance data from Analytics API
     field :product_performance, :map
+
+    # Interaction performance (official)
+    field :official_likes, :integer
+    field :official_comments, :integer
+    field :official_shares, :integer
+    field :official_new_followers, :integer
+    field :official_unique_viewers, :integer
+
+    # Sales performance (official)
+    field :official_avg_price_cents, :integer
+    field :official_created_sku_orders, :integer
+    field :official_products_sold_count, :integer
+    field :official_products_added, :integer
 
     belongs_to :brand, SocialObjects.Catalog.Brand
     belongs_to :product_set, SocialObjects.ProductSets.ProductSet
@@ -148,7 +170,16 @@ defmodule SocialObjects.TiktokLive.Stream do
       :total_views,
       :items_sold,
       :click_through_rate,
-      :product_performance
+      :product_performance,
+      :official_likes,
+      :official_comments,
+      :official_shares,
+      :official_new_followers,
+      :official_unique_viewers,
+      :official_avg_price_cents,
+      :official_created_sku_orders,
+      :official_products_sold_count,
+      :official_products_added
     ])
     |> validate_required([:brand_id, :room_id, :unique_id, :started_at])
     |> foreign_key_constraint(:product_set_id)

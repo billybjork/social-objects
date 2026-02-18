@@ -56,9 +56,11 @@
           "flex flex-col gap-8",
           @search_touched && "product-sets-list--searching"
         ]}
-        phx-viewport-bottom={
-          @product_sets_has_more && !@loading_product_sets && "load_more_product_sets"
-        }
+        phx-hook="InfiniteScroll"
+        data-load-event="load_more_product_sets"
+        data-has-more={to_string(@product_sets_has_more)}
+        data-loading={to_string(@loading_product_sets)}
+        data-scroll-scope="viewport"
       >
         <%= for product_set <- @product_sets do %>
           <article

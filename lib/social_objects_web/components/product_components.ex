@@ -575,7 +575,7 @@ defmodule SocialObjectsWeb.ProductComponents do
 
   attr :viewport_bottom, :any,
     default: nil,
-    doc: "phx-viewport-bottom binding for infinite scroll"
+    doc: "load event name for InfiniteScroll hook (nil disables auto-load)"
 
   attr :use_dynamic_id, :boolean,
     default: false,
@@ -696,8 +696,12 @@ defmodule SocialObjectsWeb.ProductComponents do
               "product-grid"
             end
           }
+          phx-hook={if @viewport_bottom, do: "InfiniteScroll"}
+          data-load-event={@viewport_bottom}
+          data-has-more={to_string(@has_more)}
+          data-loading={to_string(@loading)}
+          data-scroll-scope="viewport"
           phx-update="stream"
-          phx-viewport-bottom={@viewport_bottom}
         >
           <%= for {dom_id, product} <- @products do %>
             <%= if @mode == :browse do %>

@@ -224,10 +224,14 @@ defmodule SocialObjectsWeb.TiktokLiveComponents do
                 <.stream_product_count stream={stream} />
               </td>
               <td data-column-id="gmv" class="text-right">
-                <%= if stream.gmv_cents do %>
-                  <span class="text-green-500">{format_gmv(stream.gmv_cents)}</span>
-                <% else %>
-                  <span class="text-text-secondary">—</span>
+                <%= cond do %>
+                  <% not is_nil(stream.official_gmv_cents) -> %>
+                    <span class="text-green-500">{format_gmv(stream.official_gmv_cents)}</span>
+                    <.source_indicator source={:official} class="source-indicator--table" />
+                  <% stream.status == :ended && is_nil(stream.analytics_synced_at) -> %>
+                    <span class="text-text-secondary text-xs">Pending official sync</span>
+                  <% true -> %>
+                    <span class="text-text-secondary">—</span>
                 <% end %>
               </td>
               <td data-column-id="comments" class="text-right">
@@ -392,81 +396,103 @@ defmodule SocialObjectsWeb.TiktokLiveComponents do
         </div>
 
         <div class="modal__body">
-          <div class="stream-modal-stats">
-            <div class="stream-modal-stat">
-              <span class="stream-modal-stat__label">Peak Viewers</span>
-              <span class="stream-modal-stat__value">{format_number(@stream.viewer_count_peak)}</span>
-            </div>
-            <div class="stream-modal-stat">
-              <span class="stream-modal-stat__label">Likes</span>
-              <span class="stream-modal-stat__value">{format_number(@stream.total_likes)}</span>
-            </div>
-            <div class="stream-modal-stat">
-              <span class="stream-modal-stat__label">Gifts</span>
-              <span class="stream-modal-stat__value">
-                ${format_number(@stream.total_gifts_value)}
-              </span>
-            </div>
-            <div class="stream-modal-stat">
-              <span class="stream-modal-stat__label">Comments</span>
-              <span class="stream-modal-stat__value">{format_number(@stream.total_comments)}</span>
-            </div>
-            <div class="stream-modal-stat">
-              <span class="stream-modal-stat__label">Follows</span>
-              <span class="stream-modal-stat__value">{format_number(@stream.total_follows)}</span>
-            </div>
-            <div class="stream-modal-stat">
-              <span class="stream-modal-stat__label">Shares</span>
-              <span class="stream-modal-stat__value">{format_number(@stream.total_shares)}</span>
-            </div>
-            <%= if @summary do %>
-              <div class="stream-modal-stat">
-                <span class="stream-modal-stat__label">Duration</span>
-                <span class="stream-modal-stat__value">
-                  {format_duration_seconds(@summary.duration_seconds)}
-                </span>
+          <div class="stream-modal-top-sections">
+            <div class="stream-modal-top-section">
+              <div class="stream-modal-section-header">
+                <span class="stream-modal-section-header__title">Audience</span>
               </div>
-            <% end %>
-            <%= if @stream.gmv_cents && @stream.gmv_cents > 0 do %>
-              <div class="stream-modal-stat stream-modal-stat--highlight">
-                <span class="stream-modal-stat__label">
-                  GMV
-                  <span
-                    class="stream-modal-stat__info"
-                    title="Gross Merchandise Value: Total order revenue during stream hours. This is correlation, not direct attribution—orders may or may not be stream-driven."
-                  >
-                    <svg
-                      class="size-3.5"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line
-                        x1="12"
-                        y1="8"
-                        x2="12.01"
-                        y2="8"
-                      />
-                    </svg>
+              <div class="stream-modal-stats">
+                <div class="stream-modal-stat">
+                  <span class="stream-modal-stat__label">Peak Viewers</span>
+                  <span class="stream-modal-stat__value">
+                    {format_number(@stream.viewer_count_peak)}
                   </span>
-                </span>
-                <span class="stream-modal-stat__value">
-                  {format_gmv(@stream.gmv_cents)}
-                </span>
-                <span class="stream-modal-stat__subvalue">
-                  {@stream.gmv_order_count || 0} orders
-                </span>
+                </div>
+                <%= if not is_nil(@stream.official_unique_viewers) do %>
+                  <div class="stream-modal-stat" data-metric="unique-viewers">
+                    <span class="stream-modal-stat__label">
+                      Unique Viewers <.source_indicator source={:official} />
+                    </span>
+                    <span class="stream-modal-stat__value">
+                      {format_number(@stream.official_unique_viewers)}
+                    </span>
+                  </div>
+                <% end %>
+                <%= if @stream.avg_view_duration_seconds do %>
+                  <div class="stream-modal-stat">
+                    <span class="stream-modal-stat__label">Avg View</span>
+                    <span class="stream-modal-stat__value">
+                      {format_view_duration(@stream.avg_view_duration_seconds)}
+                    </span>
+                  </div>
+                <% end %>
+                <%= if @stream.total_views do %>
+                  <div class="stream-modal-stat">
+                    <span class="stream-modal-stat__label">Total Views</span>
+                    <span class="stream-modal-stat__value">{format_number(@stream.total_views)}</span>
+                  </div>
+                <% end %>
+                <%= if @summary do %>
+                  <div class="stream-modal-stat">
+                    <span class="stream-modal-stat__label">Duration</span>
+                    <span class="stream-modal-stat__value">
+                      {format_duration_seconds(@summary.duration_seconds)}
+                    </span>
+                  </div>
+                <% end %>
               </div>
-            <% end %>
+            </div>
+
+            <div class="stream-modal-top-section">
+              <div class="stream-modal-section-header">
+                <span class="stream-modal-section-header__title">Engagement</span>
+              </div>
+              <div class="stream-modal-stats">
+                <div class="stream-modal-stat" data-metric="likes">
+                  <span class="stream-modal-stat__label">
+                    Likes <.source_indicator source={metric_source(@stream, :likes)} />
+                  </span>
+                  <span class="stream-modal-stat__value">
+                    {format_number(best_metric(@stream, :likes))}
+                  </span>
+                </div>
+                <div class="stream-modal-stat" data-metric="comments">
+                  <span class="stream-modal-stat__label">
+                    Comments <.source_indicator source={metric_source(@stream, :comments)} />
+                  </span>
+                  <span class="stream-modal-stat__value">
+                    {format_number(best_metric(@stream, :comments))}
+                  </span>
+                </div>
+                <div class="stream-modal-stat" data-metric="follows">
+                  <span class="stream-modal-stat__label">
+                    Follows <.source_indicator source={metric_source(@stream, :follows)} />
+                  </span>
+                  <span class="stream-modal-stat__value">
+                    {format_number(best_metric(@stream, :follows))}
+                  </span>
+                </div>
+                <div class="stream-modal-stat" data-metric="shares">
+                  <span class="stream-modal-stat__label">
+                    Shares <.source_indicator source={metric_source(@stream, :shares)} />
+                  </span>
+                  <span class="stream-modal-stat__value">
+                    {format_number(best_metric(@stream, :shares))}
+                  </span>
+                </div>
+                <div class="stream-modal-stat">
+                  <span class="stream-modal-stat__label">Gifts</span>
+                  <span class="stream-modal-stat__value">
+                    ${format_number(@stream.total_gifts_value)}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <%!-- TikTok Shop Analytics Section --%>
-          <%= if @stream.analytics_synced_at || @stream.official_gmv_cents do %>
-            <div class="stream-modal-section-header">
-              <span class="stream-modal-section-header__title">TikTok Shop Analytics</span>
+          <div class="stream-modal-section-header">
+            <span class="stream-modal-section-header__title">Commerce Funnel</span>
+            <%= if not is_nil(@stream.analytics_synced_at) do %>
               <span class="stream-modal-section-header__status">
                 <svg
                   class="size-3.5 text-green-500"
@@ -479,87 +505,106 @@ defmodule SocialObjectsWeb.TiktokLiveComponents do
                 </svg>
                 Synced {format_relative_time(@stream.analytics_synced_at)}
               </span>
-            </div>
-            <div class="stream-modal-stats">
-              <%= if @stream.official_gmv_cents do %>
-                <div class="stream-modal-stat stream-modal-stat--highlight">
-                  <span class="stream-modal-stat__label">Official GMV</span>
+            <% end %>
+          </div>
+          <div class="stream-modal-stats">
+            <div class="stream-modal-stat stream-modal-stat--highlight" data-metric="gmv">
+              <span class="stream-modal-stat__label">
+                GMV <.source_indicator source={metric_source(@stream, :gmv)} />
+              </span>
+              <%= cond do %>
+                <% not is_nil(@stream.official_gmv_cents) -> %>
                   <span class="stream-modal-stat__value">
                     {format_gmv(@stream.official_gmv_cents)}
                   </span>
-                </div>
-              <% end %>
-              <%= if @stream.gmv_24h_cents do %>
-                <div class="stream-modal-stat">
-                  <span class="stream-modal-stat__label">24h Attributed</span>
-                  <span class="stream-modal-stat__value">
-                    {format_gmv(@stream.gmv_24h_cents)}
+                  <span class="stream-modal-stat__subvalue">
+                    {@stream.official_created_sku_orders || 0} orders
                   </span>
-                </div>
-              <% end %>
-              <%= if @stream.product_impressions do %>
-                <div class="stream-modal-stat">
-                  <span class="stream-modal-stat__label">Impressions</span>
-                  <span class="stream-modal-stat__value">
-                    {format_number(@stream.product_impressions)}
+                <% @stream.status == :ended && is_nil(@stream.analytics_synced_at) -> %>
+                  <span class="stream-modal-stat__value text-text-secondary">
+                    Pending official sync
                   </span>
-                </div>
-              <% end %>
-              <%= if @stream.product_clicks do %>
-                <div class="stream-modal-stat">
-                  <span class="stream-modal-stat__label">Clicks</span>
-                  <span class="stream-modal-stat__value">
-                    {format_number(@stream.product_clicks)}
-                  </span>
-                </div>
-              <% end %>
-              <%= if @stream.conversion_rate do %>
-                <div class="stream-modal-stat">
-                  <span class="stream-modal-stat__label">Conversion</span>
-                  <span class="stream-modal-stat__value">
-                    {Decimal.to_string(@stream.conversion_rate)}%
-                  </span>
-                </div>
-              <% end %>
-              <%= if @stream.avg_view_duration_seconds do %>
-                <div class="stream-modal-stat">
-                  <span class="stream-modal-stat__label">Avg View</span>
-                  <span class="stream-modal-stat__value">
-                    {format_view_duration(@stream.avg_view_duration_seconds)}
-                  </span>
-                </div>
-              <% end %>
-              <%= if @stream.unique_customers do %>
-                <div class="stream-modal-stat">
-                  <span class="stream-modal-stat__label">Customers</span>
-                  <span class="stream-modal-stat__value">
-                    {format_number(@stream.unique_customers)}
-                  </span>
-                </div>
+                <% true -> %>
+                  <span class="stream-modal-stat__value text-text-secondary">Unavailable</span>
               <% end %>
             </div>
-          <% else %>
-            <%= if @stream.status == :ended && is_nil(@stream.analytics_synced_at) do %>
-              <div class="stream-modal-section-header stream-modal-section-header--pending">
-                <span class="stream-modal-section-header__title text-text-secondary">
-                  TikTok Shop Analytics
-                </span>
-                <span class="stream-modal-section-header__status text-text-secondary">
-                  <svg
-                    class="size-3.5"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <circle cx="12" cy="12" r="10" />
-                    <polyline points="12 6 12 12 16 14" />
-                  </svg>
-                  Pending (syncs 48h after stream)
+            <%= if @stream.product_impressions do %>
+              <div class="stream-modal-stat">
+                <span class="stream-modal-stat__label">Impressions</span>
+                <span class="stream-modal-stat__value">
+                  {format_number(@stream.product_impressions)}
                 </span>
               </div>
             <% end %>
-          <% end %>
+            <%= if @stream.product_clicks do %>
+              <div class="stream-modal-stat">
+                <span class="stream-modal-stat__label">Clicks</span>
+                <span class="stream-modal-stat__value">{format_number(@stream.product_clicks)}</span>
+              </div>
+            <% end %>
+            <%= if @stream.click_through_rate do %>
+              <div class="stream-modal-stat">
+                <span class="stream-modal-stat__label">CTR</span>
+                <span class="stream-modal-stat__value">
+                  {Decimal.to_string(@stream.click_through_rate)}%
+                </span>
+              </div>
+            <% end %>
+            <%= if @stream.conversion_rate do %>
+              <div class="stream-modal-stat">
+                <span class="stream-modal-stat__label">Conversion</span>
+                <span class="stream-modal-stat__value">
+                  {Decimal.to_string(@stream.conversion_rate)}%
+                </span>
+              </div>
+            <% end %>
+            <%= if @stream.unique_customers do %>
+              <div class="stream-modal-stat">
+                <span class="stream-modal-stat__label">Customers</span>
+                <span class="stream-modal-stat__value">
+                  {format_number(@stream.unique_customers)}
+                </span>
+              </div>
+            <% end %>
+            <%= if not is_nil(@stream.official_created_sku_orders) do %>
+              <div class="stream-modal-stat">
+                <span class="stream-modal-stat__label">SKU Orders</span>
+                <span class="stream-modal-stat__value">
+                  {format_number(@stream.official_created_sku_orders)}
+                </span>
+              </div>
+            <% end %>
+            <%= if not is_nil(@stream.official_avg_price_cents) do %>
+              <div class="stream-modal-stat">
+                <span class="stream-modal-stat__label">Avg Order</span>
+                <span class="stream-modal-stat__value">
+                  {format_gmv(@stream.official_avg_price_cents)}
+                </span>
+              </div>
+            <% end %>
+            <%= if not is_nil(@stream.official_products_sold_count) do %>
+              <div class="stream-modal-stat">
+                <span class="stream-modal-stat__label">Products Sold</span>
+                <span class="stream-modal-stat__value">
+                  {format_number(@stream.official_products_sold_count)}
+                </span>
+              </div>
+            <% end %>
+            <%= if not is_nil(@stream.official_products_added) do %>
+              <div class="stream-modal-stat">
+                <span class="stream-modal-stat__label">Products Added</span>
+                <span class="stream-modal-stat__value">
+                  {format_number(@stream.official_products_added)}
+                </span>
+              </div>
+            <% end %>
+            <%= if @stream.gmv_24h_cents do %>
+              <div class="stream-modal-stat">
+                <span class="stream-modal-stat__label">24h Attributed</span>
+                <span class="stream-modal-stat__value">{format_gmv(@stream.gmv_24h_cents)}</span>
+              </div>
+            <% end %>
+          </div>
 
           <div class="stream-modal-tabs">
             <button
@@ -854,12 +899,10 @@ defmodule SocialObjectsWeb.TiktokLiveComponents do
 
   def stats_tab(assigns) do
     chart_data = build_chart_data(assigns.stream_stats, assigns.stream_gmv)
-    gmv_source = if assigns.stream_gmv, do: Map.get(assigns.stream_gmv, :source), else: nil
 
     assigns =
       assigns
       |> assign(:chart_data, chart_data)
-      |> assign(:gmv_source, gmv_source)
 
     ~H"""
     <div class="stats-tab">
@@ -904,33 +947,7 @@ defmodule SocialObjectsWeb.TiktokLiveComponents do
             </span>
             <%= if @stream_gmv && length(@stream_gmv.hourly) > 0 do %>
               <span class="stats-legend__item stats-legend__item--gmv">
-                <span class="stats-legend__color"></span>
-                <%= if @gmv_source == :official do %>
-                  GMV (Official)
-                <% else %>
-                  GMV (Orders)
-                  <span
-                    class="stats-legend__info"
-                    title="Order-based correlation, not direct attribution"
-                  >
-                    <svg
-                      class="size-3.5"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line
-                        x1="12"
-                        y1="8"
-                        x2="12.01"
-                        y2="8"
-                      />
-                    </svg>
-                  </span>
-                <% end %>
+                <span class="stats-legend__color"></span> GMV (Official)
               </span>
             <% end %>
           </div>
@@ -1169,7 +1186,11 @@ defmodule SocialObjectsWeb.TiktokLiveComponents do
         <div
           id="analytics-comments-list"
           class="analytics-comments-scroll-container data-table-scroll-container"
-          phx-viewport-bottom={@has_more && !@loading && "analytics_load_more"}
+          phx-hook="InfiniteScroll"
+          data-load-event="analytics_load_more"
+          data-has-more={to_string(@has_more)}
+          data-loading={to_string(@loading)}
+          data-scroll-scope="container"
         >
           <table class="data-table analytics-comments-table">
             <thead>
@@ -1421,6 +1442,44 @@ defmodule SocialObjectsWeb.TiktokLiveComponents do
       "#{remaining_seconds}s"
     end
   end
+
+  # ============================================================================
+  # METRIC SOURCE HELPERS
+  # ============================================================================
+
+  attr :source, :atom, values: [:official, :scraped]
+  attr :class, :string, default: nil
+
+  defp source_indicator(assigns) do
+    ~H"""
+    <span
+      :if={@source == :official}
+      class={["source-indicator", @class]}
+      title="Official TikTok Shop data"
+    >
+      <.icon name="hero-check-circle" class="size-3.5 text-green-500" />
+    </span>
+    """
+  end
+
+  defp best_metric(stream, :likes), do: stream.official_likes || stream.total_likes
+  defp best_metric(stream, :comments), do: stream.official_comments || stream.total_comments
+  defp best_metric(stream, :follows), do: stream.official_new_followers || stream.total_follows
+  defp best_metric(stream, :shares), do: stream.official_shares || stream.total_shares
+
+  defp metric_source(stream, :likes), do: if(stream.official_likes, do: :official, else: :scraped)
+
+  defp metric_source(stream, :comments),
+    do: if(stream.official_comments, do: :official, else: :scraped)
+
+  defp metric_source(stream, :follows),
+    do: if(stream.official_new_followers, do: :official, else: :scraped)
+
+  defp metric_source(stream, :shares),
+    do: if(stream.official_shares, do: :official, else: :scraped)
+
+  defp metric_source(stream, :gmv),
+    do: if(stream.official_gmv_cents, do: :official, else: :scraped)
 
   defp build_chart_data(stats, gmv_data) when is_list(stats) do
     labels =

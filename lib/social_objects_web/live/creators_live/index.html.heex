@@ -406,9 +406,11 @@
         <div
           id="creators-list"
           class="creators-scroll-container data-table-scroll-container"
-          phx-hook="CreatorsInfiniteScroll"
+          phx-hook="InfiniteScroll"
+          data-load-event="load_more"
           data-has-more={to_string(@has_more)}
           data-loading={to_string(@loading_creators)}
+          data-scroll-scope="container"
         >
           <.unified_creator_table
             creators={@creators}

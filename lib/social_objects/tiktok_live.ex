@@ -178,44 +178,6 @@ defmodule SocialObjects.TiktokLive do
     end
   end
 
-  @spec update_stream_gmv(pos_integer(), pos_integer(), map()) ::
-          {:ok, Stream.t()} | {:error, Ecto.Changeset.t()}
-  @doc """
-  Updates a stream's GMV data.
-
-  `gmv_data` should be a map with `:total_gmv_cents`, `:total_orders`, and `:hourly` keys.
-  The `:hourly` key should contain a list of maps with `:hour`, `:gmv_cents`, and `:order_count`.
-  """
-  def update_stream_gmv(brand_id, stream_id, gmv_data) do
-    stream = get_stream!(brand_id, stream_id)
-
-    # Convert hourly data to serializable format (DateTime keys to ISO strings)
-    hourly_map = serialize_hourly_gmv(gmv_data.hourly)
-
-    stream
-    |> Stream.changeset(%{
-      gmv_cents: gmv_data.total_gmv_cents,
-      gmv_order_count: gmv_data.total_orders,
-      gmv_hourly: hourly_map
-    })
-    |> Repo.update()
-  end
-
-  defp serialize_hourly_gmv(hourly) when is_list(hourly) do
-    %{
-      "data" =>
-        Enum.map(hourly, fn h ->
-          %{
-            "hour" => DateTime.to_iso8601(h.hour),
-            "gmv_cents" => h.gmv_cents,
-            "order_count" => h.order_count
-          }
-        end)
-    }
-  end
-
-  defp serialize_hourly_gmv(_), do: nil
-
   ## Comments
 
   @spec list_stream_comments(pos_integer(), pos_integer(), keyword()) :: %{
@@ -990,7 +952,10 @@ defmodule SocialObjects.TiktokLive do
         order_by(query, [s], [{^dir, coalesce(s.viewer_count_peak, 0)}, {^dir, s.started_at}])
 
       "gmv" ->
-        order_by(query, [s], [{^dir, coalesce(s.gmv_cents, 0)}, {^dir, s.started_at}])
+        order_by(query, [s], [
+          {^dir, coalesce(s.official_gmv_cents, 0)},
+          {^dir, s.started_at}
+        ])
 
       "comments" ->
         order_by(query, [s], [{^dir, coalesce(s.total_comments, 0)}, {^dir, s.started_at}])

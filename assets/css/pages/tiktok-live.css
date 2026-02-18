@@ -271,6 +271,19 @@
   @apply text-base font-semibold text-text-primary whitespace-nowrap;
 }
 
+/* Source indicator for official data */
+.source-indicator {
+  @apply inline-flex items-center ml-1 opacity-80;
+}
+
+.source-indicator:hover {
+  @apply opacity-100;
+}
+
+.source-indicator--table {
+  @apply ml-1.5 opacity-100;
+}
+
 /* Tabs */
 .stream-modal-tabs {
   @apply flex gap-1 mb-4 pb-2;
@@ -380,6 +393,11 @@
 
   .stream-modal-stats {
     @apply gap-3 p-2;
+  }
+
+  .stream-modal-top-sections {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
   }
 
   .stream-modal-stat__value {
@@ -693,6 +711,19 @@
 .stream-modal-stat__subvalue {
   @apply text-text-secondary font-normal whitespace-nowrap;
   font-size: 10px;
+}
+
+.stream-modal-top-sections {
+  @apply grid gap-4 mb-2;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.stream-modal-top-section {
+  min-width: 0;
+}
+
+.stream-modal-top-section .stream-modal-stats {
+  margin-bottom: 0;
 }
 
 /* Section header (for TikTok Shop Analytics) */

@@ -135,7 +135,6 @@ defmodule SocialObjects.TiktokShop.Analytics do
 
   This endpoint consistently returns HTTP 500 (code 98001001 "internal error") for all
   live sessions. The session-level API (`get_shop_live_performance_list`) works correctly.
-  When this fails, the sync worker falls back to order-based GMV data (`gmv_hourly`).
 
   ## Options
     - live_id: TikTok Shop LIVE session ID, required
@@ -581,6 +580,272 @@ defmodule SocialObjects.TiktokShop.Analytics do
 
     DateTime.compare(stream_start, api_end) in [:lt, :eq] &&
       DateTime.compare(stream_end, api_start) in [:gt, :eq]
+  end
+
+  # =============================================================================
+  # Stream Analytics Sync Helpers
+  # =============================================================================
+
+  @doc """
+  Builds analytics attributes from API session data for updating a stream.
+
+  Used by both the regular sync worker and the backfill task to ensure
+  consistent field mapping.
+  """
+  def build_stream_analytics_attrs(session, synced_at, opts \\ []) do
+    interaction = session["interaction_performance"] || %{}
+    sales = session["sales_performance"] || %{}
+
+    per_minute_data = Keyword.get(opts, :per_minute_data)
+    product_performance = Keyword.get(opts, :product_performance)
+
+    %{
+      tiktok_live_id: session["id"],
+      official_gmv_cents: Parsers.parse_gmv_cents(sales["gmv"]),
+      gmv_24h_cents: Parsers.parse_gmv_cents(sales["24h_live_gmv"]),
+      avg_view_duration_seconds: Parsers.parse_integer(interaction["avg_viewing_duration"]),
+      product_impressions: Parsers.parse_integer(interaction["product_impressions"]),
+      product_clicks: Parsers.parse_integer(interaction["product_clicks"]),
+      unique_customers: Parsers.parse_integer(sales["customers"]),
+      conversion_rate: Parsers.parse_percentage(sales["click_to_order_rate"]),
+      total_views: Parsers.parse_integer(interaction["views"]),
+      items_sold: Parsers.parse_integer(sales["items_sold"]),
+      click_through_rate: Parsers.parse_percentage(interaction["click_through_rate"]),
+
+      # New official_ fields
+      official_likes: Parsers.parse_integer(interaction["likes"]),
+      official_comments: Parsers.parse_integer(interaction["comments"]),
+      official_shares: Parsers.parse_integer(interaction["shares"]),
+      official_new_followers: Parsers.parse_integer(interaction["new_followers"]),
+      official_unique_viewers: Parsers.parse_integer(interaction["viewers"]),
+      official_avg_price_cents: Parsers.parse_gmv_cents(sales["avg_price"]),
+      official_created_sku_orders: Parsers.parse_integer(sales["created_sku_orders"]),
+      official_products_sold_count: Parsers.parse_integer(sales["different_products_sold"]),
+      official_products_added: Parsers.parse_integer(sales["products_added"]),
+      analytics_synced_at: synced_at,
+      analytics_per_minute: per_minute_data,
+      product_performance: product_performance
+    }
+  end
+
+  @doc """
+  Finds matching session for a stream from a list of API sessions.
+
+  Matching priority:
+  1. Direct ID match (session["id"] == stream.tiktok_live_id)
+  2. Username + time overlap match (takes highest GMV if multiple)
+
+  Returns `{:ok, session}` or `:no_match`.
+  """
+  def find_matching_session(stream, sessions) do
+    # Try direct ID match first
+    sessions
+    |> Enum.find(&(&1["id"] == stream.tiktok_live_id))
+    |> case do
+      nil -> find_session_by_username_and_time(stream, sessions)
+      session -> {:ok, session}
+    end
+  end
+
+  @doc """
+  Fetches all live sessions with full pagination.
+
+  Options:
+    - :account_type - "ALL", "AFFILIATE_ACCOUNTS", etc. (default: "ALL")
+    - :rate_limit_delay - ms to sleep between pages (default: 0, set 300 for backfill)
+  """
+  def fetch_all_live_sessions(brand_id, start_date, end_date, opts \\ []) do
+    account_type = Keyword.get(opts, :account_type, "ALL")
+    rate_limit_delay = Keyword.get(opts, :rate_limit_delay, 0)
+
+    fetch_all_session_pages(
+      brand_id,
+      start_date,
+      end_date,
+      account_type,
+      rate_limit_delay,
+      nil,
+      []
+    )
+  end
+
+  defp fetch_all_session_pages(
+         brand_id,
+         start_date,
+         end_date,
+         account_type,
+         rate_limit_delay,
+         page_token,
+         acc
+       ) do
+    opts = [
+      start_date_ge: start_date,
+      end_date_lt: end_date,
+      page_size: 100,
+      sort_field: "gmv",
+      sort_order: "DESC",
+      account_type: account_type
+    ]
+
+    opts = if page_token, do: Keyword.put(opts, :page_token, page_token), else: opts
+
+    response = get_shop_live_performance_list(brand_id, opts)
+
+    handle_fetch_sessions_response(
+      response,
+      brand_id,
+      start_date,
+      end_date,
+      account_type,
+      rate_limit_delay,
+      acc
+    )
+  end
+
+  defp handle_fetch_sessions_response(
+         {:ok, %{"data" => data}},
+         brand_id,
+         start_date,
+         end_date,
+         account_type,
+         rate_limit_delay,
+         acc
+       )
+       when is_map(data) do
+    sessions = Map.get(data, "live_stream_sessions", [])
+    next_token = Map.get(data, "next_page_token")
+    all_sessions = acc ++ sessions
+
+    maybe_continue_session_pagination(
+      next_token,
+      brand_id,
+      start_date,
+      end_date,
+      account_type,
+      rate_limit_delay,
+      all_sessions
+    )
+  end
+
+  defp handle_fetch_sessions_response(
+         {:ok, %{"data" => nil}},
+         _brand_id,
+         _start_date,
+         _end_date,
+         _account_type,
+         _rate_limit_delay,
+         acc
+       ),
+       do: {:ok, acc}
+
+  defp handle_fetch_sessions_response(
+         {:ok, %{"data" => _data}},
+         _brand_id,
+         _start_date,
+         _end_date,
+         _account_type,
+         _rate_limit_delay,
+         _acc
+       ),
+       do: {:error, :unexpected_data}
+
+  defp handle_fetch_sessions_response(
+         {:ok, %{"code" => 429}},
+         _brand_id,
+         _start_date,
+         _end_date,
+         _account_type,
+         _rate_limit_delay,
+         _acc
+       ),
+       do: {:error, :rate_limited}
+
+  defp handle_fetch_sessions_response(
+         {:ok, %{"code" => code}},
+         _brand_id,
+         _start_date,
+         _end_date,
+         _account_type,
+         _rate_limit_delay,
+         _acc
+       )
+       when code >= 500,
+       do: {:error, {:server_error, code}}
+
+  defp handle_fetch_sessions_response(
+         {:error, {:rate_limited, _body}},
+         _brand_id,
+         _start_date,
+         _end_date,
+         _account_type,
+         _rate_limit_delay,
+         _acc
+       ),
+       do: {:error, :rate_limited}
+
+  defp handle_fetch_sessions_response(
+         {:error, reason},
+         _brand_id,
+         _start_date,
+         _end_date,
+         _account_type,
+         _rate_limit_delay,
+         _acc
+       ),
+       do: {:error, reason}
+
+  defp maybe_continue_session_pagination(
+         next_token,
+         brand_id,
+         start_date,
+         end_date,
+         account_type,
+         rate_limit_delay,
+         all_sessions
+       )
+       when is_binary(next_token) and next_token != "" do
+    if rate_limit_delay > 0, do: Process.sleep(rate_limit_delay)
+
+    fetch_all_session_pages(
+      brand_id,
+      start_date,
+      end_date,
+      account_type,
+      rate_limit_delay,
+      next_token,
+      all_sessions
+    )
+  end
+
+  defp maybe_continue_session_pagination(
+         _next_token,
+         _brand_id,
+         _start_date,
+         _end_date,
+         _account_type,
+         _rate_limit_delay,
+         all_sessions
+       ),
+       do: {:ok, all_sessions}
+
+  defp find_session_by_username_and_time(stream, sessions) do
+    sessions
+    |> Enum.filter(fn session ->
+      username_matches?(stream, session) && time_overlaps?(stream, session)
+    end)
+    |> pick_best_matching_session()
+  end
+
+  defp pick_best_matching_session([]), do: :no_match
+  defp pick_best_matching_session([session]), do: {:ok, session}
+
+  defp pick_best_matching_session(multiple) do
+    best =
+      Enum.max_by(multiple, fn s ->
+        Parsers.parse_gmv_amount(get_in(s, ["sales_performance", "gmv"]))
+      end)
+
+    {:ok, best}
   end
 
   # =============================================================================

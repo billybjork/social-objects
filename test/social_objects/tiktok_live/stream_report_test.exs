@@ -238,7 +238,6 @@ defmodule SocialObjects.TiktokLive.StreamReportTest do
         top_selling_products: nil,
         flash_sales: [],
         sentiment_analysis: nil,
-        gmv_data: nil,
         sentiment_breakdown: nil,
         category_breakdown: []
       }

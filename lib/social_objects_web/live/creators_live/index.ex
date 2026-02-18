@@ -1074,7 +1074,7 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
   # INFINITE SCROLL IMPLEMENTATION
   # =============================================================================
   #
-  # Uses CreatorsInfiniteScroll hook (assets/js/hooks/creators_infinite_scroll.js)
+  # Uses InfiniteScroll hook (assets/js/hooks/infinite_scroll.js)
   # which pushes "load_more" events when scrolling near the bottom.
   #
   # Two-phase loading prevents race conditions:
@@ -1087,8 +1087,12 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
 
   @impl true
   def handle_event("load_more", _params, socket) do
-    send(self(), :load_more_creators)
-    {:noreply, assign(socket, :loading_creators, true)}
+    if socket.assigns.loading_creators or not socket.assigns.has_more do
+      {:noreply, socket}
+    else
+      send(self(), :load_more_creators)
+      {:noreply, assign(socket, :loading_creators, true)}
+    end
   end
 
   defp format_changeset_errors(changeset) do

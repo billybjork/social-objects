@@ -17,7 +17,6 @@ defmodule SocialObjects.StreamReport do
   alias SocialObjects.Repo
   alias SocialObjects.TiktokLive
   alias SocialObjects.TiktokLive.Comment
-  alias SocialObjects.TiktokShop
   alias SocialObjects.TiktokShop.Analytics
   alias SocialObjectsWeb.BrandRoutes
 
@@ -55,9 +54,6 @@ defmodule SocialObjects.StreamReport do
     # Use cached sentiment analysis or generate new one
     sentiment = get_or_generate_sentiment(brand_id, stream, flash_sales)
 
-    # Fetch GMV data for the stream time window
-    gmv_data = get_gmv_data(brand_id, stream)
-
     # Get sentiment & category breakdowns for classified comments
     sentiment_breakdown =
       TiktokLive.get_aggregate_sentiment_breakdown(brand_id, stream_id: stream_id)
@@ -73,7 +69,6 @@ defmodule SocialObjects.StreamReport do
        top_selling_products: top_selling_products,
        flash_sales: flash_sales,
        sentiment_analysis: sentiment,
-       gmv_data: gmv_data,
        sentiment_breakdown: sentiment_breakdown,
        category_breakdown: category_breakdown,
        unique_commenters: unique_commenters
@@ -163,34 +158,6 @@ defmodule SocialObjects.StreamReport do
 
         nil
     end
-  end
-
-  defp get_gmv_data(_brand_id, %{started_at: nil}), do: nil
-  defp get_gmv_data(_brand_id, %{ended_at: nil}), do: nil
-
-  defp get_gmv_data(brand_id, stream) do
-    case TiktokShop.fetch_orders_in_range(brand_id, stream.started_at, stream.ended_at) do
-      {:ok, orders} ->
-        build_gmv_summary(orders)
-
-      {:error, reason} ->
-        Logger.warning("Failed to fetch GMV data: #{inspect(reason)}")
-        nil
-    end
-  end
-
-  defp build_gmv_summary(orders) do
-    hourly = TiktokShop.calculate_hourly_gmv(orders)
-
-    %{
-      hourly: hourly,
-      total_gmv_cents: sum_field(hourly, :gmv_cents),
-      total_orders: sum_field(hourly, :order_count)
-    }
-  end
-
-  defp sum_field(list, field) do
-    Enum.reduce(list, 0, fn item, acc -> acc + Map.get(item, field, 0) end)
   end
 
   @doc """
@@ -349,7 +316,6 @@ defmodule SocialObjects.StreamReport do
 
     blocks =
       base_blocks
-      |> maybe_add_gmv_section(report_data)
       |> maybe_add_products_section(report_data)
       |> maybe_add_top_selling_section(report_data)
       |> maybe_add_flash_sales_section(report_data)
@@ -359,13 +325,6 @@ defmodule SocialObjects.StreamReport do
 
     {:ok, blocks}
   end
-
-  defp maybe_add_gmv_section(blocks, %{gmv_data: %{total_orders: orders} = gmv_data})
-       when orders > 0 do
-    blocks ++ [gmv_block(gmv_data), divider_block()]
-  end
-
-  defp maybe_add_gmv_section(blocks, _report_data), do: blocks
 
   defp maybe_add_products_section(blocks, %{stream: stream, top_products: products})
        when products != [] do
@@ -491,39 +450,6 @@ defmodule SocialObjects.StreamReport do
         ":heavy_plus_sign: *#{format_number(stats.total_follows)}* follows    :arrow_right: *#{format_number(stats.total_shares)}* shares"
 
     %{type: "section", text: %{type: "mrkdwn", text: text}}
-  end
-
-  defp gmv_block(gmv_data) do
-    total_gmv = format_money(gmv_data.total_gmv_cents)
-    total_orders = gmv_data.total_orders
-    duration_hours = length(gmv_data.hourly)
-
-    gmv_per_hour =
-      if duration_hours > 0 do
-        format_money(div(gmv_data.total_gmv_cents, duration_hours))
-      else
-        "$0"
-      end
-
-    # Build hourly breakdown
-    hourly_lines =
-      Enum.map_join(gmv_data.hourly, "\n", fn h ->
-        hour_str = format_hour_pst(h.hour)
-        "#{hour_str}: *#{format_money(h.gmv_cents)}* (#{h.order_count} orders)"
-      end)
-
-    text =
-      ":moneybag: *GMV During Stream* _(correlation, not attribution)_\n" <>
-        "*#{total_gmv}* total  •  *#{total_orders}* orders  •  *#{gmv_per_hour}/hr* avg\n\n" <>
-        "_Hourly breakdown:_\n#{hourly_lines}"
-
-    %{type: "section", text: %{type: "mrkdwn", text: text}}
-  end
-
-  defp format_hour_pst(hour) do
-    {offset, _tz_abbr} = pacific_offset(hour)
-    local_hour = DateTime.add(hour, offset, :second)
-    Calendar.strftime(local_hour, "%I %p")
   end
 
   defp format_money(cents) when is_integer(cents) do
