@@ -33,4 +33,8 @@ defmodule SocialObjectsWeb.HomeController do
       redirect(conn, to: path)
     end
   end
+
+  def brand_index(conn, %{"brand_slug" => brand_slug}) do
+    redirect(conn, to: ~p"/b/#{brand_slug}/readme")
+  end
 end

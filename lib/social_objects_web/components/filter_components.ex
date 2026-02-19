@@ -21,6 +21,9 @@ defmodule SocialObjectsWeb.FilterComponents do
   - `change_event` - Event name when an option is selected (receives "value" param)
   - `toggle_event` - Event name for server-controlled click toggle (optional)
   - `clear_event` - Event name when clear button clicked (optional, shows X when active)
+  - `searchable` - Whether to show a client-side search input for options
+  - `search_placeholder` - Placeholder text for searchable dropdowns
+  - `empty_label` - Empty state text when no options match a search
   - `id` - Unique ID for the component (required for phx-click-away)
 
   ## Example
@@ -42,6 +45,9 @@ defmodule SocialObjectsWeb.FilterComponents do
   attr :change_event, :string, required: true
   attr :toggle_event, :string, default: nil
   attr :clear_event, :string, default: nil
+  attr :searchable, :boolean, default: false
+  attr :search_placeholder, :string, default: "Search..."
+  attr :empty_label, :string, default: "No results"
 
   def hover_dropdown(assigns) do
     # Find the label for the current value
@@ -104,6 +110,18 @@ defmodule SocialObjectsWeb.FilterComponents do
       </button>
 
       <div class="hover-dropdown__menu">
+        <%= if @searchable do %>
+          <div class="hover-dropdown__search">
+            <input
+              type="text"
+              class="input input--sm hover-dropdown__search-input"
+              placeholder={@search_placeholder}
+              data-hover-dropdown-search
+              aria-label={@search_placeholder}
+            />
+          </div>
+        <% end %>
+
         <div class="hover-dropdown__list">
           <%= for {opt_value, opt_label} <- @options do %>
             <button
@@ -114,11 +132,19 @@ defmodule SocialObjectsWeb.FilterComponents do
               ]}
               phx-click={@change_event}
               phx-value-selection={to_string(opt_value)}
+              data-hover-dropdown-option
+              data-label={String.downcase(to_string(opt_label))}
             >
               {opt_label}
             </button>
           <% end %>
         </div>
+
+        <%= if @searchable do %>
+          <div class="hover-dropdown__empty" data-hover-dropdown-empty hidden>
+            {@empty_label}
+          </div>
+        <% end %>
       </div>
     </div>
     """

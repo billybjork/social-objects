@@ -42,8 +42,7 @@ config :social_objects, Oban,
        # Enrich creator profiles from TikTok Marketplace API every hour
        # Reduced from 30min due to rate limiting; smaller batches (40) per run
        # 24 runs/day × 40 = 960 creators/day (conservative to avoid rate limits)
-       {"0 * * * *", SocialObjects.Workers.BrandCronWorker,
-        args: %{task: "creator_enrichment"}},
+       {"0 * * * *", SocialObjects.Workers.BrandCronWorker, args: %{task: "creator_enrichment"}},
        # Sync TikTok Shop Analytics data to streams every 6 hours
        {"0 */6 * * *", SocialObjects.Workers.BrandCronWorker,
         args: %{task: "stream_analytics_sync"}},

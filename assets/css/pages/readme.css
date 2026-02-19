@@ -53,11 +53,6 @@ body:has(.readme-page) .app-content {
   }
 }
 
-@media (max-width: 640px) {
-  .readme-cards--integrations {
-    @apply grid-cols-1;
-  }
-}
 
 /* ============================================================================
    CARDS

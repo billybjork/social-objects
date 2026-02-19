@@ -64,6 +64,13 @@ defmodule SocialObjectsWeb.VideosLiveTest do
       # Should have sort dropdown
       assert has_element?(view, "#sort-filter")
       assert has_element?(view, ".video-filters__sort-label", "Sort by:")
+      assert has_element?(view, "#creator-filter [data-hover-dropdown-search]")
+
+      assert has_element?(
+               view,
+               "#creator-filter [data-hover-dropdown-empty]",
+               "No creators found"
+             )
     end
 
     test "time preset filter persists in URL", %{conn: conn, path: path} do

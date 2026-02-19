@@ -300,6 +300,9 @@ defmodule SocialObjectsWeb.VideoComponents do
             change_event="filter_creator"
             toggle_event="toggle_creator_filter"
             open={@creator_filter_open}
+            searchable={true}
+            search_placeholder="Search creators..."
+            empty_label="No creators found"
           />
         <% end %>
       </div>

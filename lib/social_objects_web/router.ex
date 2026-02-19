@@ -73,6 +73,7 @@ defmodule SocialObjectsWeb.Router do
     pipe_through :browser
 
     get "/", HomeController, :index
+    get "/b/:brand_slug", HomeController, :brand_index
   end
 
   # Brand-scoped application routes (authenticated)

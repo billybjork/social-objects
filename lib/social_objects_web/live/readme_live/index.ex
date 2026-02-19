@@ -123,7 +123,7 @@ defmodule SocialObjectsWeb.ReadmeLive.Index do
         <h2 class="readme-section__title">Pages</h2>
         <div class="readme-cards readme-cards--pages">
           <.page_card
-            emoji="🎬"
+            emoji="📦"
             title="Products"
             description="Manage product catalog and create curated product sets for live streams"
             href={BrandRoutes.brand_path(@current_brand, "/products", @current_host)}
