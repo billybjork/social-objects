@@ -490,7 +490,7 @@ defmodule SocialObjects.Creators.BrandGmv do
            :live_gmv_delta_cents,
            :updated_at
          ]},
-      conflict_target: [:creator_id, :snapshot_date, :source]
+      conflict_target: [:brand_id, :creator_id, :snapshot_date, :source]
     )
   end
 

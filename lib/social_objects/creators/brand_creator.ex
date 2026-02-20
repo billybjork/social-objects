@@ -9,6 +9,9 @@ defmodule SocialObjects.Creators.BrandCreator do
   import Ecto.Changeset
 
   @type status :: :active | :inactive | :blocked
+  @type last_touchpoint_type :: :email | :sms | :manual
+  @type preferred_contact_channel :: :email | :sms | :tiktok_dm
+  @type engagement_priority :: :high | :medium | :monitor
 
   @type t :: %__MODULE__{
           id: pos_integer() | nil,
@@ -27,6 +30,18 @@ defmodule SocialObjects.Creators.BrandCreator do
           brand_gmv_last_synced_at: DateTime.t() | nil,
           video_count: integer(),
           live_count: integer(),
+          last_touchpoint_at: DateTime.t() | nil,
+          last_touchpoint_type: last_touchpoint_type() | nil,
+          preferred_contact_channel: preferred_contact_channel() | nil,
+          next_touchpoint_at: DateTime.t() | nil,
+          is_vip: boolean(),
+          is_trending: boolean(),
+          l30d_rank: integer() | nil,
+          l90d_rank: integer() | nil,
+          l30d_gmv_cents: integer() | nil,
+          stability_score: integer() | nil,
+          engagement_priority: engagement_priority() | nil,
+          vip_locked: boolean(),
           unmatched_products_raw: String.t() | nil,
           gmv_seeded_externally: boolean(),
           inserted_at: NaiveDateTime.t() | nil,
@@ -34,6 +49,9 @@ defmodule SocialObjects.Creators.BrandCreator do
         }
 
   @statuses ~w(active inactive blocked)a
+  @touchpoint_types ~w(email sms manual)a
+  @preferred_contact_channels ~w(email sms tiktok_dm)a
+  @engagement_priorities ~w(high medium monitor)a
 
   schema "brand_creators" do
     belongs_to :brand, SocialObjects.Catalog.Brand
@@ -60,6 +78,20 @@ defmodule SocialObjects.Creators.BrandCreator do
     # Brand-specific video/live counts (seeded from external imports or computed from creator_videos)
     field :video_count, :integer, default: 0
     field :live_count, :integer, default: 0
+
+    field :last_touchpoint_at, :utc_datetime
+    field :last_touchpoint_type, Ecto.Enum, values: @touchpoint_types
+    field :preferred_contact_channel, Ecto.Enum, values: @preferred_contact_channels
+    field :next_touchpoint_at, :utc_datetime
+
+    field :is_vip, :boolean, default: false
+    field :is_trending, :boolean, default: false
+    field :l30d_rank, :integer
+    field :l90d_rank, :integer
+    field :l30d_gmv_cents, :integer
+    field :stability_score, :integer
+    field :engagement_priority, Ecto.Enum, values: @engagement_priorities
+    field :vip_locked, :boolean, default: false
 
     # Fallback storage for unmatched product names from external imports
     field :unmatched_products_raw, :string
@@ -89,6 +121,18 @@ defmodule SocialObjects.Creators.BrandCreator do
       :brand_gmv_last_synced_at,
       :video_count,
       :live_count,
+      :last_touchpoint_at,
+      :last_touchpoint_type,
+      :preferred_contact_channel,
+      :next_touchpoint_at,
+      :is_vip,
+      :is_trending,
+      :l30d_rank,
+      :l90d_rank,
+      :l30d_gmv_cents,
+      :stability_score,
+      :engagement_priority,
+      :vip_locked,
       :unmatched_products_raw,
       :gmv_seeded_externally
     ])
@@ -102,4 +146,19 @@ defmodule SocialObjects.Creators.BrandCreator do
   Returns the list of valid statuses.
   """
   def statuses, do: @statuses
+
+  @doc """
+  Returns the list of valid touchpoint types.
+  """
+  def touchpoint_types, do: @touchpoint_types
+
+  @doc """
+  Returns the list of valid preferred contact channels.
+  """
+  def preferred_contact_channels, do: @preferred_contact_channels
+
+  @doc """
+  Returns the list of valid engagement priorities.
+  """
+  def engagement_priorities, do: @engagement_priorities
 end

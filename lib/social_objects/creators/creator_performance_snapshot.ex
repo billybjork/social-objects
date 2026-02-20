@@ -89,7 +89,10 @@ defmodule SocialObjects.Creators.CreatorPerformanceSnapshot do
     ])
     |> validate_required([:brand_id, :creator_id, :snapshot_date])
     |> validate_inclusion(:source, @sources)
-    |> unique_constraint([:creator_id, :snapshot_date, :source])
+    |> unique_constraint(
+      [:brand_id, :creator_id, :snapshot_date, :source],
+      name: :creator_perf_snapshots_brand_creator_date_source_idx
+    )
     |> foreign_key_constraint(:creator_id)
     |> foreign_key_constraint(:brand_id)
   end
