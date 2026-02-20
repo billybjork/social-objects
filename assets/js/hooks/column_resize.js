@@ -42,6 +42,8 @@ export default {
         th.dataset.columnId = `col-${index}`
       }
     })
+
+    this.enforceMinWidths()
   },
 
   getResizableHeaders() {
@@ -55,15 +57,43 @@ export default {
 
   restoreColumnWidths() {
     const saved = this.getSavedWidths()
-    if (!saved) return
-
     const headers = this.getAllHeaders()
+
+    if (!saved) {
+      this.enforceMinWidths()
+      return
+    }
+
     headers.forEach(th => {
       const columnId = th.dataset.columnId
+      const minWidth = this.getMinWidth(th)
+
       if (columnId && saved[columnId]) {
-        th.style.setProperty('width', `${saved[columnId]}px`, 'important')
+        const nextWidth = Math.max(saved[columnId], minWidth)
+        th.style.setProperty('width', `${nextWidth}px`, 'important')
+      } else if (th.offsetWidth < minWidth) {
+        th.style.setProperty('width', `${minWidth}px`, 'important')
       }
     })
+  },
+
+  enforceMinWidths() {
+    const headers = this.getAllHeaders()
+    headers.forEach(th => {
+      const minWidth = this.getMinWidth(th)
+      if (th.offsetWidth < minWidth) {
+        th.style.setProperty('width', `${minWidth}px`, 'important')
+      }
+    })
+  },
+
+  getMinWidth(th) {
+    const minWidthAttr = parseInt(th.dataset.minWidth, 10)
+    if (!Number.isNaN(minWidthAttr) && minWidthAttr > 0) {
+      return Math.max(MIN_COLUMN_WIDTH, minWidthAttr)
+    }
+
+    return MIN_COLUMN_WIDTH
   },
 
   getSavedWidths() {
@@ -173,7 +203,8 @@ export default {
   updateResize(clientX) {
     const { th, startX, startWidth } = this.resizing
     const delta = clientX - startX
-    const newWidth = Math.max(MIN_COLUMN_WIDTH, startWidth + delta)
+    const minWidth = this.getMinWidth(th)
+    const newWidth = Math.max(minWidth, startWidth + delta)
     th.style.setProperty('width', `${newWidth}px`, 'important')
   },
 

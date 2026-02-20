@@ -40,6 +40,7 @@ defmodule SocialObjectsWeb.FilterComponents do
   attr :id, :string, required: true
   attr :options, :list, required: true
   attr :current_value, :any, default: nil
+  attr :trigger_label, :string, default: nil
   attr :open, :boolean, default: false
   attr :open_on_hover, :boolean, default: true
   attr :change_event, :string, required: true
@@ -52,9 +53,10 @@ defmodule SocialObjectsWeb.FilterComponents do
   def hover_dropdown(assigns) do
     # Find the label for the current value
     current_label =
-      Enum.find_value(assigns.options, fn {value, label} ->
-        if to_string(value) == to_string(assigns.current_value), do: label
-      end) || elem(List.first(assigns.options), 1)
+      assigns.trigger_label ||
+        Enum.find_value(assigns.options, fn {value, label} ->
+          if to_string(value) == to_string(assigns.current_value), do: label
+        end) || elem(List.first(assigns.options), 1)
 
     # Determine if filter is active (not first option)
     first_value = assigns.options |> List.first() |> elem(0)

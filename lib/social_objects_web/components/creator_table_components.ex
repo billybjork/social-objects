@@ -187,6 +187,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
   attr :selected_ids, :any, default: nil
   attr :select_all_matching, :boolean, default: false
   attr :total_count, :integer, default: 0
+  attr :can_edit_engagement, :boolean, default: false
   attr :delta_period, :integer, default: nil
 
   def unified_creator_table(assigns) do
@@ -267,7 +268,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               time_filtered={@time_filter_active}
               freshness_source="Brand GMV"
             />
-            <%!-- 7a. Brand GMV (30d) - Brand-specific --%>
+            <%!-- 7. Brand GMV (30d) - Brand-specific --%>
             <.sort_header
               label="Brand GMV (30d)"
               field="brand_gmv"
@@ -278,7 +279,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               time_filtered={@time_filter_active}
               freshness_source="Brand GMV"
             />
-            <%!-- 7b. Cumulative GMV --%>
+            <%!-- 8. Cumulative GMV --%>
             <.sort_header
               label="Cumulative GMV"
               field="cumulative_gmv"
@@ -289,7 +290,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               time_filtered={@time_filter_active}
               freshness_source="Creator Profiles"
             />
-            <%!-- 8. Followers --%>
+            <%!-- 9. Followers --%>
             <.sort_header
               label="Followers"
               field="followers"
@@ -300,7 +301,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               time_filtered={@time_filter_active}
               freshness_source="Creator Profiles"
             />
-            <%!-- 9. Avg Views --%>
+            <%!-- 10. Avg Views --%>
             <.sort_header
               label="Avg Views"
               field="avg_views"
@@ -310,7 +311,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               tooltip="Average video views. Also from External Imports."
               freshness_source="Creator Profiles"
             />
-            <%!-- 9. Samples --%>
+            <%!-- 11. Samples --%>
             <.sort_header
               label="Samples"
               field="samples"
@@ -320,7 +321,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               tooltip="Sample products sent"
               freshness_source="Shop Orders"
             />
-            <%!-- 10. Videos Posted --%>
+            <%!-- 12. Videos Posted --%>
             <.sort_header
               label="Videos"
               field="videos_posted"
@@ -330,7 +331,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               tooltip="Videos with GMV for your brand"
               freshness_source="Brand GMV"
             />
-            <%!-- 11. Commission --%>
+            <%!-- 13. Commission --%>
             <.sort_header
               label="Commission"
               field="commission"
@@ -340,7 +341,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               tooltip="Total commission earned. Also from External Imports."
               freshness_source="Video Performance"
             />
-            <%!-- 12. Last Sample --%>
+            <%!-- 14. Last Sample --%>
             <.sort_header
               label="Last Sample"
               field="last_sample"
@@ -349,6 +350,54 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               on_sort={@on_sort}
               tooltip="Most recent sample received"
               freshness_source="Shop Orders"
+            />
+            <%!-- 15. Last Touchpoint At --%>
+            <.sort_header
+              label="Last Touchpoint At"
+              field="last_touchpoint"
+              current={@sort_by}
+              dir={@sort_dir}
+              on_sort={@on_sort}
+              min_width={220}
+              tooltip="Last successful outreach touchpoint for this brand"
+            />
+            <%!-- 16. Last Touchpoint Type --%>
+            <th
+              class="col-touchpoint-type"
+              data-column-id="last_touchpoint_type"
+              data-min-width="180"
+              title="Type of last successful touchpoint"
+            >
+              Last Touchpoint Type
+            </th>
+            <%!-- 17. Preferred Channel --%>
+            <th
+              class="col-preferred-channel"
+              data-column-id="preferred_contact_channel"
+              data-min-width="180"
+              title="Preferred contact channel for this brand relationship"
+            >
+              Preferred Channel
+            </th>
+            <%!-- 18. Next Touchpoint At --%>
+            <.sort_header
+              label="Next Touchpoint At"
+              field="next_touchpoint"
+              current={@sort_by}
+              dir={@sort_dir}
+              on_sort={@on_sort}
+              min_width={220}
+              tooltip="Scheduled next outreach touchpoint for this brand"
+            />
+            <%!-- 19. Priority --%>
+            <.sort_header
+              label="Priority"
+              field="priority"
+              current={@sort_by}
+              dir={@sort_dir}
+              on_sort={@on_sort}
+              min_width={145}
+              tooltip="System-calculated engagement priority"
             />
           </tr>
         </thead>
@@ -403,6 +452,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
                     <%= if creator.tiktok_nickname do %>
                       <span class="creator-cell__nickname">{creator.tiktok_nickname}</span>
                     <% end %>
+                    <.system_badges creator={creator} />
                   </div>
                 </div>
               </td>
@@ -424,7 +474,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
                   mode={:cumulative}
                 />
               </td>
-              <%!-- 7a. Brand GMV (30d) - Brand-specific --%>
+              <%!-- 7. Brand GMV (30d) - Brand-specific --%>
               <td
                 data-column-id="brand_gmv"
                 class={["text-right", @time_filter_active && "col-time-filtered"]}
@@ -436,7 +486,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
                   mode={:rolling}
                 />
               </td>
-              <%!-- 7b. Cumulative GMV --%>
+              <%!-- 8. Cumulative GMV --%>
               <td
                 data-column-id="cumulative_gmv"
                 class={["text-right", @time_filter_active && "col-time-filtered"]}
@@ -456,7 +506,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
                   />
                 <% end %>
               </td>
-              <%!-- 8. Followers --%>
+              <%!-- 9. Followers --%>
               <td
                 data-column-id="followers"
                 class={["text-right", @time_filter_active && "col-time-filtered"]}
@@ -473,21 +523,110 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
                   {format_number(creator.follower_count)}
                 <% end %>
               </td>
-              <%!-- 9. Avg Views --%>
+              <%!-- 10. Avg Views --%>
               <td data-column-id="avg_views" class="text-right">
                 {format_number(creator.avg_video_views)}
               </td>
-              <%!-- 9. Samples --%>
+              <%!-- 11. Samples --%>
               <td data-column-id="samples" class="text-right">{creator.sample_count || 0}</td>
-              <%!-- 10. Videos Posted --%>
+              <%!-- 12. Videos Posted --%>
               <td data-column-id="videos_posted" class="text-right">{creator.video_count || 0}</td>
-              <%!-- 11. Commission --%>
+              <%!-- 13. Commission --%>
               <td data-column-id="commission" class="text-right">
                 {format_gmv(creator.total_commission_cents)}
               </td>
-              <%!-- 12. Last Sample --%>
+              <%!-- 14. Last Sample --%>
               <td data-column-id="last_sample" class="text-right text-text-secondary">
                 {format_relative_time(creator.last_sample_at)}
+              </td>
+              <%!-- 15. Last Touchpoint At --%>
+              <td
+                data-column-id="last_touchpoint"
+                class="text-text-secondary"
+                phx-click="stop_propagation"
+              >
+                <%= if @can_edit_engagement do %>
+                  <.inline_engagement_datetime
+                    creator_id={creator.id}
+                    field="last_touchpoint_at"
+                    value={creator.last_touchpoint_at}
+                  />
+                <% else %>
+                  {touchpoint_datetime(creator.last_touchpoint_at)}
+                <% end %>
+              </td>
+              <%!-- 16. Last Touchpoint Type --%>
+              <td
+                data-column-id="last_touchpoint_type"
+                class="text-text-secondary"
+                phx-click="stop_propagation"
+              >
+                <%= if @can_edit_engagement do %>
+                  <.inline_engagement_select
+                    creator_id={creator.id}
+                    field="last_touchpoint_type"
+                    value={creator.last_touchpoint_type}
+                    options={[
+                      {"-", ""},
+                      {"Email", "email"},
+                      {"SMS", "sms"},
+                      {"Manual", "manual"}
+                    ]}
+                  />
+                <% else %>
+                  {format_touchpoint_type(creator.last_touchpoint_type)}
+                <% end %>
+              </td>
+              <%!-- 17. Preferred Channel --%>
+              <td
+                data-column-id="preferred_contact_channel"
+                class="text-text-secondary"
+                phx-click="stop_propagation"
+              >
+                <%= if @can_edit_engagement do %>
+                  <.inline_engagement_select
+                    creator_id={creator.id}
+                    field="preferred_contact_channel"
+                    value={creator.preferred_contact_channel}
+                    options={[
+                      {"-", ""},
+                      {"Email", "email"},
+                      {"SMS", "sms"},
+                      {"TikTok DM", "tiktok_dm"}
+                    ]}
+                  />
+                <% else %>
+                  {format_touchpoint_type(creator.preferred_contact_channel)}
+                <% end %>
+              </td>
+              <%!-- 18. Next Touchpoint At --%>
+              <td
+                data-column-id="next_touchpoint"
+                class="text-text-secondary"
+                phx-click="stop_propagation"
+              >
+                <%= if @can_edit_engagement do %>
+                  <.inline_engagement_datetime
+                    creator_id={creator.id}
+                    field="next_touchpoint_at"
+                    value={creator.next_touchpoint_at}
+                  />
+                <% else %>
+                  {touchpoint_datetime(creator.next_touchpoint_at)}
+                <% end %>
+              </td>
+              <%!-- 19. Priority --%>
+              <td data-column-id="priority">
+                <%= if creator.engagement_priority do %>
+                  <span class={[
+                    "badge badge--soft",
+                    priority_badge_class(creator.engagement_priority)
+                  ]}>
+                    {format_priority(creator.engagement_priority)}
+                  </span>
+                <% else %>
+                  <span class="text-text-secondary">-</span>
+                <% end %>
               </td>
             </tr>
           <% end %>
@@ -581,6 +720,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
   attr :time_filtered, :boolean, default: false
   attr :manual_import, :boolean, default: false
   attr :freshness_source, :string, default: nil
+  attr :min_width, :integer, default: nil
 
   def sort_header(assigns) do
     is_active = assigns.current == assigns.field
@@ -601,6 +741,7 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
         @manual_import && "sortable-header--manual-import"
       ]}
       data-column-id={@field}
+      data-min-width={@min_width}
     >
       <%= if @on_sort do %>
         <button
@@ -1009,9 +1150,11 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
   - `performance` - Lazy-loaded performance snapshots (nil if not loaded)
   """
   attr :creator, :any, default: nil
+  attr :brand_creator, :any, default: nil
   attr :active_tab, :string, default: "contact"
   attr :editing_contact, :boolean, default: false
   attr :contact_form, :any, default: nil
+  attr :engagement_form, :any, default: nil
   attr :contact_conflict, :boolean, default: false
   attr :tag_picker_open, :boolean, default: false
   attr :samples, :list, default: nil
@@ -1213,8 +1356,10 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               <% "contact" -> %>
                 <.contact_tab
                   creator={@creator}
+                  brand_creator={@brand_creator}
                   editing={@editing_contact}
                   form={@contact_form}
+                  engagement_form={@engagement_form}
                   conflict={@contact_conflict}
                 />
               <% "samples" -> %>
@@ -1241,8 +1386,10 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
   Renders the contact tab content with inline editing.
   """
   attr :creator, :any, required: true
+  attr :brand_creator, :any, default: nil
   attr :editing, :boolean, default: false
   attr :form, :any, default: nil
+  attr :engagement_form, :any, default: nil
   attr :conflict, :boolean, default: false
 
   def contact_tab(assigns) do
@@ -1275,9 +1422,10 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
           </button>
         </div>
       <% end %>
-      <%= if @editing && @form do %>
+      <%= if @editing && @form && @engagement_form do %>
         <.form
           for={@form}
+          id="creator-contact-form"
           phx-submit="save_contact"
           phx-change="validate_contact"
           class="flex flex-col gap-4"
@@ -1296,6 +1444,42 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
             <.input field={@form[:city]} type="text" label="City" />
             <.input field={@form[:state]} type="text" label="State" />
             <.input field={@form[:zipcode]} type="text" label="ZIP" />
+          </div>
+          <div class="contact-form-grid">
+            <.input
+              field={@engagement_form[:last_touchpoint_type]}
+              type="select"
+              label="Last Touchpoint Type"
+              options={[
+                {"-", ""},
+                {"Email", "email"},
+                {"SMS", "sms"},
+                {"Manual", "manual"}
+              ]}
+            />
+            <.input
+              field={@engagement_form[:preferred_contact_channel]}
+              type="select"
+              label="Preferred Channel"
+              options={[
+                {"-", ""},
+                {"Email", "email"},
+                {"SMS", "sms"},
+                {"TikTok DM", "tiktok_dm"}
+              ]}
+            />
+          </div>
+          <div class="contact-form-grid">
+            <.input
+              field={@engagement_form[:last_touchpoint_at]}
+              type="date"
+              label="Last Touchpoint At"
+            />
+            <.input
+              field={@engagement_form[:next_touchpoint_at]}
+              type="date"
+              label="Next Touchpoint At"
+            />
           </div>
           <.input field={@form[:notes]} type="textarea" label="Notes" rows={3} />
           <.input field={@form[:is_whitelisted]} type="checkbox" label="Whitelisted Creator" />
@@ -1340,6 +1524,33 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
               </dd>
             </div>
           </div>
+          <div class="contact-info-row">
+            <div class="contact-info-item">
+              <dt>Last Touchpoint</dt>
+              <dd>
+                {touchpoint_datetime(@brand_creator && @brand_creator.last_touchpoint_at)}
+                <span class="text-text-secondary">
+                  ({format_touchpoint_type(@brand_creator && @brand_creator.last_touchpoint_type)})
+                </span>
+              </dd>
+            </div>
+            <div class="contact-info-item">
+              <dt>Next Touchpoint</dt>
+              <dd>{touchpoint_datetime(@brand_creator && @brand_creator.next_touchpoint_at)}</dd>
+            </div>
+          </div>
+          <div class="contact-info-row">
+            <div class="contact-info-item">
+              <dt>Preferred Channel</dt>
+              <dd>
+                {format_touchpoint_type(@brand_creator && @brand_creator.preferred_contact_channel)}
+              </dd>
+            </div>
+            <div class="contact-info-item">
+              <dt>Priority</dt>
+              <dd>{format_priority(@brand_creator && @brand_creator.engagement_priority)}</dd>
+            </div>
+          </div>
           <div class="contact-info-row contact-info-row--full">
             <div class="contact-info-item">
               <dt>Notes</dt>
@@ -1362,4 +1573,161 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
     </div>
     """
   end
+
+  attr :creator, :any, required: true
+
+  def system_badges(assigns) do
+    ~H"""
+    <div id={"system-badges-#{@creator.id}"} class="flex flex-wrap gap-1">
+      <%= if @creator.is_vip do %>
+        <span class="badge badge--soft badge--success">VIP</span>
+      <% end %>
+      <%= if @creator.is_trending do %>
+        <span class="badge badge--soft badge--teal">Trending</span>
+      <% end %>
+      <%= if @creator.engagement_priority do %>
+        <span class={["badge badge--soft", priority_badge_class(@creator.engagement_priority)]}>
+          {format_priority(@creator.engagement_priority)}
+        </span>
+      <% end %>
+    </div>
+    """
+  end
+
+  attr :creator_id, :integer, required: true
+  attr :field, :string, required: true
+  attr :value, :any, default: nil
+  attr :options, :list, required: true
+
+  def inline_engagement_select(assigns) do
+    form =
+      to_form(
+        %{
+          "creator_id" => to_string(assigns.creator_id),
+          "field" => assigns.field,
+          "value" => inline_control_value(assigns.value)
+        },
+        as: :inline_engagement
+      )
+
+    assigns = assign(assigns, :form, form)
+
+    ~H"""
+    <.form
+      for={@form}
+      id={"inline-engagement-#{@creator_id}-#{@field}"}
+      phx-change="update_inline_engagement"
+      class="inline-engagement-form"
+    >
+      <input type="hidden" name={@form[:creator_id].name} value={@form[:creator_id].value} />
+      <input type="hidden" name={@form[:field].name} value={@form[:field].value} />
+      <select name={@form[:value].name} class="inline-engagement-control">
+        <%= for {option_label, option_value} <- @options do %>
+          <option value={option_value} selected={to_string(@form[:value].value) == option_value}>
+            {option_label}
+          </option>
+        <% end %>
+      </select>
+    </.form>
+    """
+  end
+
+  attr :creator_id, :integer, required: true
+  attr :field, :string, required: true
+  attr :value, :any, default: nil
+
+  def inline_engagement_datetime(assigns) do
+    form =
+      to_form(
+        %{
+          "creator_id" => to_string(assigns.creator_id),
+          "field" => assigns.field,
+          "value" => inline_datetime_value(assigns.value)
+        },
+        as: :inline_engagement
+      )
+
+    assigns = assign(assigns, :form, form)
+
+    ~H"""
+    <.form
+      for={@form}
+      id={"inline-engagement-#{@creator_id}-#{@field}"}
+      phx-change="update_inline_engagement"
+      class="inline-engagement-form"
+    >
+      <input type="hidden" name={@form[:creator_id].name} value={@form[:creator_id].value} />
+      <input type="hidden" name={@form[:field].name} value={@form[:field].value} />
+      <input
+        type="date"
+        name={@form[:value].name}
+        value={@form[:value].value}
+        phx-debounce="blur"
+        class="inline-engagement-control inline-engagement-control--datetime"
+      />
+    </.form>
+    """
+  end
+
+  defp touchpoint_datetime(nil), do: "-"
+
+  defp touchpoint_datetime(%DateTime{} = datetime) do
+    Calendar.strftime(datetime, "%b %-d, %Y")
+  end
+
+  defp touchpoint_datetime(%NaiveDateTime{} = datetime) do
+    Calendar.strftime(datetime, "%b %-d, %Y")
+  end
+
+  defp touchpoint_datetime(_), do: "-"
+
+  defp inline_datetime_value(nil), do: ""
+
+  defp inline_datetime_value(%Date{} = date) do
+    Calendar.strftime(date, "%Y-%m-%d")
+  end
+
+  defp inline_datetime_value(%DateTime{} = datetime) do
+    Calendar.strftime(datetime, "%Y-%m-%d")
+  end
+
+  defp inline_datetime_value(%NaiveDateTime{} = datetime) do
+    Calendar.strftime(datetime, "%Y-%m-%d")
+  end
+
+  defp inline_datetime_value(_), do: ""
+
+  defp inline_control_value(nil), do: ""
+  defp inline_control_value(value) when is_atom(value), do: Atom.to_string(value)
+  defp inline_control_value(value), do: to_string(value)
+
+  defp format_touchpoint_type(nil), do: "-"
+  defp format_touchpoint_type(""), do: "-"
+  defp format_touchpoint_type(:tiktok_dm), do: "TikTok DM"
+  defp format_touchpoint_type("tiktok_dm"), do: "TikTok DM"
+  defp format_touchpoint_type(:manual), do: "Manual"
+  defp format_touchpoint_type("manual"), do: "Manual"
+  defp format_touchpoint_type(:sms), do: "SMS"
+  defp format_touchpoint_type("sms"), do: "SMS"
+  defp format_touchpoint_type(:email), do: "Email"
+  defp format_touchpoint_type("email"), do: "Email"
+  defp format_touchpoint_type(_), do: "-"
+
+  defp format_priority(nil), do: "-"
+  defp format_priority(""), do: "-"
+  defp format_priority(:high), do: "High"
+  defp format_priority("high"), do: "High"
+  defp format_priority(:medium), do: "Medium"
+  defp format_priority("medium"), do: "Medium"
+  defp format_priority(:monitor), do: "Needs Attention"
+  defp format_priority("monitor"), do: "Needs Attention"
+  defp format_priority(_), do: "-"
+
+  defp priority_badge_class(:high), do: "badge--danger"
+  defp priority_badge_class("high"), do: "badge--danger"
+  defp priority_badge_class(:medium), do: "badge--info"
+  defp priority_badge_class("medium"), do: "badge--info"
+  defp priority_badge_class(:monitor), do: "badge--warning"
+  defp priority_badge_class("monitor"), do: "badge--warning"
+  defp priority_badge_class(_), do: "badge--muted"
 end

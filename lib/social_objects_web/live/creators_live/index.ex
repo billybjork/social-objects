@@ -14,7 +14,7 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
   alias SocialObjects.Communications
   alias SocialObjects.Communications.TemplateRenderer
   alias SocialObjects.Creators
-  alias SocialObjects.Creators.BrandGmv
+  alias SocialObjects.Creators.BrandCreator
   alias SocialObjects.Creators.Creator
   alias SocialObjects.Creators.CsvExporter
   alias SocialObjects.Outreach
@@ -74,9 +74,11 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
       |> assign(:loading_creators, false)
       # Modal state
       |> assign(:selected_creator, nil)
+      |> assign(:selected_brand_creator, nil)
       |> assign(:active_tab, "contact")
       |> assign(:editing_contact, false)
       |> assign(:contact_form, nil)
+      |> assign(:engagement_form, nil)
       # Contact edit locking state
       |> assign(:contact_lock_at, nil)
       |> assign(:contact_conflict, false)
@@ -88,12 +90,30 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
       |> assign(:refreshing, false)
       # Unified creators state (merged CRM + Outreach)
       |> assign(:outreach_status, nil)
+      |> assign(:segment_filter, nil)
+      |> assign(:last_touchpoint_type_filter, nil)
+      |> assign(:preferred_contact_channel_filter, nil)
+      |> assign(:next_touchpoint_state_filter, nil)
+      |> assign(:can_edit_engagement, can_edit?(socket.assigns))
       |> assign(:selected_ids, MapSet.new())
       |> assign(:select_all_matching, false)
       |> assign(:show_status_filter, false)
       |> assign(:sendable_selected_count, 0)
       |> assign(:tiktok_forwarding_count, 0)
-      |> assign(:outreach_stats, %{pending: 0, sent: 0, skipped: 0})
+      |> assign(:outreach_stats, %{
+        total: 0,
+        sampled: 0,
+        never_contacted: 0,
+        contacted: 0,
+        opted_out: 0
+      })
+      |> assign(:segment_stats, %{
+        total: 0,
+        vip: 0,
+        trending: 0,
+        high_priority: 0,
+        needs_attention: 0
+      })
       |> assign(:sent_today, 0)
       |> assign(:outreach_email_override, Keyword.get(features, :outreach_email_override))
       |> assign(:outreach_email_enabled, SocialObjects.FeatureFlags.enabled?("outreach_email"))
@@ -189,9 +209,11 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
       socket =
         socket
         |> assign(:selected_creator, nil)
+        |> assign(:selected_brand_creator, nil)
         |> assign(:active_tab, "contact")
         |> assign(:editing_contact, false)
         |> assign(:contact_form, nil)
+        |> assign(:engagement_form, nil)
         |> assign(:tag_picker_open_for, nil)
         |> assign(:tag_picker_source, nil)
         |> push_patch(to: creators_path(socket, params))
@@ -217,16 +239,23 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
   @impl true
   def handle_event("edit_contact", _params, socket) do
     creator = socket.assigns.selected_creator
+    brand_creator = socket.assigns.selected_brand_creator || %BrandCreator{}
 
     form =
       creator
       |> Creator.changeset(%{})
       |> to_form()
 
+    engagement_form =
+      brand_creator
+      |> BrandCreator.changeset(%{})
+      |> to_form(as: :engagement)
+
     socket =
       socket
       |> assign(:editing_contact, true)
       |> assign(:contact_form, form)
+      |> assign(:engagement_form, engagement_form)
       |> assign(:contact_lock_at, creator.updated_at)
       |> assign(:contact_conflict, false)
 
@@ -239,6 +268,7 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
       socket
       |> assign(:editing_contact, false)
       |> assign(:contact_form, nil)
+      |> assign(:engagement_form, nil)
       |> assign(:contact_lock_at, nil)
       |> assign(:contact_conflict, false)
 
@@ -246,36 +276,63 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
   end
 
   @impl true
-  def handle_event("validate_contact", %{"creator" => params}, socket) do
+  def handle_event("validate_contact", params, socket) do
+    creator_params = Map.get(params, "creator", %{})
+    engagement_params = Map.get(params, "engagement", %{})
+
     changeset =
       socket.assigns.selected_creator
-      |> Creator.changeset(params)
+      |> Creator.changeset(creator_params)
       |> Map.put(:action, :validate)
 
-    {:noreply, assign(socket, :contact_form, to_form(changeset))}
+    engagement_changeset =
+      (socket.assigns.selected_brand_creator || %BrandCreator{})
+      |> BrandCreator.changeset(engagement_params)
+      |> Map.put(:action, :validate)
+
+    socket =
+      socket
+      |> assign(:contact_form, to_form(changeset))
+      |> assign(:engagement_form, to_form(engagement_changeset, as: :engagement))
+
+    {:noreply, socket}
   end
 
   @impl true
-  def handle_event("save_contact", %{"creator" => params}, socket) do
+  def handle_event("save_contact", params, socket) do
     authorize socket, :admin do
       lock_at = socket.assigns.contact_lock_at
+      creator_params = Map.get(params, "creator", %{})
+      engagement_params = Map.get(params, "engagement", %{})
 
-      case Creators.update_creator_contact(socket.assigns.selected_creator, params, lock_at) do
-        {:ok, creator} ->
-          # Reload with minimal associations (not all tab data)
-          creator = Creators.get_creator_for_modal!(socket.assigns.brand_id, creator.id)
+      with {:ok, creator} <-
+             Creators.update_creator_contact(
+               socket.assigns.selected_creator,
+               creator_params,
+               lock_at
+             ),
+           {:ok, brand_creator} <-
+             Creators.update_brand_creator_engagement(
+               socket.assigns.brand_id,
+               socket.assigns.selected_creator.id,
+               engagement_params
+             ) do
+        # Reload with minimal associations (not all tab data)
+        creator = Creators.get_creator_for_modal!(socket.assigns.brand_id, creator.id)
 
-          socket =
-            socket
-            |> assign(:selected_creator, creator)
-            |> assign(:editing_contact, false)
-            |> assign(:contact_form, nil)
-            |> assign(:contact_lock_at, nil)
-            |> assign(:contact_conflict, false)
-            |> put_flash(:info, "Contact info updated")
+        socket =
+          socket
+          |> assign(:selected_creator, creator)
+          |> assign(:selected_brand_creator, brand_creator)
+          |> assign(:editing_contact, false)
+          |> assign(:contact_form, nil)
+          |> assign(:engagement_form, nil)
+          |> assign(:contact_lock_at, nil)
+          |> assign(:contact_conflict, false)
+          |> put_flash(:info, "Contact info updated")
 
-          {:noreply, socket}
-
+        {:noreply, socket}
+      else
         {:error, :stale_entry} ->
           # Record was modified since we started editing - show conflict UI
           socket =
@@ -283,11 +340,16 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
             |> assign(:contact_conflict, true)
             |> assign(:editing_contact, false)
             |> assign(:contact_form, nil)
+            |> assign(:engagement_form, nil)
 
           {:noreply, socket}
 
-        {:error, changeset} ->
-          {:noreply, assign(socket, :contact_form, to_form(changeset))}
+        {:error, %Ecto.Changeset{} = changeset} ->
+          if changeset.data.__struct__ == BrandCreator do
+            {:noreply, assign(socket, :engagement_form, to_form(changeset, as: :engagement))}
+          else
+            {:noreply, assign(socket, :contact_form, to_form(changeset))}
+          end
       end
     end
   end
@@ -295,13 +357,17 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
   @impl true
   def handle_event("refresh_for_conflict", _params, socket) do
     # Reload fresh creator data after a conflict
-    creator =
-      Creators.get_creator_for_modal!(socket.assigns.brand_id, socket.assigns.selected_creator.id)
+    creator_id = socket.assigns.selected_creator.id
+
+    creator = Creators.get_creator_for_modal!(socket.assigns.brand_id, creator_id)
+    brand_creator = Creators.get_brand_creator(socket.assigns.brand_id, creator_id)
 
     socket =
       socket
       |> assign(:selected_creator, creator)
+      |> assign(:selected_brand_creator, brand_creator)
       |> assign(:contact_conflict, false)
+      |> assign(:engagement_form, nil)
       |> assign(:contact_lock_at, nil)
 
     {:noreply, socket}
@@ -340,12 +406,106 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
   end
 
   @impl true
-  def handle_event("change_outreach_status", %{"status" => status}, socket) do
+  def handle_event("change_outreach_status", params, socket) do
+    status = Map.get(params, "selection") || Map.get(params, "status") || ""
+
     # Convert empty string to nil (meaning "all")
-    status = if status == "", do: nil, else: status
+    status = if status in ["", "all"], do: nil, else: status
     socket = assign(socket, :show_status_filter, false)
     params = build_query_params(socket, outreach_status: status, page: 1)
     {:noreply, push_patch(socket, to: creators_path(socket, params))}
+  end
+
+  @impl true
+  def handle_event("change_segment_filter", %{"selection" => selection}, socket) do
+    segment = if selection in ["", "all"], do: nil, else: selection
+    params = build_query_params(socket, segment_filter: segment, page: 1)
+    {:noreply, push_patch(socket, to: creators_path(socket, params))}
+  end
+
+  @impl true
+  def handle_event("clear_segment_filter", _params, socket) do
+    params = build_query_params(socket, segment_filter: nil, page: 1)
+    {:noreply, push_patch(socket, to: creators_path(socket, params))}
+  end
+
+  def handle_event("change_last_touchpoint_type_filter", %{"selection" => selection}, socket) do
+    last_touchpoint_type = if selection in ["", "all"], do: nil, else: selection
+
+    params =
+      build_query_params(socket, last_touchpoint_type_filter: last_touchpoint_type, page: 1)
+
+    {:noreply, push_patch(socket, to: creators_path(socket, params))}
+  end
+
+  @impl true
+  def handle_event("clear_last_touchpoint_type_filter", _params, socket) do
+    params = build_query_params(socket, last_touchpoint_type_filter: nil, page: 1)
+    {:noreply, push_patch(socket, to: creators_path(socket, params))}
+  end
+
+  @impl true
+  def handle_event(
+        "change_preferred_contact_channel_filter",
+        %{"selection" => selection},
+        socket
+      ) do
+    preferred_contact_channel = if selection in ["", "all"], do: nil, else: selection
+
+    params =
+      build_query_params(
+        socket,
+        preferred_contact_channel_filter: preferred_contact_channel,
+        page: 1
+      )
+
+    {:noreply, push_patch(socket, to: creators_path(socket, params))}
+  end
+
+  @impl true
+  def handle_event("clear_preferred_contact_channel_filter", _params, socket) do
+    params = build_query_params(socket, preferred_contact_channel_filter: nil, page: 1)
+    {:noreply, push_patch(socket, to: creators_path(socket, params))}
+  end
+
+  @impl true
+  def handle_event("change_next_touchpoint_state_filter", %{"selection" => selection}, socket) do
+    next_touchpoint_state = if selection in ["", "all"], do: nil, else: selection
+
+    params =
+      build_query_params(socket, next_touchpoint_state_filter: next_touchpoint_state, page: 1)
+
+    {:noreply, push_patch(socket, to: creators_path(socket, params))}
+  end
+
+  @impl true
+  def handle_event("clear_next_touchpoint_state_filter", _params, socket) do
+    params = build_query_params(socket, next_touchpoint_state_filter: nil, page: 1)
+    {:noreply, push_patch(socket, to: creators_path(socket, params))}
+  end
+
+  @impl true
+  def handle_event("update_inline_engagement", %{"inline_engagement" => params}, socket) do
+    authorize socket, :admin do
+      with {:ok, creator_id} <- parse_id(params["creator_id"]),
+           {:ok, attrs} <- inline_engagement_attrs(params["field"], params["value"]),
+           {:ok, _brand_creator} <-
+             Creators.update_brand_creator_engagement(socket.assigns.brand_id, creator_id, attrs) do
+        {:noreply, refresh_inline_engagement(socket, creator_id)}
+      else
+        {:error, :invalid_field} ->
+          {:noreply, socket}
+
+        {:error, :invalid_datetime} ->
+          {:noreply, put_flash(socket, :error, "Invalid date format")}
+
+        {:error, %Ecto.Changeset{}} ->
+          {:noreply, put_flash(socket, :error, "Unable to update engagement field")}
+
+        :error ->
+          {:noreply, socket}
+      end
+    end
   end
 
   @impl true
@@ -1133,11 +1293,15 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
           socket.assigns.selected_creator.id
         )
 
+      updated_brand_creator =
+        Creators.get_brand_creator(socket.assigns.brand_id, socket.assigns.selected_creator.id)
+
       socket
       |> assign(:show_send_modal, false)
       |> assign(:selected_ids, MapSet.new())
       |> assign(:select_all_matching, false)
       |> assign(:selected_creator, updated_creator)
+      |> assign(:selected_brand_creator, updated_brand_creator)
       |> assign(:page, 1)
       |> put_flash(:info, "Queued email for @#{updated_creator.tiktok_username || "creator"}")
       |> load_creators()
@@ -1385,9 +1549,13 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
         updated_creator =
           Creators.get_creator_for_modal!(socket.assigns.brand_id, updated_creator.id)
 
+        updated_brand_creator =
+          Creators.get_brand_creator(socket.assigns.brand_id, updated_creator.id)
+
         socket =
           socket
           |> assign(:selected_creator, updated_creator)
+          |> assign(:selected_brand_creator, updated_brand_creator)
           |> assign(:refreshing, false)
           |> put_flash(:info, "Creator data refreshed")
 
@@ -1451,6 +1619,7 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
     new_page_tab = params["pt"] || "creators"
     old_page_tab = socket.assigns.page_tab
     template_type = params["tt"] || "email"
+    engagement_filters = parse_engagement_filters(params)
 
     # Preserve selection when only switching tabs (not changing filters/search/page)
     {selected_ids, select_all_matching, sendable_count, tiktok_count} =
@@ -1470,6 +1639,13 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
     |> assign(:sort_dir, params["dir"] || "desc")
     |> assign(:page, parse_page(params["page"]))
     |> assign(:outreach_status, parse_outreach_status(params["status"]))
+    |> assign(:segment_filter, parse_segment_filter(params["segment"]))
+    |> assign(:last_touchpoint_type_filter, engagement_filters.last_touchpoint_type_filter)
+    |> assign(
+      :preferred_contact_channel_filter,
+      engagement_filters.preferred_contact_channel_filter
+    )
+    |> assign(:next_touchpoint_state_filter, engagement_filters.next_touchpoint_state_filter)
     |> assign(:selected_ids, selected_ids)
     |> assign(:select_all_matching, select_all_matching)
     |> assign(:sendable_selected_count, sendable_count)
@@ -1480,6 +1656,100 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
     |> assign(:page_tab, new_page_tab)
     |> assign(:template_type_filter, template_type)
     |> maybe_load_templates(new_page_tab, template_type)
+  end
+
+  defp parse_engagement_filters(params) do
+    %{
+      last_touchpoint_type_filter:
+        parse_last_touchpoint_type_filter(params["last_touchpoint_type"]),
+      preferred_contact_channel_filter:
+        parse_preferred_contact_channel_filter(params["preferred_contact_channel"]),
+      next_touchpoint_state_filter:
+        parse_next_touchpoint_state_filter(params["next_touchpoint_state"])
+    }
+  end
+
+  defp inline_engagement_attrs("last_touchpoint_type", value)
+       when value in ["", "email", "sms", "manual"] do
+    {:ok, %{"last_touchpoint_type" => blank_to_nil(value)}}
+  end
+
+  defp inline_engagement_attrs("preferred_contact_channel", value)
+       when value in ["", "email", "sms", "tiktok_dm"] do
+    {:ok, %{"preferred_contact_channel" => blank_to_nil(value)}}
+  end
+
+  defp inline_engagement_attrs("last_touchpoint_at", value) do
+    case parse_inline_datetime(value) do
+      {:ok, datetime} -> {:ok, %{"last_touchpoint_at" => datetime}}
+      {:error, _} -> {:error, :invalid_datetime}
+    end
+  end
+
+  defp inline_engagement_attrs("next_touchpoint_at", value) do
+    case parse_inline_datetime(value) do
+      {:ok, datetime} -> {:ok, %{"next_touchpoint_at" => datetime}}
+      {:error, _} -> {:error, :invalid_datetime}
+    end
+  end
+
+  defp inline_engagement_attrs(_, _), do: {:error, :invalid_field}
+
+  defp parse_inline_datetime(""), do: {:ok, nil}
+  defp parse_inline_datetime(nil), do: {:ok, nil}
+
+  defp parse_inline_datetime(value) when is_binary(value) do
+    case Date.from_iso8601(value) do
+      {:ok, date} ->
+        {:ok, DateTime.new!(date, ~T[00:00:00], "Etc/UTC")}
+
+      {:error, _} ->
+        normalized =
+          case String.length(value) do
+            16 -> value <> ":00"
+            _ -> value
+          end
+
+        with {:ok, naive} <- NaiveDateTime.from_iso8601(normalized),
+             {:ok, datetime} <- DateTime.from_naive(naive, "Etc/UTC") do
+          {:ok, DateTime.truncate(datetime, :second)}
+        end
+    end
+  end
+
+  defp parse_inline_datetime(_), do: {:error, :invalid_datetime}
+
+  defp blank_to_nil(""), do: nil
+  defp blank_to_nil(value), do: value
+
+  defp refresh_inline_engagement(socket, creator_id) do
+    brand_creator = Creators.get_brand_creator(socket.assigns.brand_id, creator_id)
+
+    creators =
+      Enum.map(socket.assigns.creators, fn creator ->
+        if creator.id == creator_id do
+          creator
+          |> Map.put(:last_touchpoint_at, brand_creator && brand_creator.last_touchpoint_at)
+          |> Map.put(:last_touchpoint_type, brand_creator && brand_creator.last_touchpoint_type)
+          |> Map.put(
+            :preferred_contact_channel,
+            brand_creator && brand_creator.preferred_contact_channel
+          )
+          |> Map.put(:next_touchpoint_at, brand_creator && brand_creator.next_touchpoint_at)
+        else
+          creator
+        end
+      end)
+
+    socket =
+      socket
+      |> assign(:creators, creators)
+
+    if socket.assigns.selected_creator && socket.assigns.selected_creator.id == creator_id do
+      assign(socket, :selected_brand_creator, brand_creator)
+    else
+      socket
+    end
   end
 
   # Load templates when on templates tab
@@ -1515,6 +1785,62 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
 
   defp parse_outreach_status(_), do: nil
 
+  defp parse_segment_filter(nil), do: nil
+  defp parse_segment_filter(""), do: nil
+  defp parse_segment_filter("all"), do: nil
+
+  defp parse_segment_filter(segment)
+       when segment in ["vip", "trending", "high_priority", "needs_attention"],
+       do: segment
+
+  defp parse_segment_filter(_), do: nil
+
+  defp parse_last_touchpoint_type_filter(nil), do: nil
+  defp parse_last_touchpoint_type_filter(""), do: nil
+
+  defp parse_last_touchpoint_type_filter(type) when type in ["email", "sms", "manual"],
+    do: type
+
+  defp parse_last_touchpoint_type_filter(_), do: nil
+
+  defp parse_preferred_contact_channel_filter(nil), do: nil
+  defp parse_preferred_contact_channel_filter(""), do: nil
+
+  defp parse_preferred_contact_channel_filter(channel)
+       when channel in ["email", "sms", "tiktok_dm"],
+       do: channel
+
+  defp parse_preferred_contact_channel_filter(_), do: nil
+
+  defp parse_next_touchpoint_state_filter(nil), do: nil
+  defp parse_next_touchpoint_state_filter(""), do: nil
+
+  defp parse_next_touchpoint_state_filter(state)
+       when state in ["scheduled", "due_this_week", "overdue", "unscheduled"],
+       do: state
+
+  defp parse_next_touchpoint_state_filter(_), do: nil
+
+  defp contact_status_filter_options(outreach_stats) do
+    [
+      {"all", "All Creators (#{Map.get(outreach_stats, :total, 0)})"},
+      {"sampled", "Sampled (#{Map.get(outreach_stats, :sampled, 0)})"},
+      {"never_contacted", "Never Contacted (#{Map.get(outreach_stats, :never_contacted, 0)})"},
+      {"contacted", "Contacted (#{Map.get(outreach_stats, :contacted, 0)})"},
+      {"opted_out", "Opted Out (#{Map.get(outreach_stats, :opted_out, 0)})"}
+    ]
+  end
+
+  defp creator_status_filter_options(segment_stats) do
+    [
+      {"all", "All Creators (#{Map.get(segment_stats, :total, 0)})"},
+      {"vip", "VIP (#{Map.get(segment_stats, :vip, 0)})"},
+      {"trending", "Trending (#{Map.get(segment_stats, :trending, 0)})"},
+      {"high_priority", "High Priority (#{Map.get(segment_stats, :high_priority, 0)})"},
+      {"needs_attention", "Needs Attention (#{Map.get(segment_stats, :needs_attention, 0)})"}
+    ]
+  end
+
   defp parse_tag_ids(nil), do: []
   defp parse_tag_ids(""), do: []
 
@@ -1539,6 +1865,10 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
       per_page: per_page,
       filter_tag_ids: filter_tag_ids,
       outreach_status: outreach_status,
+      segment_filter: segment_filter,
+      last_touchpoint_type_filter: last_touchpoint_type_filter,
+      preferred_contact_channel_filter: preferred_contact_channel_filter,
+      next_touchpoint_state_filter: next_touchpoint_state_filter,
       brand_id: brand_id,
       delta_period: delta_period
     } = socket.assigns
@@ -1550,6 +1880,10 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
       |> maybe_add_opt(:sort_by, sort_by)
       |> maybe_add_opt(:sort_dir, sort_dir)
       |> maybe_add_opt(:outreach_status, outreach_status)
+      |> maybe_add_opt(:segment, segment_filter)
+      |> maybe_add_opt(:last_touchpoint_type, last_touchpoint_type_filter)
+      |> maybe_add_opt(:preferred_contact_channel, preferred_contact_channel_filter)
+      |> maybe_add_opt(:next_touchpoint_state, next_touchpoint_state_filter)
       |> maybe_add_tag_filter(filter_tag_ids)
       |> Keyword.put(:brand_id, brand_id)
 
@@ -1562,7 +1896,7 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
     last_sample_at_map = Creators.batch_get_last_sample_at(brand_id, creator_ids)
     tags_map = Creators.batch_list_tags_for_creators(creator_ids, brand_id)
     commission_map = Creators.batch_sum_commission(brand_id, creator_ids)
-    brand_gmv_map = BrandGmv.batch_load_brand_gmv(brand_id, creator_ids)
+    brand_creator_map = Creators.batch_load_brand_creator_fields(brand_id, creator_ids)
 
     # Load snapshot deltas if a time period is selected
     snapshot_deltas_map =
@@ -1589,25 +1923,37 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
     creators_with_data =
       Enum.map(result.creators, fn creator ->
         snapshot_delta = Map.get(snapshot_deltas_map, creator.id, default_snapshot_delta)
-        brand_gmv = Map.get(brand_gmv_map, creator.id, %{})
+        brand_creator = Map.get(brand_creator_map, creator.id, %{})
 
         creator
         |> Map.put(:sample_count, Map.get(sample_counts_map, creator.id, 0))
         |> Map.put(:last_sample_at, Map.get(last_sample_at_map, creator.id))
         |> Map.put(:creator_tags, Map.get(tags_map, creator.id, []))
         |> Map.put(:email_outreach_log, Map.get(outreach_logs_map, creator.id))
-        |> Map.put(:video_count, Map.get(brand_gmv, :video_count, 0))
+        |> Map.put(:video_count, Map.get(brand_creator, :video_count, 0))
         |> Map.put(:total_commission_cents, Map.get(commission_map, creator.id, 0))
         |> Map.put(:snapshot_delta, snapshot_delta)
-        |> Map.put(:brand_gmv_cents, Map.get(brand_gmv, :brand_gmv_cents, 0))
+        |> Map.put(:brand_gmv_cents, Map.get(brand_creator, :brand_gmv_cents, 0))
         |> Map.put(
           :cumulative_brand_gmv_cents,
-          Map.get(brand_gmv, :cumulative_brand_gmv_cents, 0)
+          Map.get(brand_creator, :cumulative_brand_gmv_cents, 0)
         )
         |> Map.put(
           :brand_gmv_tracking_started_at,
-          Map.get(brand_gmv, :brand_gmv_tracking_started_at)
+          Map.get(brand_creator, :brand_gmv_tracking_started_at)
         )
+        |> Map.put(:last_touchpoint_at, Map.get(brand_creator, :last_touchpoint_at))
+        |> Map.put(:last_touchpoint_type, Map.get(brand_creator, :last_touchpoint_type))
+        |> Map.put(:preferred_contact_channel, Map.get(brand_creator, :preferred_contact_channel))
+        |> Map.put(:next_touchpoint_at, Map.get(brand_creator, :next_touchpoint_at))
+        |> Map.put(:is_vip, Map.get(brand_creator, :is_vip, false))
+        |> Map.put(:is_trending, Map.get(brand_creator, :is_trending, false))
+        |> Map.put(:l30d_rank, Map.get(brand_creator, :l30d_rank))
+        |> Map.put(:l90d_rank, Map.get(brand_creator, :l90d_rank))
+        |> Map.put(:l30d_gmv_cents, Map.get(brand_creator, :l30d_gmv_cents))
+        |> Map.put(:stability_score, Map.get(brand_creator, :stability_score))
+        |> Map.put(:engagement_priority, Map.get(brand_creator, :engagement_priority))
+        |> Map.put(:vip_locked, Map.get(brand_creator, :vip_locked, false))
       end)
 
     # If loading more (page > 1), append to existing
@@ -1632,6 +1978,7 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
   defp load_outreach_stats(socket) do
     stats = Outreach.get_outreach_stats(socket.assigns.brand_id)
     sampled_count = Creators.count_sampled_creators(socket.assigns.brand_id)
+    segment_stats = Creators.get_creator_segment_stats(socket.assigns.brand_id)
     sent_today = Outreach.count_sent_today(socket.assigns.brand_id)
 
     # Merge sampled count into stats
@@ -1639,6 +1986,7 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
 
     socket
     |> assign(:outreach_stats, stats)
+    |> assign(:segment_stats, segment_stats)
     |> assign(:sent_today, sent_today)
   end
 
@@ -1655,6 +2003,10 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
     creator_id: :c,
     tab: :tab,
     outreach_status: :status,
+    segment_filter: :segment,
+    last_touchpoint_type_filter: :last_touchpoint_type,
+    preferred_contact_channel_filter: :preferred_contact_channel,
+    next_touchpoint_state_filter: :next_touchpoint_state,
     filter_tag_ids: :tags,
     delta_period: :period,
     page_tab: :pt,
@@ -1671,6 +2023,10 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
       c: get_creator_id(socket.assigns.selected_creator),
       tab: socket.assigns.active_tab,
       status: socket.assigns.outreach_status,
+      segment: socket.assigns.segment_filter,
+      last_touchpoint_type: socket.assigns.last_touchpoint_type_filter,
+      preferred_contact_channel: socket.assigns.preferred_contact_channel_filter,
+      next_touchpoint_state: socket.assigns.next_touchpoint_state_filter,
       tags: format_tag_ids(socket.assigns.filter_tag_ids),
       period: socket.assigns.delta_period,
       pt: socket.assigns.page_tab,
@@ -1793,9 +2149,11 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
       nil ->
         socket
         |> assign(:selected_creator, nil)
+        |> assign(:selected_brand_creator, nil)
         |> assign(:active_tab, "contact")
         |> assign(:editing_contact, false)
         |> assign(:contact_form, nil)
+        |> assign(:engagement_form, nil)
         |> assign(:modal_samples, nil)
         |> assign(:modal_purchases, nil)
         |> assign(:modal_videos, nil)
@@ -1805,11 +2163,13 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
       creator_id ->
         # Load only basic creator info + tags (not samples/videos/performance)
         creator = Creators.get_creator_for_modal!(socket.assigns.brand_id, creator_id)
+        brand_creator = Creators.get_brand_creator(socket.assigns.brand_id, creator.id)
         tab = params["tab"] || "contact"
         fulfillment_stats = Creators.get_fulfillment_stats(socket.assigns.brand_id, creator_id)
 
         socket
         |> assign(:selected_creator, creator)
+        |> assign(:selected_brand_creator, brand_creator)
         |> assign(:active_tab, tab)
         # Reset lazy-loaded data
         |> assign(:modal_samples, nil)
@@ -1817,6 +2177,7 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
         |> assign(:modal_videos, nil)
         |> assign(:modal_performance, nil)
         |> assign(:modal_fulfillment_stats, fulfillment_stats)
+        |> assign(:engagement_form, nil)
         # Load the data for the active tab
         |> load_modal_tab_data(tab, creator.id)
     end

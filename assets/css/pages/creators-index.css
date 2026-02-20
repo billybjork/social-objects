@@ -8,7 +8,6 @@
 /* Page Header - Extend global styles for creators page */
 .creators-index .page-header {
   @apply justify-between;
-  padding-top: var(--space-5);
 }
 
 .creators-index .page-header__left {
@@ -76,8 +75,35 @@
 }
 
 .creators-index .page-header__right {
-  @apply flex items-center gap-3 shrink-0;
+  @apply flex flex-col items-end gap-2 shrink-0;
   transition: all 0.2s ease;
+}
+
+.creators-index .creators-toolbar-row {
+  @apply flex items-center gap-2 flex-wrap justify-end;
+}
+
+.creators-index .engagement-tracking-filters {
+  @apply flex items-center gap-3 px-3 py-2 rounded-lg border bg-bg-secondary;
+  border-color: var(--color-border-primary);
+  align-self: stretch;
+}
+
+.creators-index .engagement-tracking-filters--in-header {
+  @apply mt-2 w-full;
+  flex: 1 1 100%;
+}
+
+.creators-index .engagement-tracking-filters__label {
+  @apply text-xs font-semibold uppercase tracking-[0.06em] text-text-secondary whitespace-nowrap shrink-0;
+}
+
+.creators-index .engagement-tracking-filters__controls {
+  @apply flex items-center gap-2 flex-wrap;
+}
+
+.creators-index .engagement-tracking-filters .hover-dropdown__trigger {
+  @apply min-w-[130px];
 }
 
 .creators-scroll-container {
@@ -102,6 +128,36 @@
 .creator-table.mode-unified th[data-column-id="videos_posted"] { width: 140px; }
 .creator-table.mode-unified th[data-column-id="commission"] { width: 175px; }
 .creator-table.mode-unified th[data-column-id="last_sample"] { width: 140px; }
+.creator-table.mode-unified th[data-column-id="last_touchpoint"] { width: 220px; }
+.creator-table.mode-unified th[data-column-id="last_touchpoint_type"] { width: 180px; }
+.creator-table.mode-unified th[data-column-id="preferred_contact_channel"] { width: 180px; }
+.creator-table.mode-unified th[data-column-id="next_touchpoint"] { width: 220px; }
+.creator-table.mode-unified th[data-column-id="priority"] { width: 145px; }
+
+.creator-table.mode-unified th[data-column-id="last_touchpoint"],
+.creator-table.mode-unified td[data-column-id="last_touchpoint"] {
+  min-width: 220px;
+}
+
+.creator-table.mode-unified th[data-column-id="last_touchpoint_type"],
+.creator-table.mode-unified td[data-column-id="last_touchpoint_type"] {
+  min-width: 180px;
+}
+
+.creator-table.mode-unified th[data-column-id="preferred_contact_channel"],
+.creator-table.mode-unified td[data-column-id="preferred_contact_channel"] {
+  min-width: 180px;
+}
+
+.creator-table.mode-unified th[data-column-id="next_touchpoint"],
+.creator-table.mode-unified td[data-column-id="next_touchpoint"] {
+  min-width: 220px;
+}
+
+.creator-table.mode-unified th[data-column-id="priority"],
+.creator-table.mode-unified td[data-column-id="priority"] {
+  min-width: 145px;
+}
 
 /* Center align Status column in unified mode */
 .creator-table.mode-unified th[data-column-id="status"],
@@ -229,7 +285,11 @@
   }
 
   .creators-index .page-header__right {
-    @apply flex-none;
+    @apply flex-none items-start;
+  }
+
+  .creators-index .creators-toolbar-row {
+    @apply justify-start;
   }
 
   .creators-index .time-filter__trigger,
@@ -254,8 +314,12 @@
   }
 
   .creators-index .page-header__right {
-    @apply gap-2 justify-start;
+    @apply gap-2 justify-start items-start;
     flex: 1 1 auto;
+  }
+
+  .creators-index .creators-toolbar-row {
+    @apply w-full;
   }
 
   .creators-index .hover-dropdown__trigger {
@@ -272,6 +336,22 @@
 
   .creators-index .data-freshness__summary {
     @apply min-w-[32px] h-8 p-0;
+  }
+
+  .creators-index .engagement-tracking-filters {
+    @apply w-full flex-col items-start gap-2 px-2.5;
+  }
+
+  .creators-index .engagement-tracking-filters__controls {
+    @apply w-full;
+  }
+
+  .creators-index .engagement-tracking-filters .hover-dropdown {
+    @apply grow;
+  }
+
+  .creators-index .engagement-tracking-filters .hover-dropdown__trigger {
+    @apply w-full justify-between min-w-0;
   }
 
   .preset-btn {
@@ -393,6 +473,21 @@
 /* Table badges */
 .creator-table .badge {
   @apply justify-center min-w-[70px] capitalize;
+}
+
+.creator-table .inline-engagement-form {
+  @apply m-0;
+}
+
+.creator-table .inline-engagement-control {
+  @apply h-8 w-full min-w-[120px] bg-surface-primary text-xs text-text-primary;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0 0.5rem;
+}
+
+.creator-table .inline-engagement-control--datetime {
+  min-width: 170px;
 }
 
 /* ============================================
