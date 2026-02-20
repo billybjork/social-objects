@@ -93,12 +93,16 @@
 .streams-table th[data-column-id="thumbnail"] { width: 75px; }
 .streams-table th[data-column-id="title"] { width: 220px; }
 .streams-table th[data-column-id="status"] { width: 100px; }
-.streams-table th[data-column-id="started"] { width: 165px; }
+.streams-table th[data-column-id="started"] { width: 81px; }
 .streams-table th[data-column-id="duration"] { width: 125px; }
 .streams-table th[data-column-id="viewers"] { width: 110px; }
+.streams-table th[data-column-id="avg_view"] { width: 114px; }
 .streams-table th[data-column-id="products"] { width: 160px; }
-.streams-table th[data-column-id="gmv"] { width: 105px; }
+.streams-table th[data-column-id="gmv"] { width: 84px; }
 .streams-table th[data-column-id="comments"] { width: 130px; }
+.streams-table th[data-column-id="follows"] { width: 100px; }
+.streams-table th[data-column-id="ctr"] { width: 85px; }
+.streams-table th[data-column-id="conversion"] { width: 100px; }
 .streams-table th[data-column-id="sentiment"] { width: 140px; }
 
 .streams-table td[data-column-id="title"] {
@@ -257,7 +261,7 @@
 }
 
 .stream-modal-stat {
-  @apply flex flex-col items-center shrink-0;
+  @apply flex flex-1 flex-col items-center min-w-0;
   gap: 2px;
 }
 
@@ -395,11 +399,6 @@
     @apply gap-3 p-2;
   }
 
-  .stream-modal-top-sections {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0;
-  }
-
   .stream-modal-stat__value {
     @apply text-sm;
   }
@@ -423,7 +422,13 @@
   .streams-table th[data-column-id="duration"],
   .streams-table td[data-column-id="duration"],
   .streams-table th[data-column-id="viewers"],
-  .streams-table td[data-column-id="viewers"] {
+  .streams-table td[data-column-id="viewers"],
+  .streams-table th[data-column-id="avg_view"],
+  .streams-table td[data-column-id="avg_view"],
+  .streams-table th[data-column-id="ctr"],
+  .streams-table td[data-column-id="ctr"],
+  .streams-table th[data-column-id="conversion"],
+  .streams-table td[data-column-id="conversion"] {
     @apply hidden;
   }
 
@@ -724,6 +729,13 @@
 
 .stream-modal-top-section .stream-modal-stats {
   margin-bottom: 0;
+}
+
+@media (max-width: 768px) {
+  .stream-modal-top-sections {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
 }
 
 /* Section header (for TikTok Shop Analytics) */

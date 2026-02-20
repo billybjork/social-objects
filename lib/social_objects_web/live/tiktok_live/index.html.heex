@@ -9,14 +9,15 @@
             <.hover_dropdown
               id="analytics-stream-filter"
               options={
-                [{"", "All Streams"}] ++
-                  Enum.map(@all_streams_for_select, fn stream ->
-                    {stream.id,
-                     "@#{stream.unique_id} - #{Calendar.strftime(stream.started_at, "%b %d")}"}
-                  end)
+                Enum.map(@all_streams_for_select, fn stream ->
+                  {stream.id,
+                   "@#{stream.unique_id} - #{Calendar.strftime(stream.started_at, "%b %d")}"}
+                end)
               }
+              trigger_label="All Streams"
               current_value={@analytics_stream_id}
               change_event="analytics_select_stream"
+              clear_event="analytics_select_stream"
             />
           </div>
       <% end %>
@@ -39,25 +40,27 @@
           <.hover_dropdown
             id="streams-status-filter"
             options={[
-              {"all", "All Status"},
               {"capturing", "Live Now"},
               {"ended", "Ended"},
               {"failed", "Failed"}
             ]}
             current_value={@status_filter}
+            trigger_label="Status"
             change_event="filter_status"
+            clear_event="filter_status"
           />
 
           <.hover_dropdown
             id="streams-date-filter"
             options={[
-              {"all", "All Time"},
               {"today", "Today"},
               {"week", "Last 7 Days"},
               {"month", "Last 30 Days"}
             ]}
             current_value={@date_filter}
+            trigger_label="Date"
             change_event="filter_date"
+            clear_event="filter_date"
           />
         </div>
       </div>

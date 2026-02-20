@@ -57,7 +57,7 @@ defmodule SocialObjects.TiktokLive do
 
   - `:status` - Filter by status (:capturing, :ended, :failed)
   - `:unique_id` - Filter by TikTok username
-  - `:sort_by` - Field to sort by ("started", "viewers", "gmv", "comments", "duration")
+  - `:sort_by` - Field to sort by ("started", "viewers", "avg_view", "gmv", "comments", "follows", "ctr", "conversion", "duration")
   - `:sort_dir` - Direction ("asc" or "desc", default "desc")
   - `:limit` - Limit number of results
   - `:offset` - Offset for pagination
@@ -941,46 +941,72 @@ defmodule SocialObjects.TiktokLive do
   defp apply_sorting(query, opts) do
     sort_by = Keyword.get(opts, :sort_by, "started")
     sort_dir = Keyword.get(opts, :sort_dir, "desc")
-
     dir = if sort_dir == "asc", do: :asc, else: :desc
+    apply_sorting_by(query, sort_by, dir)
+  end
 
-    case sort_by do
-      "started" ->
-        order_by(query, [s], [{^dir, s.started_at}])
+  defp apply_sorting_by(query, "started", dir) do
+    order_by(query, [s], [{^dir, s.started_at}])
+  end
 
-      "viewers" ->
-        order_by(query, [s], [{^dir, coalesce(s.viewer_count_peak, 0)}, {^dir, s.started_at}])
+  defp apply_sorting_by(query, "viewers", dir) do
+    order_by(query, [s], [{^dir, coalesce(s.viewer_count_peak, 0)}, {^dir, s.started_at}])
+  end
 
-      "gmv" ->
-        order_by(query, [s], [
-          {^dir, coalesce(s.official_gmv_cents, 0)},
-          {^dir, s.started_at}
-        ])
+  defp apply_sorting_by(query, "avg_view", dir) do
+    order_by(query, [s], [{^dir, coalesce(s.avg_view_duration_seconds, 0)}, {^dir, s.started_at}])
+  end
 
-      "comments" ->
-        order_by(query, [s], [{^dir, coalesce(s.total_comments, 0)}, {^dir, s.started_at}])
+  defp apply_sorting_by(query, "gmv", dir) do
+    order_by(query, [s], [{^dir, coalesce(s.official_gmv_cents, 0)}, {^dir, s.started_at}])
+  end
 
-      "duration" ->
-        # Duration is calculated as ended_at - started_at
-        # For ongoing streams (ended_at is nil), treat as 0 for sorting
-        order_by(
-          query,
-          [s],
-          [
-            {^dir,
-             fragment(
-               "COALESCE(EXTRACT(EPOCH FROM (? - ?)), 0)",
-               s.ended_at,
-               s.started_at
-             )},
-            {^dir, s.started_at}
-          ]
-        )
+  defp apply_sorting_by(query, "comments", dir) do
+    order_by(query, [s], [{^dir, coalesce(s.total_comments, 0)}, {^dir, s.started_at}])
+  end
 
-      _ ->
-        # Default to started_at desc
-        order_by(query, [s], [{^dir, s.started_at}])
-    end
+  defp apply_sorting_by(query, "follows", dir) do
+    order_by(query, [s], [
+      {^dir, fragment("COALESCE(?, ?, 0)", s.official_new_followers, s.total_follows)},
+      {^dir, s.started_at}
+    ])
+  end
+
+  defp apply_sorting_by(query, "ctr", dir) do
+    order_by(query, [s], [
+      {^dir, fragment("COALESCE(?, 0)", s.click_through_rate)},
+      {^dir, s.started_at}
+    ])
+  end
+
+  defp apply_sorting_by(query, "conversion", dir) do
+    order_by(query, [s], [
+      {^dir, fragment("COALESCE(?, 0)", s.conversion_rate)},
+      {^dir, s.started_at}
+    ])
+  end
+
+  defp apply_sorting_by(query, "duration", dir) do
+    # Duration is calculated as ended_at - started_at
+    # For ongoing streams (ended_at is nil), treat as 0 for sorting
+    order_by(
+      query,
+      [s],
+      [
+        {^dir,
+         fragment(
+           "COALESCE(EXTRACT(EPOCH FROM (? - ?)), 0)",
+           s.ended_at,
+           s.started_at
+         )},
+        {^dir, s.started_at}
+      ]
+    )
+  end
+
+  defp apply_sorting_by(query, _sort_by, dir) do
+    # Default to started_at desc
+    order_by(query, [s], [{^dir, s.started_at}])
   end
 
   defp get_active_capture(brand_id, room_id) do

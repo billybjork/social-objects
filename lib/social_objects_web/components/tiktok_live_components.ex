@@ -136,15 +136,16 @@ defmodule SocialObjectsWeb.TiktokLiveComponents do
       >
         <thead>
           <tr>
-            <th data-column-id="thumbnail"></th>
-            <th data-column-id="title">Title</th>
-            <th data-column-id="status">Status</th>
+            <th data-column-id="thumbnail" style="width: 77px"></th>
+            <th data-column-id="title" style="width: 220px">Title</th>
+            <th data-column-id="status" style="width: 99px">Status</th>
             <.sort_header
               label="Started"
               field="started"
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
+              default_width={188}
             />
             <.sort_header
               label="Duration"
@@ -152,21 +153,32 @@ defmodule SocialObjectsWeb.TiktokLiveComponents do
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
+              default_width={118}
             />
+            <th data-column-id="products" style="width: 153px">Products</th>
             <.sort_header
               label="Viewers"
               field="viewers"
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
+              default_width={111}
             />
-            <th data-column-id="products">Products</th>
+            <.sort_header
+              label="Avg View"
+              field="avg_view"
+              current={@sort_by}
+              dir={@sort_dir}
+              on_sort={@on_sort}
+              default_width={114}
+            />
             <.sort_header
               label="GMV"
               field="gmv"
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
+              default_width={136}
             />
             <.sort_header
               label="Comments"
@@ -174,8 +186,33 @@ defmodule SocialObjectsWeb.TiktokLiveComponents do
               current={@sort_by}
               dir={@sort_dir}
               on_sort={@on_sort}
+              default_width={131}
             />
-            <th data-column-id="sentiment">Sentiment</th>
+            <.sort_header
+              label="Follows"
+              field="follows"
+              current={@sort_by}
+              dir={@sort_dir}
+              on_sort={@on_sort}
+              default_width={100}
+            />
+            <.sort_header
+              label="CTR"
+              field="ctr"
+              current={@sort_by}
+              dir={@sort_dir}
+              on_sort={@on_sort}
+              default_width={85}
+            />
+            <.sort_header
+              label="CVR"
+              field="conversion"
+              current={@sort_by}
+              dir={@sort_dir}
+              on_sort={@on_sort}
+              default_width={100}
+            />
+            <th data-column-id="sentiment" style="width: 138px">Sentiment</th>
           </tr>
         </thead>
         <tbody>
@@ -214,6 +251,9 @@ defmodule SocialObjectsWeb.TiktokLiveComponents do
               <td data-column-id="duration" class="text-right text-text-secondary">
                 {format_duration(stream.started_at, stream.ended_at)}
               </td>
+              <td data-column-id="products" class="text-right">
+                <.stream_product_count stream={stream} />
+              </td>
               <td data-column-id="viewers" class="text-right">
                 <%= if stream.status == :capturing do %>
                   <span class="text-live">{format_number(stream.viewer_count_current)}</span>
@@ -221,8 +261,12 @@ defmodule SocialObjectsWeb.TiktokLiveComponents do
                   {format_number(stream.viewer_count_peak)}
                 <% end %>
               </td>
-              <td data-column-id="products" class="text-right">
-                <.stream_product_count stream={stream} />
+              <td data-column-id="avg_view" class="text-right">
+                <%= if stream.avg_view_duration_seconds do %>
+                  {format_view_duration(stream.avg_view_duration_seconds)}
+                <% else %>
+                  <span class="text-text-secondary">—</span>
+                <% end %>
               </td>
               <td data-column-id="gmv" class="text-right">
                 <%= cond do %>
@@ -239,6 +283,23 @@ defmodule SocialObjectsWeb.TiktokLiveComponents do
               </td>
               <td data-column-id="comments" class="text-right">
                 {format_number(stream.total_comments)}
+              </td>
+              <td data-column-id="follows" class="text-right">
+                {format_number(best_metric(stream, :follows))}
+              </td>
+              <td data-column-id="ctr" class="text-right">
+                <%= if stream.click_through_rate do %>
+                  {format_rate_percent(stream.click_through_rate)}
+                <% else %>
+                  <span class="text-text-secondary">—</span>
+                <% end %>
+              </td>
+              <td data-column-id="conversion" class="text-right">
+                <%= if stream.conversion_rate do %>
+                  {format_rate_percent(stream.conversion_rate)}
+                <% else %>
+                  <span class="text-text-secondary">—</span>
+                <% end %>
               </td>
               <td data-column-id="sentiment" class="text-center">
                 <.stream_sentiment_indicator sentiment={Map.get(@streams_sentiment, stream.id)} />
@@ -555,7 +616,7 @@ defmodule SocialObjectsWeb.TiktokLiveComponents do
             <% end %>
             <%= if @stream.conversion_rate do %>
               <div class="stream-modal-stat">
-                <span class="stream-modal-stat__label">Conversion</span>
+                <span class="stream-modal-stat__label">CVR</span>
                 <span class="stream-modal-stat__value">
                   {Decimal.to_string(@stream.conversion_rate)}%
                 </span>
@@ -1148,19 +1209,19 @@ defmodule SocialObjectsWeb.TiktokLiveComponents do
           <.hover_dropdown
             id="analytics-sentiment-filter"
             options={[
-              {"", "All Sentiment"},
               {"positive", "Positive"},
               {"neutral", "Neutral"},
               {"negative", "Negative"}
             ]}
+            trigger_label="Sentiment"
             current_value={if @sentiment_filter, do: Atom.to_string(@sentiment_filter), else: ""}
             change_event="analytics_filter_sentiment"
+            clear_event="analytics_filter_sentiment"
           />
 
           <.hover_dropdown
             id="analytics-category-filter"
             options={[
-              {"", "All Categories"},
               {"praise_compliment", "Praise"},
               {"question_confusion", "Questions"},
               {"product_request", "Product Requests"},
@@ -1169,8 +1230,10 @@ defmodule SocialObjectsWeb.TiktokLiveComponents do
               {"flash_sale", "Flash Sale"},
               {"general", "General"}
             ]}
+            trigger_label="Category"
             current_value={if @category_filter, do: Atom.to_string(@category_filter), else: ""}
             change_event="analytics_filter_category"
+            clear_event="analytics_filter_category"
           />
         </div>
       </div>
@@ -1438,6 +1501,10 @@ defmodule SocialObjectsWeb.TiktokLiveComponents do
     else
       "#{remaining_seconds}s"
     end
+  end
+
+  defp format_rate_percent(%Decimal{} = rate) do
+    "#{rate |> Decimal.round(2) |> Decimal.to_string(:normal)}%"
   end
 
   # ============================================================================

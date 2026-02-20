@@ -13,6 +13,7 @@ defmodule SocialObjects.TiktokLive.StreamLifecycleTest do
 
   import SocialObjects.TiktokLiveFixtures
 
+  alias SocialObjects.Repo
   alias SocialObjects.TiktokLive
 
   describe "mark_stream_ended/2" do
@@ -136,6 +137,94 @@ defmodule SocialObjects.TiktokLive.StreamLifecycleTest do
 
       assert is_nil(TiktokLive.get_active_stream(brand.id))
     end
+
+    test "list_streams sorts by avg_view" do
+      brand = brand_fixture()
+
+      low = stream_fixture(brand: brand, started_at: DateTime.add(DateTime.utc_now(), -3, :hour))
+      mid = stream_fixture(brand: brand, started_at: DateTime.add(DateTime.utc_now(), -2, :hour))
+      high = stream_fixture(brand: brand, started_at: DateTime.add(DateTime.utc_now(), -1, :hour))
+
+      _ = update_stream!(low, %{avg_view_duration_seconds: 45})
+      _ = update_stream!(mid, %{avg_view_duration_seconds: 90})
+      _ = update_stream!(high, %{avg_view_duration_seconds: 180})
+
+      sorted =
+        TiktokLive.list_streams(
+          brand.id,
+          sort_by: "avg_view",
+          sort_dir: "desc",
+          limit: 20
+        )
+
+      assert Enum.map(sorted, & &1.id) == [high.id, mid.id, low.id]
+    end
+
+    test "list_streams sorts by follows" do
+      brand = brand_fixture()
+
+      low = stream_fixture(brand: brand, started_at: DateTime.add(DateTime.utc_now(), -3, :hour))
+      mid = stream_fixture(brand: brand, started_at: DateTime.add(DateTime.utc_now(), -2, :hour))
+      high = stream_fixture(brand: brand, started_at: DateTime.add(DateTime.utc_now(), -1, :hour))
+
+      _ = update_stream!(low, %{official_new_followers: 10, total_follows: 10})
+      _ = update_stream!(mid, %{official_new_followers: 20, total_follows: 20})
+      _ = update_stream!(high, %{official_new_followers: 30, total_follows: 30})
+
+      sorted =
+        TiktokLive.list_streams(
+          brand.id,
+          sort_by: "follows",
+          sort_dir: "desc",
+          limit: 20
+        )
+
+      assert Enum.map(sorted, & &1.id) == [high.id, mid.id, low.id]
+    end
+
+    test "list_streams sorts by conversion" do
+      brand = brand_fixture()
+
+      low = stream_fixture(brand: brand, started_at: DateTime.add(DateTime.utc_now(), -3, :hour))
+      mid = stream_fixture(brand: brand, started_at: DateTime.add(DateTime.utc_now(), -2, :hour))
+      high = stream_fixture(brand: brand, started_at: DateTime.add(DateTime.utc_now(), -1, :hour))
+
+      _ = update_stream!(low, %{conversion_rate: Decimal.new("0.75")})
+      _ = update_stream!(mid, %{conversion_rate: Decimal.new("1.50")})
+      _ = update_stream!(high, %{conversion_rate: Decimal.new("2.25")})
+
+      sorted =
+        TiktokLive.list_streams(
+          brand.id,
+          sort_by: "conversion",
+          sort_dir: "desc",
+          limit: 20
+        )
+
+      assert Enum.map(sorted, & &1.id) == [high.id, mid.id, low.id]
+    end
+
+    test "list_streams sorts by ctr" do
+      brand = brand_fixture()
+
+      low = stream_fixture(brand: brand, started_at: DateTime.add(DateTime.utc_now(), -3, :hour))
+      mid = stream_fixture(brand: brand, started_at: DateTime.add(DateTime.utc_now(), -2, :hour))
+      high = stream_fixture(brand: brand, started_at: DateTime.add(DateTime.utc_now(), -1, :hour))
+
+      _ = update_stream!(low, %{click_through_rate: Decimal.new("0.25")})
+      _ = update_stream!(mid, %{click_through_rate: Decimal.new("1.75")})
+      _ = update_stream!(high, %{click_through_rate: Decimal.new("3.25")})
+
+      sorted =
+        TiktokLive.list_streams(
+          brand.id,
+          sort_by: "ctr",
+          sort_dir: "desc",
+          limit: 20
+        )
+
+      assert Enum.map(sorted, & &1.id) == [high.id, mid.id, low.id]
+    end
   end
 
   describe "brand isolation" do
@@ -171,5 +260,11 @@ defmodule SocialObjects.TiktokLive.StreamLifecycleTest do
       assert Enum.any?(brand2_streams, fn s -> s.id == stream2.id end)
       refute Enum.any?(brand2_streams, fn s -> s.id == stream1.id end)
     end
+  end
+
+  defp update_stream!(stream, attrs) do
+    stream
+    |> Ecto.Changeset.change(attrs)
+    |> Repo.update!()
   end
 end
