@@ -1835,20 +1835,20 @@ defmodule SocialObjectsWeb.CreatorsLive.Index do
   defp creator_status_filter_options(segment_stats) do
     [
       {"all", "All Creators (#{Map.get(segment_stats, :total, 0)})"},
-      {"rising_star", "Rising Star (#{Map.get(segment_stats, :rising_star, 0)})"},
-      {"vip_elite", "VIP Elite (#{Map.get(segment_stats, :vip_elite, 0)})"},
-      {"vip_stable", "VIP Stable (#{Map.get(segment_stats, :vip_stable, 0)})"},
-      {"vip_at_risk", "At Risk (#{Map.get(segment_stats, :vip_at_risk, 0)})"}
+      {"rising_star", "High: Rising Star (#{Map.get(segment_stats, :rising_star, 0)})"},
+      {"vip_elite", "High: VIP Elite (#{Map.get(segment_stats, :vip_elite, 0)})"},
+      {"vip_stable", "Medium: VIP Stable (#{Map.get(segment_stats, :vip_stable, 0)})"},
+      {"vip_at_risk", "Monitor: At Risk (#{Map.get(segment_stats, :vip_at_risk, 0)})"}
     ]
   end
 
   defp segment_descriptions do
     %{
-      "rising_star" => "Non-VIP in L30 top 75 \u2014 high recent performers to watch",
-      "vip_elite" => "VIP and Trending \u2014 top consistent performers currently surging",
+      "rising_star" => "High Priority — Non-VIP in L30 top 75, high recent performers",
+      "vip_elite" => "High Priority — VIP and Trending, top performers currently surging",
       "vip_stable" =>
-        "VIP, not trending, L90 rank \u2264 30 \u2014 reliable consistent performers",
-      "vip_at_risk" => "VIP with L90 rank > 30 \u2014 slipping, may need re-engagement"
+        "Medium Priority — VIP, not trending, L90 rank ≤ 30, reliable performers",
+      "vip_at_risk" => "Monitor — VIP with L90 rank > 30, slipping, needs re-engagement"
     }
   end
 

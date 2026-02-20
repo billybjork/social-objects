@@ -1713,34 +1713,39 @@ defmodule SocialObjectsWeb.CreatorTableComponents do
   defp format_touchpoint_type("email"), do: "Email"
   defp format_touchpoint_type(_), do: "-"
 
+  # Priority tier display: segments map to High/Medium/Monitor
   defp format_priority(nil), do: "-"
   defp format_priority(""), do: "-"
-  defp format_priority(:rising_star), do: "Rising Star"
-  defp format_priority("rising_star"), do: "Rising Star"
-  defp format_priority(:vip_elite), do: "VIP Elite"
-  defp format_priority("vip_elite"), do: "VIP Elite"
-  defp format_priority(:vip_stable), do: "VIP Stable"
-  defp format_priority("vip_stable"), do: "VIP Stable"
-  defp format_priority(:vip_at_risk), do: "At Risk"
-  defp format_priority("vip_at_risk"), do: "At Risk"
-  # Legacy values (Phase 1 transition)
+  # High priority: trending creators (top L30 performers)
+  defp format_priority(:rising_star), do: "High"
+  defp format_priority("rising_star"), do: "High"
+  defp format_priority(:vip_elite), do: "High"
+  defp format_priority("vip_elite"), do: "High"
+  # Medium priority: stable VIPs not currently trending
+  defp format_priority(:vip_stable), do: "Medium"
+  defp format_priority("vip_stable"), do: "Medium"
+  # Monitor: VIPs slipping in rank, need re-engagement
+  defp format_priority(:vip_at_risk), do: "Monitor"
+  defp format_priority("vip_at_risk"), do: "Monitor"
+  # Legacy values
   defp format_priority(:high), do: "High"
   defp format_priority("high"), do: "High"
   defp format_priority(:medium), do: "Medium"
   defp format_priority("medium"), do: "Medium"
-  defp format_priority(:monitor), do: "Needs Attention"
-  defp format_priority("monitor"), do: "Needs Attention"
+  defp format_priority(:monitor), do: "Monitor"
+  defp format_priority("monitor"), do: "Monitor"
   defp format_priority(_), do: "-"
 
-  defp priority_badge_class(:rising_star), do: "badge--success"
-  defp priority_badge_class("rising_star"), do: "badge--success"
-  defp priority_badge_class(:vip_elite), do: "badge--purple"
-  defp priority_badge_class("vip_elite"), do: "badge--purple"
+  # High = danger (red), Medium = info (blue), Monitor = warning (yellow)
+  defp priority_badge_class(:rising_star), do: "badge--danger"
+  defp priority_badge_class("rising_star"), do: "badge--danger"
+  defp priority_badge_class(:vip_elite), do: "badge--danger"
+  defp priority_badge_class("vip_elite"), do: "badge--danger"
   defp priority_badge_class(:vip_stable), do: "badge--info"
   defp priority_badge_class("vip_stable"), do: "badge--info"
   defp priority_badge_class(:vip_at_risk), do: "badge--warning"
   defp priority_badge_class("vip_at_risk"), do: "badge--warning"
-  # Legacy values (Phase 1 transition)
+  # Legacy values
   defp priority_badge_class(:high), do: "badge--danger"
   defp priority_badge_class("high"), do: "badge--danger"
   defp priority_badge_class(:medium), do: "badge--info"
