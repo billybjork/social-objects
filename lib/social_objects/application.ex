@@ -10,7 +10,10 @@ defmodule SocialObjects.Application do
 
   @impl true
   def start(_type, _args) do
-    children = [
+    # Skip web server and related services when running mix tasks (e.g., backfill)
+    skip_web? = System.get_env("SKIP_WEB_SERVER") == "true"
+
+    base_children = [
       SocialObjectsWeb.Telemetry,
       SocialObjects.Repo,
       {DNSCluster, query: Application.get_env(:social_objects, :dns_cluster_query) || :ignore},
@@ -22,7 +25,10 @@ defmodule SocialObjects.Application do
       # Cache for TikTok Shop Analytics API responses
       SocialObjects.TiktokShop.AnalyticsCache,
       # Start Oban for background job processing
-      {Oban, Application.fetch_env!(:social_objects, Oban)},
+      {Oban, Application.fetch_env!(:social_objects, Oban)}
+    ]
+
+    web_children = [
       # Start to serve requests - in dev, this also starts the TikTok Bridge watcher
       SocialObjectsWeb.Endpoint,
       # TikTok Bridge WebSocket client (after Endpoint so watcher can start the bridge first)
@@ -30,6 +36,8 @@ defmodule SocialObjects.Application do
       # TikTok Bridge health monitor (checks bridge service health periodically)
       SocialObjects.TiktokLive.BridgeHealthMonitor
     ]
+
+    children = if skip_web?, do: base_children, else: base_children ++ web_children
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
